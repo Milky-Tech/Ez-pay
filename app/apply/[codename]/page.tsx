@@ -295,7 +295,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import Header from "@/components/header";
 import ChatWidget from "@/components/chat-widget";
@@ -320,9 +320,10 @@ import {
   Home,
   CheckCircle,
   AlertCircle,
+  ArrowLeft,
 } from "lucide-react";
 
-// Demo properties data
+// Demo properties data - using a simpler structure
 const DEMO_PROPERTIES = [
   {
     id: "1",
@@ -374,14 +375,42 @@ const DEMO_PROPERTIES = [
   },
 ];
 
+// Define types for our demo data
+interface DemoProperty {
+  id: string;
+  code_name: string;
+  typology: string;
+  area: string;
+  state: string;
+  monthly_cost: number;
+}
+
+interface FormData {
+  fullName: string;
+  email: string;
+  phone: string;
+  currentAddress: string;
+  currentLandlordName: string;
+  currentLandlordContact: string;
+  reasonForLeaving: string;
+  durationOfStay: string;
+  companyName: string;
+  jobTitle: string;
+  monthlyIncome: string;
+  hrContact: string;
+  desiredStartDate: string;
+  paymentPlan: "ez_anchor" | "ez_ascend";
+  emergencyContactName: string;
+  emergencyContactPhone: string;
+}
+
 export default function RentalApplicationPage() {
   const params = useParams();
+  const router = useRouter();
   const [currentStep, setCurrentStep] = useState(0);
-  const [property, setProperty] = useState<(typeof DEMO_PROPERTIES)[0] | null>(
-    null
-  );
+  const [property, setProperty] = useState<DemoProperty | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<FormData>({
     fullName: "",
     email: "",
     phone: "",
@@ -395,27 +424,42 @@ export default function RentalApplicationPage() {
     monthlyIncome: "",
     hrContact: "",
     desiredStartDate: "",
-    paymentPlan: "ez_anchor" as "ez_anchor" | "ez_ascend",
+    paymentPlan: "ez_anchor",
     emergencyContactName: "",
     emergencyContactPhone: "",
   });
 
-  const totalSteps = 5; // Increased to 5 steps for better flow
+  const totalSteps = 5;
   const progress = ((currentStep + 1) / totalSteps) * 100;
 
   // Load property data
   useEffect(() => {
-    const timer = setTimeout(() => {
-      const codename = params.codename as string;
-      const foundProperty = DEMO_PROPERTIES.find(
-        (p) => p.code_name === codename || p.id === codename
-      );
-      setProperty(foundProperty || DEMO_PROPERTIES[0]); // Default to first if not found
-      setIsLoading(false);
-    }, 300);
+    const loadProperty = () => {
+      try {
+        const codename = params?.codename as string;
+        if (!codename) {
+          // Default to first property if no codename
+          setProperty(DEMO_PROPERTIES[0]);
+          setIsLoading(false);
+          return;
+        }
 
+        const foundProperty = DEMO_PROPERTIES.find(
+          (p) => p.code_name === codename || p.id === codename
+        );
+        setProperty(foundProperty || DEMO_PROPERTIES[0]);
+      } catch (error) {
+        console.error("Error loading property:", error);
+        setProperty(DEMO_PROPERTIES[0]);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    // Simulate loading delay
+    const timer = setTimeout(loadProperty, 300);
     return () => clearTimeout(timer);
-  }, [params.codename]);
+  }, [params]);
 
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat("en-NG", {
@@ -441,31 +485,46 @@ export default function RentalApplicationPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Simulate submission
-    alert(
-      `Application submitted successfully for ${property?.typology}!\n\nYou will receive an email confirmation shortly. Our team will review your application within 24-48 hours.`
-    );
+    try {
+      // Simulate API call
+      console.log("Submitting application:", { property, formData });
 
-    // Reset form
-    setCurrentStep(0);
-    setFormData({
-      fullName: "",
-      email: "",
-      phone: "",
-      currentAddress: "",
-      currentLandlordName: "",
-      currentLandlordContact: "",
-      reasonForLeaving: "",
-      durationOfStay: "",
-      companyName: "",
-      jobTitle: "",
-      monthlyIncome: "",
-      hrContact: "",
-      desiredStartDate: "",
-      paymentPlan: "ez_anchor",
-      emergencyContactName: "",
-      emergencyContactPhone: "",
-    });
+      // Show success message
+      alert(
+        `Application submitted successfully for ${property?.typology}!\n\nYou will receive an email confirmation shortly. Our team will review your application within 24-48 hours.`
+      );
+
+      // Reset form and redirect
+      setCurrentStep(0);
+      setFormData({
+        fullName: "",
+        email: "",
+        phone: "",
+        currentAddress: "",
+        currentLandlordName: "",
+        currentLandlordContact: "",
+        reasonForLeaving: "",
+        durationOfStay: "",
+        companyName: "",
+        jobTitle: "",
+        monthlyIncome: "",
+        hrContact: "",
+        desiredStartDate: "",
+        paymentPlan: "ez_anchor",
+        emergencyContactName: "",
+        emergencyContactPhone: "",
+      });
+
+      // Redirect to listings page after 2 seconds
+      setTimeout(() => {
+        router.push("/listings");
+      }, 2000);
+    } catch (error) {
+      console.error("Error submitting application:", error);
+      alert(
+        "There was an error submitting your application. Please try again."
+      );
+    }
   };
 
   const stepTitles = [
@@ -487,6 +546,31 @@ export default function RentalApplicationPage() {
     );
   }
 
+  // If no property found, show error
+  if (!property) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <Header />
+        <div className="pt-24 pb-12">
+          <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+            <h2 className="text-2xl font-bold text-gray-700 mb-4">
+              Property Not Found
+            </h2>
+            <p className="text-gray-600 mb-6">
+              The property you are trying to apply for could not be found.
+            </p>
+            <Link href="/listings">
+              <Button className="bg-primary">
+                <ArrowLeft className="mr-2 h-4 w-4" />
+                Back to Listings
+              </Button>
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       <Header />
@@ -496,10 +580,11 @@ export default function RentalApplicationPage() {
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="mb-8">
             <Link
-              href={`/listings/${property?.code_name}`}
+              href={`/listings/${property?.code_name || property?.id}`}
               className="text-primary hover:underline font-montserrat flex items-center"
             >
-              <span className="mr-2">&larr;</span> Back to Property
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Back to Property
             </Link>
           </div>
 
@@ -512,13 +597,13 @@ export default function RentalApplicationPage() {
                     <Home className="h-6 w-6 text-primary mt-1" />
                     <div>
                       <h3 className="font-bold text-lg text-primary font-raleway">
-                        {property?.typology}
+                        {property.typology}
                       </h3>
                       <p className="text-sm text-gray-600">
-                        {property?.area}, {property?.state}
+                        {property.area}, {property.state}
                       </p>
                       <p className="text-xs text-gray-500 mt-1">
-                        Code: {property?.code_name}
+                        Code: {property.code_name}
                       </p>
                     </div>
                   </div>
@@ -527,42 +612,34 @@ export default function RentalApplicationPage() {
                     <div className="flex justify-between items-center mb-2">
                       <span className="text-gray-600">Monthly Rent:</span>
                       <span className="text-2xl font-bold text-primary font-raleway">
-                        {property ? formatPrice(property.monthly_cost) : "N/A"}
+                        {formatPrice(property.monthly_cost)}
                       </span>
                     </div>
                     <p className="text-sm text-gray-500">EZ-Pay monthly rate</p>
                   </div>
 
-                  <div className="bg-secondary/10 rounded-lg p-4">
+                  <div className="bg-secondary/10 rounded-lg p-4 mb-4">
                     <h4 className="font-semibold text-gray-700 mb-2 flex items-center">
                       <CheckCircle className="h-4 w-4 mr-2 text-secondary" />
                       Application Checklist
                     </h4>
                     <ul className="space-y-2 text-sm text-gray-600">
-                      <li className="flex items-center">
-                        <span className="h-2 w-2 bg-secondary rounded-full mr-2"></span>
-                        Personal Information
-                      </li>
-                      <li className="flex items-center">
-                        <span className="h-2 w-2 bg-secondary rounded-full mr-2"></span>
-                        Current Landlord Reference
-                      </li>
-                      <li className="flex items-center">
-                        <span className="h-2 w-2 bg-secondary rounded-full mr-2"></span>
-                        Employment Verification
-                      </li>
-                      <li className="flex items-center">
-                        <span className="h-2 w-2 bg-secondary rounded-full mr-2"></span>
-                        Identification Documents
-                      </li>
-                      <li className="flex items-center">
-                        <span className="h-2 w-2 bg-secondary rounded-full mr-2"></span>
-                        Payment Plan Selection
-                      </li>
+                      {stepTitles.map((title, index) => (
+                        <li key={index} className="flex items-center">
+                          <span
+                            className={`h-2 w-2 rounded-full mr-2 ${
+                              index <= currentStep
+                                ? "bg-secondary"
+                                : "bg-gray-300"
+                            }`}
+                          ></span>
+                          {title}
+                        </li>
+                      ))}
                     </ul>
                   </div>
 
-                  <Alert className="mt-4">
+                  <Alert>
                     <AlertCircle className="h-4 w-4" />
                     <AlertDescription className="text-sm">
                       Your application will be reviewed within 24-48 hours.
@@ -577,12 +654,12 @@ export default function RentalApplicationPage() {
             <div className="lg:col-span-2">
               <Card>
                 <CardHeader>
-                  <CardTitle className="font-raleway text-3xl text-primary">
+                  <CardTitle className="font-raleway text-2xl md:text-3xl text-primary">
                     Rental Application Form
                   </CardTitle>
                   <CardDescription>
                     Complete all {totalSteps} steps to apply for{" "}
-                    {property?.typology}
+                    {property.typology}
                   </CardDescription>
                   <div className="mt-4">
                     <Progress value={progress} className="h-2" />
@@ -601,6 +678,9 @@ export default function RentalApplicationPage() {
                     {/* Step 1: Personal Information */}
                     {currentStep === 0 && (
                       <div className="space-y-6">
+                        <h3 className="text-xl font-semibold text-primary font-montserrat">
+                          Personal Information
+                        </h3>
                         <div className="space-y-4">
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
@@ -695,6 +775,9 @@ export default function RentalApplicationPage() {
                     {/* Step 2: Current Residency */}
                     {currentStep === 1 && (
                       <div className="space-y-6">
+                        <h3 className="text-xl font-semibold text-primary font-montserrat">
+                          Current Residency Details
+                        </h3>
                         <div className="space-y-4">
                           <div>
                             <Label htmlFor="currentAddress">
@@ -734,7 +817,7 @@ export default function RentalApplicationPage() {
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
                               <Label htmlFor="currentLandlordName">
-                                Current Landlord's Name *
+                                Current Landlord&apos;s Name *
                               </Label>
                               <Input
                                 id="currentLandlordName"
@@ -751,7 +834,7 @@ export default function RentalApplicationPage() {
                             </div>
                             <div>
                               <Label htmlFor="currentLandlordContact">
-                                Landlord's Contact *
+                                Landlord&apos;s Contact *
                               </Label>
                               <Input
                                 id="currentLandlordContact"
@@ -792,6 +875,9 @@ export default function RentalApplicationPage() {
                     {/* Step 3: Employment & Income */}
                     {currentStep === 2 && (
                       <div className="space-y-6">
+                        <h3 className="text-xl font-semibold text-primary font-montserrat">
+                          Employment & Financial Information
+                        </h3>
                         <div className="space-y-4">
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
@@ -881,7 +967,7 @@ export default function RentalApplicationPage() {
                               <Upload className="h-10 w-10 text-gray-400 mx-auto mb-3" />
                               <Label
                                 htmlFor="bankStatements"
-                                className="block text-center cursor-pointer"
+                                className="block text-center"
                               >
                                 <span className="text-primary font-semibold">
                                   Upload 3-6 Months Bank Statements
@@ -895,7 +981,10 @@ export default function RentalApplicationPage() {
                                 id="bankStatements"
                                 type="file"
                                 multiple
-                                className="mt-3 cursor-pointer"
+                                className="mt-3"
+                                onChange={(e) =>
+                                  console.log("Files selected:", e.target.files)
+                                }
                               />
                             </div>
                           </div>
@@ -906,6 +995,9 @@ export default function RentalApplicationPage() {
                     {/* Step 4: Identification */}
                     {currentStep === 3 && (
                       <div className="space-y-6">
+                        <h3 className="text-xl font-semibold text-primary font-montserrat">
+                          Identification & Verification
+                        </h3>
                         <div className="space-y-4">
                           <Alert>
                             <FileText className="h-4 w-4" />
@@ -920,7 +1012,7 @@ export default function RentalApplicationPage() {
                               <Upload className="h-10 w-10 text-gray-400 mx-auto mb-3" />
                               <Label
                                 htmlFor="govtId"
-                                className="block text-center cursor-pointer"
+                                className="block text-center"
                               >
                                 <span className="text-primary font-semibold">
                                   Government Issued ID
@@ -928,14 +1020,20 @@ export default function RentalApplicationPage() {
                                 *
                               </Label>
                               <p className="text-sm text-gray-500 mt-1">
-                                International Passport, Driver's License, or
-                                National ID
+                                International Passport, Driver&apos;s License,
+                                or National ID
                               </p>
                               <Input
                                 id="govtId"
                                 type="file"
                                 accept="image/*,.pdf"
-                                className="mt-3 cursor-pointer"
+                                className="mt-3"
+                                onChange={(e) =>
+                                  console.log(
+                                    "ID file selected:",
+                                    e.target.files
+                                  )
+                                }
                               />
                             </div>
                           </div>
@@ -957,7 +1055,7 @@ export default function RentalApplicationPage() {
                                 <Upload className="h-10 w-10 text-gray-400 mx-auto mb-3" />
                                 <Label
                                   htmlFor="livePhoto"
-                                  className="block text-center cursor-pointer"
+                                  className="block text-center"
                                 >
                                   <span className="text-primary font-semibold">
                                     Live Selfie Photo
@@ -971,8 +1069,13 @@ export default function RentalApplicationPage() {
                                   id="livePhoto"
                                   type="file"
                                   accept="image/*"
-                                  capture="user"
-                                  className="mt-3 cursor-pointer"
+                                  className="mt-3"
+                                  onChange={(e) =>
+                                    console.log(
+                                      "Photo selected:",
+                                      e.target.files
+                                    )
+                                  }
                                 />
                               </div>
                             </div>
@@ -981,7 +1084,7 @@ export default function RentalApplicationPage() {
                                 <Upload className="h-10 w-10 text-gray-400 mx-auto mb-3" />
                                 <Label
                                   htmlFor="liveVideo"
-                                  className="block text-center cursor-pointer"
+                                  className="block text-center"
                                 >
                                   <span className="text-primary font-semibold">
                                     Short Verification Video
@@ -995,8 +1098,13 @@ export default function RentalApplicationPage() {
                                   id="liveVideo"
                                   type="file"
                                   accept="video/*"
-                                  capture="user"
-                                  className="mt-3 cursor-pointer"
+                                  className="mt-3"
+                                  onChange={(e) =>
+                                    console.log(
+                                      "Video selected:",
+                                      e.target.files
+                                    )
+                                  }
                                 />
                               </div>
                             </div>
@@ -1008,6 +1116,9 @@ export default function RentalApplicationPage() {
                     {/* Step 5: Terms & Review */}
                     {currentStep === 4 && (
                       <div className="space-y-6">
+                        <h3 className="text-xl font-semibold text-primary font-montserrat">
+                          Final Review & Terms
+                        </h3>
                         <div className="space-y-4">
                           <div>
                             <Label
@@ -1048,11 +1159,13 @@ export default function RentalApplicationPage() {
                             </Label>
                             <RadioGroup
                               value={formData.paymentPlan}
-                              onValueChange={(value: any) =>
+                              onValueChange={(
+                                value: "ez_anchor" | "ez_ascend"
+                              ) =>
                                 setFormData({ ...formData, paymentPlan: value })
                               }
                             >
-                              <div className="flex items-start space-x-3 border rounded-lg p-4 hover:border-primary hover:bg-primary/5 transition-colors cursor-pointer">
+                              <div className="flex items-start space-x-3 border rounded-lg p-4 hover:border-primary hover:bg-primary/5 transition-colors">
                                 <RadioGroupItem
                                   value="ez_anchor"
                                   id="ez_anchor"
@@ -1074,23 +1187,19 @@ export default function RentalApplicationPage() {
                                         </p>
                                         <div className="mt-2">
                                           <p className="font-semibold text-primary">
-                                            {property
-                                              ? formatPrice(
-                                                  property.monthly_cost
-                                                )
-                                              : "N/A"}{" "}
+                                            {formatPrice(property.monthly_cost)}{" "}
                                             / month
                                           </p>
                                         </div>
                                       </div>
-                                      <Badge className="bg-green-100 text-green-800">
+                                      <span className="inline-flex items-center rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800">
                                         Most Popular
-                                      </Badge>
+                                      </span>
                                     </div>
                                   </Label>
                                 </div>
                               </div>
-                              <div className="flex items-start space-x-3 border rounded-lg p-4 hover:border-primary hover:bg-primary/5 transition-colors cursor-pointer mt-3">
+                              <div className="flex items-start space-x-3 border rounded-lg p-4 hover:border-primary hover:bg-primary/5 transition-colors mt-3">
                                 <RadioGroupItem
                                   value="ez_ascend"
                                   id="ez_ascend"
@@ -1113,11 +1222,9 @@ export default function RentalApplicationPage() {
                                       <div className="mt-2">
                                         <p className="font-semibold text-primary">
                                           Starting from{" "}
-                                          {property
-                                            ? formatPrice(
-                                                property.monthly_cost * 0.8
-                                              )
-                                            : "N/A"}{" "}
+                                          {formatPrice(
+                                            property.monthly_cost * 0.8
+                                          )}{" "}
                                           / month
                                         </p>
                                       </div>
@@ -1136,13 +1243,13 @@ export default function RentalApplicationPage() {
                               <div className="flex justify-between">
                                 <span className="text-gray-600">Property:</span>
                                 <span className="font-medium">
-                                  {property?.typology}
+                                  {property.typology}
                                 </span>
                               </div>
                               <div className="flex justify-between">
                                 <span className="text-gray-600">Location:</span>
                                 <span className="font-medium">
-                                  {property?.area}, {property?.state}
+                                  {property.area}, {property.state}
                                 </span>
                               </div>
                               <div className="flex justify-between">
@@ -1155,22 +1262,35 @@ export default function RentalApplicationPage() {
                                     : "EZ-Ascend (Graduated)"}
                                 </span>
                               </div>
+                              <div className="flex justify-between">
+                                <span className="text-gray-600">
+                                  Applicant:
+                                </span>
+                                <span className="font-medium">
+                                  {formData.fullName || "Not provided"}
+                                </span>
+                              </div>
                             </div>
                           </div>
 
                           <div className="border rounded-lg p-4">
-                            <Label className="flex items-center space-x-2 cursor-pointer">
+                            <div className="flex items-start space-x-2">
                               <input
                                 type="checkbox"
+                                id="terms"
                                 required
-                                className="h-4 w-4"
+                                className="h-4 w-4 mt-1"
                               />
-                              <span className="text-sm">
+                              <Label
+                                htmlFor="terms"
+                                className="text-sm cursor-pointer"
+                              >
                                 I agree to the Terms of Service and Privacy
                                 Policy. I confirm all information provided is
-                                accurate.
-                              </span>
-                            </Label>
+                                accurate and complete to the best of my
+                                knowledge.
+                              </Label>
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -1214,22 +1334,5 @@ export default function RentalApplicationPage() {
         </div>
       </div>
     </div>
-  );
-}
-
-// Add Badge component if not already imported
-function Badge({
-  children,
-  className,
-}: {
-  children: React.ReactNode;
-  className?: string;
-}) {
-  return (
-    <span
-      className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${className}`}
-    >
-      {children}
-    </span>
   );
 }
