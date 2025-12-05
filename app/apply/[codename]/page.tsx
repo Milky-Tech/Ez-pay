@@ -323,7 +323,7 @@ import {
   ArrowLeft,
 } from "lucide-react";
 
-// Demo properties data - using a simpler structure
+// Demo properties data
 const DEMO_PROPERTIES = [
   {
     id: "1",
@@ -375,16 +375,6 @@ const DEMO_PROPERTIES = [
   },
 ];
 
-// Define types for our demo data
-interface DemoProperty {
-  id: string;
-  code_name: string;
-  typology: string;
-  area: string;
-  state: string;
-  monthly_cost: number;
-}
-
 interface FormData {
   fullName: string;
   email: string;
@@ -404,11 +394,21 @@ interface FormData {
   emergencyContactPhone: string;
 }
 
+const stepTitles = [
+  "Personal Information",
+  "Current Residency",
+  "Employment & Income",
+  "Identification",
+  "Terms & Review",
+];
+
 export default function RentalApplicationPage() {
   const params = useParams();
   const router = useRouter();
   const [currentStep, setCurrentStep] = useState(0);
-  const [property, setProperty] = useState<DemoProperty | null>(null);
+  const [property, setProperty] = useState<(typeof DEMO_PROPERTIES)[0] | null>(
+    null
+  );
   const [isLoading, setIsLoading] = useState(true);
   const [formData, setFormData] = useState<FormData>({
     fullName: "",
@@ -429,25 +429,25 @@ export default function RentalApplicationPage() {
     emergencyContactPhone: "",
   });
 
-  const totalSteps = 5;
+  const totalSteps = stepTitles.length;
   const progress = ((currentStep + 1) / totalSteps) * 100;
 
-  // Load property data
+  // Load property data - runs only on client side
   useEffect(() => {
+    // Ensure we're in the browser
+    if (typeof window === "undefined") return;
+
     const loadProperty = () => {
       try {
         const codename = params?.codename as string;
-        if (!codename) {
-          // Default to first property if no codename
-          setProperty(DEMO_PROPERTIES[0]);
-          setIsLoading(false);
-          return;
-        }
 
-        const foundProperty = DEMO_PROPERTIES.find(
-          (p) => p.code_name === codename || p.id === codename
-        );
-        setProperty(foundProperty || DEMO_PROPERTIES[0]);
+        // If no codename in params, use a default
+        const foundProperty =
+          DEMO_PROPERTIES.find(
+            (p) => p.code_name === codename || p.id === codename
+          ) || DEMO_PROPERTIES[0]; // Default to first property
+
+        setProperty(foundProperty);
       } catch (error) {
         console.error("Error loading property:", error);
         setProperty(DEMO_PROPERTIES[0]);
@@ -456,8 +456,8 @@ export default function RentalApplicationPage() {
       }
     };
 
-    // Simulate loading delay
-    const timer = setTimeout(loadProperty, 300);
+    // Small delay to simulate loading
+    const timer = setTimeout(loadProperty, 100);
     return () => clearTimeout(timer);
   }, [params]);
 
@@ -487,7 +487,7 @@ export default function RentalApplicationPage() {
 
     try {
       // Simulate API call
-      console.log("Submitting application:", { property, formData });
+      console.log("Application submitted:", { property, formData });
 
       // Show success message
       alert(
@@ -515,7 +515,7 @@ export default function RentalApplicationPage() {
         emergencyContactPhone: "",
       });
 
-      // Redirect to listings page after 2 seconds
+      // Redirect to listings page
       setTimeout(() => {
         router.push("/listings");
       }, 2000);
@@ -527,49 +527,24 @@ export default function RentalApplicationPage() {
     }
   };
 
-  const stepTitles = [
-    "Personal Information",
-    "Current Residency",
-    "Employment & Income",
-    "Identification",
-    "Terms & Review",
-  ];
-
+  // Show loading state
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gray-50">
         <Header />
-        <div className="flex items-center justify-center h-screen">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-        </div>
-      </div>
-    );
-  }
-
-  // If no property found, show error
-  if (!property) {
-    return (
-      <div className="min-h-screen bg-gray-50">
-        <Header />
         <div className="pt-24 pb-12">
-          <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-            <h2 className="text-2xl font-bold text-gray-700 mb-4">
-              Property Not Found
-            </h2>
-            <p className="text-gray-600 mb-6">
-              The property you are trying to apply for could not be found.
-            </p>
-            <Link href="/listings">
-              <Button className="bg-primary">
-                <ArrowLeft className="mr-2 h-4 w-4" />
-                Back to Listings
-              </Button>
-            </Link>
+          <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex items-center justify-center h-64">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+            </div>
           </div>
         </div>
       </div>
     );
   }
+
+  // Use a default property if none is found
+  const currentProperty = property || DEMO_PROPERTIES[0];
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -580,7 +555,7 @@ export default function RentalApplicationPage() {
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="mb-8">
             <Link
-              href={`/listings/${property?.code_name || property?.id}`}
+              href={`/listings/${currentProperty.code_name}`}
               className="text-primary hover:underline font-montserrat flex items-center"
             >
               <ArrowLeft className="h-4 w-4 mr-2" />
@@ -591,63 +566,67 @@ export default function RentalApplicationPage() {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             {/* Left Column - Property Info */}
             <div className="lg:col-span-1">
-              <Card className="sticky top-24">
-                <CardContent className="p-6">
-                  <div className="flex items-start space-x-3 mb-4">
-                    <Home className="h-6 w-6 text-primary mt-1" />
-                    <div>
-                      <h3 className="font-bold text-lg text-primary font-raleway">
-                        {property.typology}
-                      </h3>
-                      <p className="text-sm text-gray-600">
-                        {property.area}, {property.state}
-                      </p>
-                      <p className="text-xs text-gray-500 mt-1">
-                        Code: {property.code_name}
+              <div className="sticky top-24">
+                <Card>
+                  <CardContent className="p-6">
+                    <div className="flex items-start space-x-3 mb-4">
+                      <Home className="h-6 w-6 text-primary mt-1" />
+                      <div>
+                        <h3 className="font-bold text-lg text-primary font-raleway">
+                          {currentProperty.typology}
+                        </h3>
+                        <p className="text-sm text-gray-600">
+                          {currentProperty.area}, {currentProperty.state}
+                        </p>
+                        <p className="text-xs text-gray-500 mt-1">
+                          Code: {currentProperty.code_name}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="border-t pt-4 mb-4">
+                      <div className="flex justify-between items-center mb-2">
+                        <span className="text-gray-600">Monthly Rent:</span>
+                        <span className="text-2xl font-bold text-primary font-raleway">
+                          {formatPrice(currentProperty.monthly_cost)}
+                        </span>
+                      </div>
+                      <p className="text-sm text-gray-500">
+                        EZ-Pay monthly rate
                       </p>
                     </div>
-                  </div>
 
-                  <div className="border-t pt-4 mb-4">
-                    <div className="flex justify-between items-center mb-2">
-                      <span className="text-gray-600">Monthly Rent:</span>
-                      <span className="text-2xl font-bold text-primary font-raleway">
-                        {formatPrice(property.monthly_cost)}
-                      </span>
+                    <div className="bg-secondary/10 rounded-lg p-4 mb-4">
+                      <h4 className="font-semibold text-gray-700 mb-2 flex items-center">
+                        <CheckCircle className="h-4 w-4 mr-2 text-secondary" />
+                        Application Checklist
+                      </h4>
+                      <ul className="space-y-2 text-sm text-gray-600">
+                        {stepTitles.map((title, index) => (
+                          <li key={index} className="flex items-center">
+                            <span
+                              className={`h-2 w-2 rounded-full mr-2 ${
+                                index <= currentStep
+                                  ? "bg-secondary"
+                                  : "bg-gray-300"
+                              }`}
+                            ></span>
+                            {title}
+                          </li>
+                        ))}
+                      </ul>
                     </div>
-                    <p className="text-sm text-gray-500">EZ-Pay monthly rate</p>
-                  </div>
 
-                  <div className="bg-secondary/10 rounded-lg p-4 mb-4">
-                    <h4 className="font-semibold text-gray-700 mb-2 flex items-center">
-                      <CheckCircle className="h-4 w-4 mr-2 text-secondary" />
-                      Application Checklist
-                    </h4>
-                    <ul className="space-y-2 text-sm text-gray-600">
-                      {stepTitles.map((title, index) => (
-                        <li key={index} className="flex items-center">
-                          <span
-                            className={`h-2 w-2 rounded-full mr-2 ${
-                              index <= currentStep
-                                ? "bg-secondary"
-                                : "bg-gray-300"
-                            }`}
-                          ></span>
-                          {title}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-
-                  <Alert>
-                    <AlertCircle className="h-4 w-4" />
-                    <AlertDescription className="text-sm">
-                      Your application will be reviewed within 24-48 hours.
-                      Ensure all information is accurate.
-                    </AlertDescription>
-                  </Alert>
-                </CardContent>
-              </Card>
+                    <Alert>
+                      <AlertCircle className="h-4 w-4" />
+                      <AlertDescription className="text-sm">
+                        Your application will be reviewed within 24-48 hours.
+                        Ensure all information is accurate.
+                      </AlertDescription>
+                    </Alert>
+                  </CardContent>
+                </Card>
+              </div>
             </div>
 
             {/* Right Column - Application Form */}
@@ -659,7 +638,7 @@ export default function RentalApplicationPage() {
                   </CardTitle>
                   <CardDescription>
                     Complete all {totalSteps} steps to apply for{" "}
-                    {property.typology}
+                    {currentProperty.typology}
                   </CardDescription>
                   <div className="mt-4">
                     <Progress value={progress} className="h-2" />
@@ -930,10 +909,10 @@ export default function RentalApplicationPage() {
                               placeholder="e.g., 2000000"
                               required
                             />
-                            {formData.monthlyIncome && property && (
+                            {formData.monthlyIncome && (
                               <p className="text-sm text-gray-600 mt-1">
                                 {parseInt(formData.monthlyIncome) >=
-                                property.monthly_cost ? (
+                                currentProperty.monthly_cost ? (
                                   <span className="text-green-600">
                                     ✓ Income meets requirement
                                   </span>
@@ -1187,7 +1166,9 @@ export default function RentalApplicationPage() {
                                         </p>
                                         <div className="mt-2">
                                           <p className="font-semibold text-primary">
-                                            {formatPrice(property.monthly_cost)}{" "}
+                                            {formatPrice(
+                                              currentProperty.monthly_cost
+                                            )}{" "}
                                             / month
                                           </p>
                                         </div>
@@ -1223,7 +1204,7 @@ export default function RentalApplicationPage() {
                                         <p className="font-semibold text-primary">
                                           Starting from{" "}
                                           {formatPrice(
-                                            property.monthly_cost * 0.8
+                                            currentProperty.monthly_cost * 0.8
                                           )}{" "}
                                           / month
                                         </p>
@@ -1243,13 +1224,14 @@ export default function RentalApplicationPage() {
                               <div className="flex justify-between">
                                 <span className="text-gray-600">Property:</span>
                                 <span className="font-medium">
-                                  {property.typology}
+                                  {currentProperty.typology}
                                 </span>
                               </div>
                               <div className="flex justify-between">
                                 <span className="text-gray-600">Location:</span>
                                 <span className="font-medium">
-                                  {property.area}, {property.state}
+                                  {currentProperty.area},{" "}
+                                  {currentProperty.state}
                                 </span>
                               </div>
                               <div className="flex justify-between">
