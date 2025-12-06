@@ -148,7 +148,7 @@ export default function LandlordPartnerPage() {
           <Card>
             <CardHeader>
               <CardTitle className="font-raleway text-2xl">Property Registration Form</CardTitle>
-              <Progress value={progress} className="mt-4" />
+              {/* <Progress value={progress} className="mt-4" /> */}
               <p className="text-sm text-gray-600 mt-2">Step {currentStep + 1} of {totalSteps}</p>
             </CardHeader>
             <CardContent>

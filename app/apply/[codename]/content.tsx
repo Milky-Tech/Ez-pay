@@ -521,7 +521,7 @@ export default function RentalApplicationContent() {
                     {property.typology}
                   </CardDescription>
                   <div className="mt-4">
-                    <Progress value={progress} className="h-2" />
+                    {/* <Progress value={progress} className="h-2" /> */}
                     <div className="flex justify-between mt-2">
                       <p className="text-sm font-medium text-primary">
                         Step {currentStep + 1}: {stepTitles[currentStep]}
