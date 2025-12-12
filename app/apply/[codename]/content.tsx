@@ -829,7 +829,7 @@ export default function RentalApplicationContent() {
                                 className="block text-center"
                               >
                                 <span className="text-primary font-semibold">
-                                  Upload 3-6 Months Bank Statements
+                                  Upload 6 Months Bank Statements
                                 </span>{" "}
                                 *
                               </Label>
