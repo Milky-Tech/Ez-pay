@@ -83,13 +83,13 @@ export default function Header() {
             >
               FAQ
             </Link>
-            <Link href="/admin">
+            <Link href="/signin">
               <Button
                 variant={isScrolled ? "secondary" : "default"}
                 size="sm"
                 className="font-montserrat"
               >
-                Admin
+                Sign In
               </Button>
             </Link>
           </nav>

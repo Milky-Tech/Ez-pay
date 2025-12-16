@@ -1,6 +1,6 @@
 import Link from "next/link";
 import Header from "@/components/header";
-import ChatWidget from "@/components/chat-widget";
+import ChatWidget from "@/components/ui/chat-widget";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -27,9 +27,9 @@ export default function LandingPage() {
               "url('https://images.pexels.com/photos/1115804/pexels-photo-1115804.jpeg?auto=compress&cs=tinysrgb&w=1920')",
           }}
         />
-        <div className="relative z-10 max-w-[96%] md:max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+        <div className="relative z-10 max-w-[96%] md:max-w-5xl mx-auto my-3 md:my-0 px-4 sm:px-6 lg:px-8 text-center">
           <div className="bg-white/90 backdrop-blur-sm p-12 rounded-2xl border-2 border-accent shadow-2xl">
-            <h1 className="text-5xl md:text-6xl font-bold text-primary mb-6 font-raleway">
+            <h1 className="text-4xl md:text-6xl font-bold text-primary mb-6 font-raleway">
               Your Path to Monthly Living
             </h1>
             <p className="text-2xl md:text-3xl font-semibold text-primary mb-4">
@@ -44,7 +44,7 @@ export default function LandingPage() {
               <Link href="/listings">
                 <Button
                   size="lg"
-                  className="bg-primary hover:bg-primary/90 text-white font-montserrat text-lg px-8 py-8"
+                  className="bg-primary hover:bg-primary/90 text-white font-montserrat text-lg px-7 md:px-6 py-8 md:py-8"
                 >
                   View Available Premium <br /> Homes
                 </Button>
@@ -53,7 +53,7 @@ export default function LandingPage() {
                 <Button
                   size="lg"
                   variant="outline"
-                  className="border-2 border-secondary text-secondary hover:bg-secondary hover:text-white font-montserrat text-lg px-8 py-6"
+                  className="border-2 border-secondary text-secondary hover:bg-secondary hover:text-white font-montserrat text-lg px-8 py-8"
                 >
                   Become an EZ-Partner
                 </Button>
