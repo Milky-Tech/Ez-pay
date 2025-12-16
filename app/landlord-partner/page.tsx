@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Header from "@/components/header";
-import ChatWidget from "@/components/chat-widget";
+import ChatWidget from "@/components/ui/chat-widget";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -351,7 +351,7 @@ export default function LandlordPartnerPage() {
                             </span>
                           </div>
                           <p className="text-xs text-gray-500 mt-2">
-                            All systems linked to Bridgett monitoring for SLA
+                            All systems linked to Bridgent monitoring for SLA
                             adherence
                           </p>
                         </div>

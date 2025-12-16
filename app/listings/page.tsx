@@ -196,7 +196,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import Header from "@/components/header";
-import ChatWidget from "@/components/chat-widget";
+import ChatWidget from "@/components/ui/chat-widget";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
