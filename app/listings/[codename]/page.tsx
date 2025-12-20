@@ -768,18 +768,18 @@ export default function PropertyDetailsPage() {
                       </div>
                       <div className="flex justify-between">
                         <span className="text-gray-600">
-                          Security Deposit (2 months):
+                          Security Deposit (3 months):
                         </span>
                         <span className="font-semibold">
                           {formatPrice(securityDeposit)}
                         </span>
                       </div>
-                      <div className="flex justify-between">
+                      {/* <div className="flex justify-between">
                         <span className="text-gray-600">Agency Fee (10%):</span>
                         <span className="font-semibold">
                           {formatPrice(agencyFee)}
                         </span>
-                      </div>
+                      </div> */}
                       <div className="border-t pt-3 mt-3">
                         <div className="flex justify-between text-lg font-bold text-primary">
                           <span>Initial Payment:</span>

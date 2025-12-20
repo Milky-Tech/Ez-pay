@@ -3,7 +3,8 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { Home, Building2, HelpCircle, Menu, X } from "lucide-react";
+import { Home, Building2, HelpCircle, Menu, X, User } from "lucide-react";
+import { useAuth } from "@/context/authcontext";
 
 export default function Header() {
   const [isScrolled, setIsScrolled] = useState(false);
@@ -16,6 +17,7 @@ export default function Header() {
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
+  const { isAuthenticated } = useAuth();
 
   return (
     <header
@@ -83,15 +85,27 @@ export default function Header() {
             >
               FAQ
             </Link>
-            <Link href="/signin">
-              <Button
-                variant={isScrolled ? "secondary" : "default"}
-                size="sm"
-                className="font-montserrat"
-              >
-                Sign In
-              </Button>
-            </Link>
+            {isAuthenticated ? (
+              <Link href="/admin">
+                <Button
+                  variant={isScrolled ? "secondary" : "default"}
+                  size="sm"
+                  className="font-montserrat"
+                >
+                  <User />
+                </Button>
+              </Link>
+            ) : (
+              <Link href="/signin">
+                <Button
+                  variant={isScrolled ? "secondary" : "default"}
+                  size="sm"
+                  className="font-montserrat"
+                >
+                  Sign In
+                </Button>
+              </Link>
+            )}
           </nav>
 
           <button
@@ -133,15 +147,27 @@ export default function Header() {
               >
                 FAQ
               </Link>
-              <Link href="/admin">
-                <Button
-                  variant="default"
-                  size="sm"
-                  className="font-montserrat w-full"
-                >
-                  Admin
-                </Button>
-              </Link>
+              {isAuthenticated ? (
+                <Link href="/admin">
+                  <Button
+                    variant="default"
+                    size="sm"
+                    className="font-montserrat w-full"
+                  >
+                    <User />
+                  </Button>
+                </Link>
+              ) : (
+                <Link href="/signin">
+                  <Button
+                    variant="default"
+                    size="sm"
+                    className="font-montserrat w-full"
+                  >
+                    Sign In
+                  </Button>
+                </Link>
+              )}
             </nav>
           </div>
         )}
