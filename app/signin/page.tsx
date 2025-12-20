@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -15,16 +15,81 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Lock, Mail, Eye, EyeOff, Home, ShieldCheck } from "lucide-react";
+import {
+  Lock,
+  Mail,
+  Eye,
+  EyeOff,
+  Home,
+  ShieldCheck,
+  CheckCircle,
+} from "lucide-react";
+import { useAuth } from "@/context/authcontext";
+// import { useAuth } from "@/contexts/AuthContext";
 
 export default function SignInPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const { login, isAuthenticated, user } = useAuth();
+  // console.log(isAuthenticated);
+  // console.log(user);
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [showSuccess, setShowSuccess] = useState(false);
+  const [successMessage, setSuccessMessage] = useState("");
+
+  // Check for success message from registration
+  useEffect(() => {
+    const registered = searchParams.get("registered");
+    const verified = searchParams.get("verified");
+    const reset = searchParams.get("reset");
+
+    if (registered === "true") {
+      setShowSuccess(true);
+      setSuccessMessage(
+        "Registration successful! Please login with your credentials."
+      );
+      // Clear the query parameter from URL
+      const newUrl = window.location.pathname;
+      window.history.replaceState({}, "", newUrl);
+    }
+
+    if (verified === "true") {
+      setShowSuccess(true);
+      setSuccessMessage("Email verified successfully! Please login.");
+      const newUrl = window.location.pathname;
+      window.history.replaceState({}, "", newUrl);
+    }
+
+    if (reset === "true") {
+      setShowSuccess(true);
+      setSuccessMessage(
+        "Password reset successful! Please login with your new password."
+      );
+      const newUrl = window.location.pathname;
+      window.history.replaceState({}, "", newUrl);
+    }
+
+    // Auto-hide success message after 5 seconds
+    if (showSuccess) {
+      const timer = setTimeout(() => {
+        setShowSuccess(false);
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [searchParams, showSuccess]);
+
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (isAuthenticated) {
+      router.push("/admin");
+    }
+  }, [isAuthenticated, router]);
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -32,33 +97,33 @@ export default function SignInPage() {
     setError("");
 
     try {
-      // API call to authenticate
-      const response = await fetch("/api/auth/signin", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password, rememberMe }),
-      });
-
-      const data = await response.json();
-
-      if (response.ok) {
-        // Store token and redirect
-        localStorage.setItem("ezpay_token", data.token);
-        localStorage.setItem("ezpay_user", JSON.stringify(data.user));
-        router.push("/listings");
+      // Use the login function from AuthContext
+      const result = await login(email, password);
+      console.log(result);
+      if (result.success) {
+        // Login successful - AuthContext will handle storage and state
+        router.push("/admin");
       } else {
-        setError(data.message || "Invalid email or password");
+        setError(result.message || "Invalid email or password");
       }
     } catch (err) {
+      console.error("Login error:", err);
       setError("Network error. Please try again.");
     } finally {
       setLoading(false);
     }
   };
 
+  // Handle social sign-in (if needed)
   const handleSocialSignIn = (provider: string) => {
     // Redirect to OAuth provider
     window.location.href = `/api/auth/${provider}`;
+  };
+
+  // Auto-fill demo credentials (for development/testing)
+  const fillDemoCredentials = () => {
+    setEmail("demo@ezpay.com");
+    setPassword("demo123");
   };
 
   return (
@@ -80,6 +145,28 @@ export default function SignInPage() {
         </p>
       </div>
 
+      {/* Success Message */}
+      {showSuccess && (
+        <div className="w-full max-w-md mb-4">
+          <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+            <div className="flex items-start gap-3">
+              <CheckCircle className="h-5 w-5 text-green-600 mt-0.5 flex-shrink-0" />
+              <div>
+                <p className="text-green-800 font-medium font-open-sans">
+                  {successMessage}
+                </p>
+                <button
+                  onClick={() => setShowSuccess(false)}
+                  className="text-green-600 text-sm hover:text-green-800 font-open-sans mt-1"
+                >
+                  Dismiss
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Main Card */}
       <Card className="w-full max-w-md shadow-xl border-0">
         <CardHeader className="text-center pb-2">
@@ -92,8 +179,19 @@ export default function SignInPage() {
         </CardHeader>
 
         <CardContent>
-          {/* Social Sign In */}
-          <div className="space-y-3 mb-6">
+          {/* Demo Credentials Button (for development) */}
+          <div className="mb-4">
+            <button
+              type="button"
+              onClick={fillDemoCredentials}
+              className="text-xs text-primary hover:text-primary/80 font-montserrat w-full text-center"
+            >
+              Click here to fill demo credentials
+            </button>
+          </div>
+
+          {/* Social Sign In (Optional - keep if you have OAuth) */}
+          {/* <div className="space-y-3 mb-6">
             <Button
               type="button"
               variant="outline"
@@ -132,10 +230,10 @@ export default function SignInPage() {
               </svg>
               Continue with Apple
             </Button>
-          </div>
+          </div> */}
 
-          {/* Divider */}
-          <div className="relative mb-6">
+          {/* Divider - Only show if you have social buttons */}
+          {/* <div className="relative mb-6">
             <div className="absolute inset-0 flex items-center">
               <div className="w-full border-t border-gray-300"></div>
             </div>
@@ -144,13 +242,13 @@ export default function SignInPage() {
                 Or sign in with email
               </span>
             </div>
-          </div>
+          </div> */}
 
           <form onSubmit={handleSignIn} className="space-y-4">
             {/* Email Field */}
             <div className="space-y-2">
               <Label htmlFor="email" className="font-montserrat text-sm">
-                Email Address
+                Email Address *
               </Label>
               <div className="relative">
                 <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
@@ -160,7 +258,10 @@ export default function SignInPage() {
                   placeholder="your.email@example.com"
                   className="pl-10 font-open-sans"
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  onChange={(e) => {
+                    setEmail(e.target.value);
+                    setError(""); // Clear error when user types
+                  }}
                   required
                 />
               </div>
@@ -170,7 +271,7 @@ export default function SignInPage() {
             <div className="space-y-2">
               <div className="flex justify-between items-center">
                 <Label htmlFor="password" className="font-montserrat text-sm">
-                  Password
+                  Password *
                 </Label>
                 <Link
                   href="/forgot-password"
@@ -187,7 +288,10 @@ export default function SignInPage() {
                   placeholder="Enter your password"
                   className="pl-10 pr-10 font-open-sans"
                   value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  onChange={(e) => {
+                    setPassword(e.target.value);
+                    setError(""); // Clear error when user types
+                  }}
                   required
                 />
                 <button
@@ -222,7 +326,12 @@ export default function SignInPage() {
             {/* Error Message */}
             {error && (
               <div className="bg-red-50 border border-red-200 rounded-lg p-3">
-                <p className="text-red-600 text-sm font-open-sans">{error}</p>
+                <div className="flex items-start gap-2">
+                  <div className="h-4 w-4 text-red-500 mt-0.5 flex-shrink-0">
+                    !
+                  </div>
+                  <p className="text-red-600 text-sm font-open-sans">{error}</p>
+                </div>
               </div>
             )}
 
@@ -242,6 +351,17 @@ export default function SignInPage() {
               )}
             </Button>
           </form>
+
+          {/* Demo Info (for development) */}
+          <div className="mt-6 p-4 bg-blue-50 border border-blue-100 rounded-lg">
+            <p className="text-sm text-blue-800 font-open-sans">
+              <strong>Demo Credentials:</strong>
+              <br />
+              Email: demo@ezpay.com
+              <br />
+              Password: demo123
+            </p>
+          </div>
         </CardContent>
 
         <CardFooter className="flex flex-col space-y-4 border-t pt-6">

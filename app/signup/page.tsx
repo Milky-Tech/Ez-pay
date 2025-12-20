@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -25,12 +25,14 @@ import {
   User,
   Phone,
   CheckCircle,
-  Facebook,
-  Twitter,
 } from "lucide-react";
+import { useAuth } from "@/context/authcontext";
+// import { useAuth } from "@/context/AuthContext";
 
 export default function SignUpPage() {
   const router = useRouter();
+  const { register } = useAuth();
+
   const [formData, setFormData] = useState({
     fullName: "",
     email: "",
@@ -44,6 +46,19 @@ export default function SignUpPage() {
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [success, setSuccess] = useState(false);
+  const [redirectCountdown, setRedirectCountdown] = useState(2);
+
+  // Handle redirect countdown
+  useEffect(() => {
+    if (success && redirectCountdown > 0) {
+      const timer = setTimeout(() => {
+        setRedirectCountdown(redirectCountdown - 1);
+      }, 1000);
+      return () => clearTimeout(timer);
+    } else if (success && redirectCountdown === 0) {
+      router.push("/signin?registered=true");
+    }
+  }, [success, redirectCountdown, router]);
 
   const handleInputChange = (field: string, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -100,42 +115,38 @@ export default function SignUpPage() {
     }
 
     setLoading(true);
-    setErrors({});
+    setErrors({}); // Clear all errors on submission
 
     try {
-      const response = await fetch("/api/auth/signup", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...formData,
-          userType: "client", // Always client for now
-        }),
+      // Use the register function from AuthContext
+      const success = await register({
+        full_name: formData.fullName,
+        email: formData.email,
+        phone: formData.phone,
+        password: formData.password,
+        password_confirmation: formData.confirmPassword,
+        referrer_id: "",
       });
 
-      const data = await response.json();
-
-      if (response.ok) {
+      if (success) {
         setSuccess(true);
-        setTimeout(() => {
-          router.push("/signin?registered=true");
-        }, 2000);
+        setErrors({}); // Clear any remaining errors on success
       } else {
-        setErrors({ general: data.message || "Registration failed" });
+        setErrors({
+          general: "Registration failed. Email might already exist.",
+        });
       }
     } catch (err) {
+      console.error("Registration error:", err);
       setErrors({ general: "Network error. Please try again." });
     } finally {
       setLoading(false);
     }
   };
 
-  const handleSocialSignUp = async (provider: string) => {
-    try {
-      // Redirect to OAuth provider
-      window.location.href = `/api/auth/${provider}`;
-    } catch (error) {
-      setErrors({ general: `Failed to sign up with ${provider}` });
-    }
+  // Manual redirect button
+  const handleManualRedirect = () => {
+    router.push("/signin?registered=true");
   };
 
   if (success) {
@@ -147,7 +158,7 @@ export default function SignUpPage() {
               <CheckCircle className="h-10 w-10 text-emerald-600" />
             </div>
             <CardTitle className="text-2xl font-raleway text-primary">
-              Welcome to EZ-Pay!
+              Registration Successful!
             </CardTitle>
             <CardDescription className="font-open-sans">
               Your account has been created
@@ -155,7 +166,7 @@ export default function SignUpPage() {
           </CardHeader>
           <CardContent className="text-center">
             <p className="text-gray-600 font-open-sans mb-4">
-              Please check your email to verify your account.
+              Redirecting to login page in {redirectCountdown} seconds...
             </p>
             <div className="space-y-3 text-left bg-gray-50 p-4 rounded-lg">
               <p className="font-open-sans text-sm">
@@ -164,22 +175,30 @@ export default function SignUpPage() {
               <ul className="space-y-2 text-sm text-gray-600">
                 <li className="flex items-start gap-2">
                   <CheckCircle className="h-4 w-4 text-emerald-500 mt-0.5" />
-                  <span>Verify your email address</span>
+                  <span>Check your email for verification (if required)</span>
                 </li>
                 <li className="flex items-start gap-2">
                   <CheckCircle className="h-4 w-4 text-emerald-500 mt-0.5" />
-                  <span>Browse available premium homes</span>
+                  <span>Login with your credentials</span>
                 </li>
                 <li className="flex items-start gap-2">
                   <CheckCircle className="h-4 w-4 text-emerald-500 mt-0.5" />
-                  <span>Schedule a property inspection</span>
+                  <span>Complete your profile setup</span>
                 </li>
               </ul>
             </div>
           </CardContent>
-          <CardFooter className="flex justify-center">
-            <Link href="/listings">
-              <Button className="font-montserrat">Browse Properties</Button>
+          <CardFooter className="flex flex-col space-y-3">
+            <Button
+              onClick={handleManualRedirect}
+              className="w-full font-montserrat"
+            >
+              Go to Login Now
+            </Button>
+            <Link href="/" className="text-center">
+              <Button variant="outline" className="w-full font-montserrat">
+                ← Back to Homepage
+              </Button>
             </Link>
           </CardFooter>
         </Card>
@@ -218,60 +237,6 @@ export default function SignUpPage() {
         </CardHeader>
 
         <CardContent>
-          {/* Social Sign Up */}
-          <div className="space-y-3 mb-6">
-            <Button
-              type="button"
-              variant="outline"
-              className="w-full font-montserrat"
-              onClick={() => handleSocialSignUp("google")}
-            >
-              <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24">
-                <path
-                  fill="#4285F4"
-                  d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-                />
-                <path
-                  fill="#34A853"
-                  d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-                />
-                <path
-                  fill="#FBBC05"
-                  d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
-                />
-                <path
-                  fill="#EA4335"
-                  d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
-                />
-              </svg>
-              Continue with Google
-            </Button>
-
-            <Button
-              type="button"
-              variant="outline"
-              className="w-full font-montserrat"
-              onClick={() => handleSocialSignUp("apple")}
-            >
-              <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24">
-                <path d="M17.05 20.28c-.98.95-2.05.86-3.08.38-1.09-.5-2.08-.48-3.24 0-1.44.62-2.2.44-3.06-.38C2.79 15.36 3.74 7.29 9.08 6.61c1.15-.13 2.08.74 3.04.74.96 0 2.27-.9 3.81-.78.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.27-2.15 3.81.03 3.02 2.65 4.04 2.66 4.04-.01.07-.42 1.44-1.38 2.88M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z" />
-              </svg>
-              Continue with Apple
-            </Button>
-          </div>
-
-          {/* Divider */}
-          <div className="relative mb-6">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-gray-300"></div>
-            </div>
-            <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-white px-2 text-gray-500 font-open-sans">
-                Or sign up with email
-              </span>
-            </div>
-          </div>
-
           {/* Registration Form */}
           <form onSubmit={handleSignUp} className="space-y-4">
             {/* Full Name */}
