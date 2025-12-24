@@ -42,9 +42,12 @@ import {
   Eye,
   Building2,
   UserCheck,
+  LogOut,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/context/authcontext";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState("overview");
@@ -56,7 +59,8 @@ export default function AdminDashboard() {
     totalApplications: 0,
     pendingApplications: 0,
   });
-
+  const { user, isAuthenticated, logout } = useAuth();
+  const router = useRouter();
   useEffect(() => {
     fetchDashboardData();
   }, []);
@@ -167,15 +171,34 @@ export default function AdminDashboard() {
     };
     return <Badge variant={config.variant}>{config.label}</Badge>;
   };
-  const { user } = useAuth();
-  console.log(user);
+
+  const handleLogout = async () => {
+    try {
+      await logout(); // logout returns a Promise
+      router.push("/signin"); // Redirect to login page after logout
+    } catch (error) {
+      console.error("Logout failed:", error);
+    }
+  };
+  if (!isAuthenticated) router.push("/signin");
   return (
     <div className="min-h-screen bg-gray-50">
       <header className="bg-primary text-white py-6 shadow-lg">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h1 className="text-3xl font-bold font-raleway">
-            Bridgent HomeStep EZ-Pay
-          </h1>
+          <div className="flex items-center gap-3 w-full justify-between">
+            <h1 className="text-3xl font-bold font-raleway">
+              <Link href="/">Bridgent HomeStep EZ-Pay</Link>
+            </h1>{" "}
+            {user && (
+              <button
+                onClick={handleLogout}
+                className="flex items-center gap-2 hover:bg-white/10 p-2 rounded transition"
+                title="Logout"
+              >
+                <LogOut size={24} />
+              </button>
+            )}
+          </div>
           <p className="text-sm opacity-90 mt-1">Admin Dashboard</p>
         </div>
       </header>

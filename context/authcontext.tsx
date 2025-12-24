@@ -9,11 +9,11 @@ type User = {
   full_name: string;
   email: string;
   phone: string;
-  // Add other user fields as needed
 };
 
 type AuthContextType = {
   user: User | null;
+  message: string;
   isAuthenticated: boolean;
   loading: boolean;
   login: (email: string, password: string) => Promise<boolean>;
@@ -37,7 +37,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [loading, setLoading] = useState(true);
-
+  const [message, setMessage] = useState("");
   // Check for existing session on mount
   useEffect(() => {
     const token = localStorage.getItem("token");
@@ -60,7 +60,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const login = async (email: string, password: string): Promise<boolean> => {
     try {
       setLoading(true);
-
+      setMessage("");
       const response = await fetch(`${BASE_API}/login`, {
         method: "POST",
         headers: {
@@ -82,6 +82,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return true;
       } else {
         console.error("Login failed:", data.message || "Invalid credentials");
+        setMessage(data.message);
         return false;
       }
     } catch (error) {
@@ -96,7 +97,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const register = async (data: RegisterData): Promise<boolean> => {
     try {
       setLoading(true);
-
+      setMessage("");
       const response = await fetch(`${BASE_API}/register`, {
         method: "POST",
         headers: {
@@ -121,6 +122,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           "Registration failed:",
           result.message || "Registration error"
         );
+        setMessage(result.message);
         return false;
       }
     } catch (error) {
@@ -143,6 +145,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     <AuthContext.Provider
       value={{
         user,
+        message,
         isAuthenticated,
         loading,
         login,

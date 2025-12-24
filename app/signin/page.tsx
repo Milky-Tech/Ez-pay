@@ -25,105 +25,39 @@ import {
   CheckCircle,
 } from "lucide-react";
 import { useAuth } from "@/context/authcontext";
-// import { useAuth } from "@/contexts/AuthContext";
 
 export default function SignInPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const { login, isAuthenticated, user } = useAuth();
-  // console.log(isAuthenticated);
-  // console.log(user);
-
+  const { login, isAuthenticated, message, loading } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [showSuccess, setShowSuccess] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
 
-  // Check for success message from registration
-  useEffect(() => {
-    const registered = searchParams.get("registered");
-    const verified = searchParams.get("verified");
-    const reset = searchParams.get("reset");
-
-    if (registered === "true") {
-      setShowSuccess(true);
-      setSuccessMessage(
-        "Registration successful! Please login with your credentials."
-      );
-      // Clear the query parameter from URL
-      const newUrl = window.location.pathname;
-      window.history.replaceState({}, "", newUrl);
-    }
-
-    if (verified === "true") {
-      setShowSuccess(true);
-      setSuccessMessage("Email verified successfully! Please login.");
-      const newUrl = window.location.pathname;
-      window.history.replaceState({}, "", newUrl);
-    }
-
-    if (reset === "true") {
-      setShowSuccess(true);
-      setSuccessMessage(
-        "Password reset successful! Please login with your new password."
-      );
-      const newUrl = window.location.pathname;
-      window.history.replaceState({}, "", newUrl);
-    }
-
-    // Auto-hide success message after 5 seconds
-    if (showSuccess) {
-      const timer = setTimeout(() => {
-        setShowSuccess(false);
-      }, 5000);
-      return () => clearTimeout(timer);
-    }
-  }, [searchParams, showSuccess]);
-
-  // Redirect if already authenticated
   useEffect(() => {
     if (isAuthenticated) {
       router.push("/admin");
     }
   }, [isAuthenticated, router]);
-
-  const handleSignIn = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    setError("");
-
-    try {
-      // Use the login function from AuthContext
-      const result = await login(email, password);
-      console.log(result);
-      if (result.success) {
-        // Login successful - AuthContext will handle storage and state
-        router.push("/admin");
-      } else {
-        setError(result.message || "Invalid email or password");
-      }
-    } catch (err) {
-      console.error("Login error:", err);
-      setError("Network error. Please try again.");
-    } finally {
-      setLoading(false);
+  // Show error message from AuthContext when it changes
+  useEffect(() => {
+    if (message) {
+      setError(message);
     }
+  }, [message]);
+  const handleSignIn = async (e: React.FormEvent) => {
+    setError("");
+    e.preventDefault();
+    login(email, password);
   };
 
   // Handle social sign-in (if needed)
   const handleSocialSignIn = (provider: string) => {
     // Redirect to OAuth provider
     window.location.href = `/api/auth/${provider}`;
-  };
-
-  // Auto-fill demo credentials (for development/testing)
-  const fillDemoCredentials = () => {
-    setEmail("demo@ezpay.com");
-    setPassword("demo123");
   };
 
   return (
@@ -179,17 +113,6 @@ export default function SignInPage() {
         </CardHeader>
 
         <CardContent>
-          {/* Demo Credentials Button (for development) */}
-          <div className="mb-4">
-            <button
-              type="button"
-              onClick={fillDemoCredentials}
-              className="text-xs text-primary hover:text-primary/80 font-montserrat w-full text-center"
-            >
-              Click here to fill demo credentials
-            </button>
-          </div>
-
           {/* Social Sign In (Optional - keep if you have OAuth) */}
           {/* <div className="space-y-3 mb-6">
             <Button
@@ -353,15 +276,6 @@ export default function SignInPage() {
           </form>
 
           {/* Demo Info (for development) */}
-          <div className="mt-6 p-4 bg-blue-50 border border-blue-100 rounded-lg">
-            <p className="text-sm text-blue-800 font-open-sans">
-              <strong>Demo Credentials:</strong>
-              <br />
-              Email: demo@ezpay.com
-              <br />
-              Password: demo123
-            </p>
-          </div>
         </CardContent>
 
         <CardFooter className="flex flex-col space-y-4 border-t pt-6">
