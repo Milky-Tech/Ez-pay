@@ -44,7 +44,6 @@ import {
   UserCheck,
   LogOut,
 } from "lucide-react";
-import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/context/authcontext";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -62,6 +61,64 @@ export default function AdminDashboard() {
   const { user, isAuthenticated, logout } = useAuth();
   const router = useRouter();
 
+  // Add missing useEffect for initialization
+  useEffect(() => {
+    if (!isAuthenticated) {
+      router.push("/signin");
+    }
+    // For now, just set empty arrays since we're not fetching from API yet
+    setProperties([]);
+    setApplications([]);
+  }, [isAuthenticated, router]);
+
+  // Add missing getStatusBadge function
+  const getStatusBadge = (status: string) => {
+    const statusConfig: Record<
+      string,
+      {
+        variant: "default" | "secondary" | "destructive" | "outline";
+        label: string;
+      }
+    > = {
+      available: { variant: "secondary", label: "Available" },
+      rented: { variant: "default", label: "Rented" },
+      maintenance: { variant: "outline", label: "Maintenance" },
+      submitted: { variant: "outline", label: "Submitted" },
+      vetting_pending: { variant: "outline", label: "Vetting" },
+      approved: { variant: "secondary", label: "Approved" },
+      rejected: { variant: "destructive", label: "Rejected" },
+    };
+
+    const config = statusConfig[status] || {
+      variant: "outline" as const,
+      label: status,
+    };
+    return <Badge variant={config.variant}>{config.label}</Badge>;
+  };
+
+  // Add missing updatePropertyStatus function
+  const updatePropertyStatus = async (propertyId: string, status: string) => {
+    // TODO: Implement API call when backend is ready
+    console.log(`Updating property ${propertyId} to status: ${status}`);
+    // For now, just show a message
+    alert(
+      "Update functionality will be available when backend API is connected"
+    );
+  };
+
+  // Add missing updateApplicationStatus function
+  const updateApplicationStatus = async (
+    applicationId: string,
+    status: string
+  ) => {
+    // TODO: Implement API call when backend is ready
+    console.log(`Updating application ${applicationId} to status: ${status}`);
+    // For now, just show a message
+    alert(
+      "Update functionality will be available when backend API is connected"
+    );
+  };
+
   const formatPrice = (price: number | null) => {
     if (!price) return "N/A";
     return new Intl.NumberFormat("en-NG", {
@@ -73,13 +130,21 @@ export default function AdminDashboard() {
 
   const handleLogout = async () => {
     try {
-      await logout(); // logout returns a Promise
-      router.push("/signin"); // Redirect to login page after logout
+      await logout();
+      router.push("/signin");
     } catch (error) {
       console.error("Logout failed:", error);
     }
   };
-  if (!isAuthenticated) router.push("/signin");
+
+  // Fix the conditional redirect - don't call router.push directly in render
+  if (!isAuthenticated) {
+    return null; // Will redirect via useEffect
+  }
+
+  // Safely handle user.fullName
+  const userName = user?.fullName ? user.fullName.toUpperCase() : "ADMIN";
+
   return (
     <div className="min-h-screen bg-gray-50">
       <header className="bg-primary text-white py-6 shadow-lg">
@@ -101,8 +166,8 @@ export default function AdminDashboard() {
           <p className="text-sm opacity-90 mt-1">Admin Dashboard</p>
         </div>
       </header>
-      <div>
-        <h1>Welcome! {user?.fullName.toUpperCase() || "ADMIN"}</h1>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+        <h1 className="text-2xl font-bold">Welcome! {userName}</h1>
       </div>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <Tabs
