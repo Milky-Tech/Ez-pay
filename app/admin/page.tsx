@@ -42,9 +42,11 @@ import {
   Eye,
   Building2,
   UserCheck,
+  LogOut,
 } from "lucide-react";
-import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/context/authcontext";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState("overview");
@@ -56,94 +58,20 @@ export default function AdminDashboard() {
     totalApplications: 0,
     pendingApplications: 0,
   });
+  const { user, isAuthenticated, logout } = useAuth();
+  const router = useRouter();
 
+  // Add missing useEffect for initialization
   useEffect(() => {
-    fetchDashboardData();
-  }, []);
-
-  const fetchDashboardData = async () => {
-    try {
-      const [propertiesRes, applicationsRes] = await Promise.all([
-        supabase
-          .from("properties")
-          .select("*")
-          .order("created_at", { ascending: false }),
-        supabase
-          .from("rental_applications")
-          .select("*, properties(code_name, property_address, typology)")
-          .order("created_at", { ascending: false }),
-      ]);
-
-      if (propertiesRes.data) {
-        setProperties(propertiesRes.data);
-        setStats((prev) => ({
-          ...prev,
-          totalProperties: propertiesRes.data.length,
-          availableProperties: propertiesRes.data.filter(
-            (p) => p.availability_status === "available"
-          ).length,
-        }));
-      }
-
-      if (applicationsRes.data) {
-        setApplications(applicationsRes.data);
-        setStats((prev) => ({
-          ...prev,
-          totalApplications: applicationsRes.data.length,
-          pendingApplications: applicationsRes.data.filter(
-            (a) => a.status === "vetting_pending" || a.status === "submitted"
-          ).length,
-        }));
-      }
-    } catch (error) {
-      console.error("Error fetching dashboard data:", error);
+    if (!isAuthenticated) {
+      router.push("/signin");
     }
-  };
+    // For now, just set empty arrays since we're not fetching from API yet
+    setProperties([]);
+    setApplications([]);
+  }, [isAuthenticated, router]);
 
-  const updatePropertyStatus = async (propertyId: string, status: string) => {
-    try {
-      const { error } = await supabase
-        .from("properties")
-        .update({ availability_status: status })
-        .eq("id", propertyId);
-
-      if (error) throw error;
-      fetchDashboardData();
-      alert("Property status updated successfully!");
-    } catch (error) {
-      console.error("Error updating property:", error);
-      alert("Failed to update property status");
-    }
-  };
-
-  const updateApplicationStatus = async (
-    applicationId: string,
-    status: string
-  ) => {
-    try {
-      const { error } = await supabase
-        .from("rental_applications")
-        .update({ status })
-        .eq("id", applicationId);
-
-      if (error) throw error;
-      fetchDashboardData();
-      alert("Application status updated successfully!");
-    } catch (error) {
-      console.error("Error updating application:", error);
-      alert("Failed to update application status");
-    }
-  };
-
-  const formatPrice = (price: number | null) => {
-    if (!price) return "N/A";
-    return new Intl.NumberFormat("en-NG", {
-      style: "currency",
-      currency: "NGN",
-      minimumFractionDigits: 0,
-    }).format(price);
-  };
-
+  // Add missing getStatusBadge function
   const getStatusBadge = (status: string) => {
     const statusConfig: Record<
       string,
@@ -167,20 +95,79 @@ export default function AdminDashboard() {
     };
     return <Badge variant={config.variant}>{config.label}</Badge>;
   };
-  const { user } = useAuth();
-  console.log(user);
+
+  // Add missing updatePropertyStatus function
+  const updatePropertyStatus = async (propertyId: string, status: string) => {
+    // TODO: Implement API call when backend is ready
+    console.log(`Updating property ${propertyId} to status: ${status}`);
+    // For now, just show a message
+    alert(
+      "Update functionality will be available when backend API is connected"
+    );
+  };
+
+  // Add missing updateApplicationStatus function
+  const updateApplicationStatus = async (
+    applicationId: string,
+    status: string
+  ) => {
+    // TODO: Implement API call when backend is ready
+    console.log(`Updating application ${applicationId} to status: ${status}`);
+    // For now, just show a message
+    alert(
+      "Update functionality will be available when backend API is connected"
+    );
+  };
+
+  const formatPrice = (price: number | null) => {
+    if (!price) return "N/A";
+    return new Intl.NumberFormat("en-NG", {
+      style: "currency",
+      currency: "NGN",
+      minimumFractionDigits: 0,
+    }).format(price);
+  };
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+      router.push("/signin");
+    } catch (error) {
+      console.error("Logout failed:", error);
+    }
+  };
+
+  // Fix the conditional redirect - don't call router.push directly in render
+  if (!isAuthenticated) {
+    return null; // Will redirect via useEffect
+  }
+
+  // Safely handle user.fullName
+  const userName = user?.fullName ? user.fullName.toUpperCase() : "ADMIN";
+
   return (
     <div className="min-h-screen bg-gray-50">
       <header className="bg-primary text-white py-6 shadow-lg">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h1 className="text-3xl font-bold font-raleway">
-            Bridgent HomeStep EZ-Pay
-          </h1>
+          <div className="flex items-center gap-3 w-full justify-between">
+            <h1 className="text-3xl font-bold font-raleway">
+              <Link href="/">Bridgent HomeStep EZ-Pay</Link>
+            </h1>{" "}
+            {user && (
+              <button
+                onClick={handleLogout}
+                className="flex items-center gap-2 hover:bg-white/10 p-2 rounded transition"
+                title="Logout"
+              >
+                <LogOut size={24} />
+              </button>
+            )}
+          </div>
           <p className="text-sm opacity-90 mt-1">Admin Dashboard</p>
         </div>
       </header>
-      <div>
-        <h1>Welcome! {user?.fullName}</h1>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+        <h1 className="text-2xl font-bold">Welcome! {userName}</h1>
       </div>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <Tabs
