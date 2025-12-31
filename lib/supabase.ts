@@ -22,7 +22,13 @@ export type Property = {
   state: string;
   area: string;
   typology: string;
+  property_type: string; // Added to match demo data
   number_of_units: number;
+  bedrooms: number; // Added
+  bathrooms: number; // Added
+  square_feet: number; // Added
+  power_supply: boolean; // Added
+  description: string; // Added
   desired_annual_rent: number;
   monthly_cost: number | null;
   availability_status: 'available' | 'inspection_pending' | 'rented' | 'maintenance';

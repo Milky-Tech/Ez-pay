@@ -22,7 +22,9 @@ import { type Property } from "@/lib/supabase";
 const DEMO_PROPERTIES: Property[] = [
   {
     id: "1",
+    landlord_id: "info@bridgent.co",
     created_at: "2024-01-15T10:30:00Z",
+    updated_at: "2024-01-15T10:30:00Z",
     code_name: "PREMIUM-001",
     property_address: "24A Banana Island",
     area: "Ikoyi",
@@ -30,21 +32,25 @@ const DEMO_PROPERTIES: Property[] = [
     typology: "4-Bedroom Luxury Villa",
     property_type: "house",
     number_of_units: 1,
-    bedrooms: 4,
-    bathrooms: 5,
-    square_feet: 4500,
+    bedrooms: 4, // Note: This field is NOT in Property type but seemingly used in code?
+    bathrooms: 5, // NOT in Property type
+    square_feet: 4500, // NOT in Property type
     lead_image_url:
       "https://images.unsplash.com/photo-1613490493576-7fde63acd811?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
     monthly_cost: 8500000,
-    annual_cost: 102000000,
+    desired_annual_rent: 102000000,
     availability_status: "available",
-    power_supply: true,
+    onboarding_stage: "completed",
+    partnership_tier: "ez_prime",
+    power_supply: true, // NOT in Property type
     amenities: ["Swimming Pool", "Gym", "Security", "Parking"],
-    description: "Luxury villa with panoramic views",
+    description: "Luxury villa with panoramic views", // NOT in Property type
   },
   {
     id: "2",
+    landlord_id: "info@bridgent.co",
     created_at: "2024-01-14T14:20:00Z",
+    updated_at: "2024-01-14T14:20:00Z",
     code_name: "PREMIUM-002",
     property_address: "15A Bishop Oluwole Street",
     area: "Victoria Island",
@@ -58,15 +64,19 @@ const DEMO_PROPERTIES: Property[] = [
     lead_image_url:
       "https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
     monthly_cost: 5200000,
-    annual_cost: 62400000,
+    desired_annual_rent: 62400000,
     availability_status: "available",
+    onboarding_stage: "completed",
+    partnership_tier: "ez_prime",
     power_supply: true,
     amenities: ["Concierge", "Rooftop Terrace", "Smart Home"],
     description: "Modern penthouse in prime location",
   },
   {
     id: "3",
+    landlord_id: "info@bridgent.co",
     created_at: "2024-01-13T09:15:00Z",
+    updated_at: "2024-01-13T09:15:00Z",
     code_name: "PREMIUM-003",
     property_address: "42 Maitama Avenue",
     area: "Maitama",
@@ -80,15 +90,19 @@ const DEMO_PROPERTIES: Property[] = [
     lead_image_url:
       "https://images.unsplash.com/photo-1518780664697-55e3ad937233?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
     monthly_cost: 9500000,
-    annual_cost: 114000000,
+    desired_annual_rent: 114000000,
     availability_status: "available",
+    onboarding_stage: "completed",
+    partnership_tier: "ez_prime",
     power_supply: true,
     amenities: ["Garden", "Pool", "Security Quarters"],
     description: "Spacious duplex with premium finishes",
   },
   {
     id: "4",
+    landlord_id: "info@bridgent.co",
     created_at: "2024-01-12T11:45:00Z",
+    updated_at: "2024-01-12T11:45:00Z",
     code_name: "PREMIUM-004",
     property_address: "8A GRA Phase 2",
     area: "Port Harcourt",
@@ -102,15 +116,19 @@ const DEMO_PROPERTIES: Property[] = [
     lead_image_url:
       "https://images.unsplash.com/photo-1570129477492-45c003edd2be?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
     monthly_cost: 6800000,
-    annual_cost: 81600000,
+    desired_annual_rent: 81600000,
     availability_status: "available",
+    onboarding_stage: "completed",
+    partnership_tier: "ez_prime",
     power_supply: true,
     amenities: ["Borehole", "Generator", "CCTV"],
     description: "Secure family home with ample space",
   },
   {
     id: "5",
+    landlord_id: "info@bridgent.co",
     created_at: "2024-01-11T16:10:00Z",
+    updated_at: "2024-01-11T16:10:00Z",
     code_name: "PREMIUM-005",
     property_address: "32 Lekki Phase 1",
     area: "Lekki",
@@ -124,15 +142,19 @@ const DEMO_PROPERTIES: Property[] = [
     lead_image_url:
       "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
     monthly_cost: 4200000,
-    annual_cost: 50400000,
+    desired_annual_rent: 50400000,
     availability_status: "available",
+    onboarding_stage: "completed",
+    partnership_tier: "ez_prime",
     power_supply: true,
     amenities: ["Pool", "Gym", "24/7 Security"],
     description: "Modern apartment in gated community",
   },
   {
     id: "6",
+    landlord_id: "info@bridgent.co",
     created_at: "2024-01-10T13:25:00Z",
+    updated_at: "2024-01-10T13:25:00Z",
     code_name: "PREMIUM-006",
     property_address: "15 Asokoro District",
     area: "Asokoro",
@@ -146,8 +168,10 @@ const DEMO_PROPERTIES: Property[] = [
     lead_image_url:
       "https://images.unsplash.com/photo-1613977257363-707ba9348227?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
     monthly_cost: 12500000,
-    annual_cost: 150000000,
+    desired_annual_rent: 150000000,
     availability_status: "available",
+    onboarding_stage: "completed",
+    partnership_tier: "ez_prime",
     power_supply: true,
     amenities: ["Helipad", "Cinema", "Wine Cellar", "Staff Quarters"],
     description: "Ultra-luxury mansion with premium amenities",
@@ -346,7 +370,7 @@ export default function ListingsPage() {
                         <div className="flex flex-wrap gap-1">
                           {property.amenities
                             .slice(0, 3)
-                            .map((amenity, index) => (
+                            .map((amenity: string, index: number) => (
                               <Badge
                                 key={index}
                                 variant="secondary"
