@@ -7,12 +7,14 @@ const BASE_API = "https://ez-pay.realestway.com/api";
 type User = {
   id: number;
   full_name: string;
+  fullName: string;
   email: string;
   phone: string;
 };
 
 type AuthContextType = {
   user: User | null;
+  token: string | null;
   message: string;
   isAuthenticated: boolean;
   loading: boolean;
@@ -35,6 +37,9 @@ const AuthContext = createContext<AuthContextType | null>(null);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
+  const [token, setToken] = useState<string | null>(
+    localStorage.getItem("token")
+  );
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
@@ -76,7 +81,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // Store token and user data
         localStorage.setItem("token", data.token);
         localStorage.setItem("user", JSON.stringify(data.data.user));
-
+        setToken(data);
         setUser(data.data.user);
         setIsAuthenticated(true);
         return true;
@@ -148,6 +153,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         message,
         isAuthenticated,
         loading,
+        token,
         login,
         register,
         logout,
