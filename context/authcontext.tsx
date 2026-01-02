@@ -37,9 +37,7 @@ const AuthContext = createContext<AuthContextType | null>(null);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
-  const [token, setToken] = useState<string | null>(
-    localStorage.getItem("token")
-  );
+  const [token, setToken] = useState<string | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
@@ -77,17 +75,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       const data = await response.json();
 
-      if (response.ok && data.data.token) {
+      // Normalize possible response shapes: { data: { token, user } } OR { token, user }
+      const tokenValue = data?.data?.token ?? data?.token ?? null;
+      const userValue = data?.data?.user ?? data?.user ?? null;
+
+      if (response.ok && tokenValue) {
         // Store token and user data
-        localStorage.setItem("token", data.token);
-        localStorage.setItem("user", JSON.stringify(data.data.user));
-        setToken(data);
-        setUser(data.data.user);
+        localStorage.setItem("token", tokenValue);
+        if (userValue) localStorage.setItem("user", JSON.stringify(userValue));
+        setToken(tokenValue);
+        if (userValue) setUser(userValue);
         setIsAuthenticated(true);
         return true;
       } else {
-        console.error("Login failed:", data.message || "Invalid credentials");
-        setMessage(data.message);
+        console.error("Login failed:", data?.message || "Invalid credentials");
+        setMessage(data?.message || "Login failed");
         return false;
       }
     } catch (error) {
@@ -114,20 +116,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       const result = await response.json();
 
-      if (response.ok && result.data.token) {
-        // Store token and user data
-        localStorage.setItem("token", result.data.token);
-        localStorage.setItem("user", JSON.stringify(result.data.user));
+      const tokenValue = result?.data?.token ?? result?.token ?? null;
+      const userValue = result?.data?.user ?? result?.user ?? null;
 
-        setUser(result.data.user);
+      if (response.ok && tokenValue) {
+        localStorage.setItem("token", tokenValue);
+        if (userValue) localStorage.setItem("user", JSON.stringify(userValue));
+
+        if (userValue) setUser(userValue);
+        setToken(tokenValue);
         setIsAuthenticated(true);
         return true;
       } else {
         console.error(
           "Registration failed:",
-          result.message || "Registration error"
+          result?.message || "Registration error"
         );
-        setMessage(result.message);
+        setMessage(result?.message || "Registration failed");
         return false;
       }
     } catch (error) {
