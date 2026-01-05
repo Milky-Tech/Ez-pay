@@ -18,6 +18,7 @@ import {
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { useToast } from "@/hooks/use-toast";
 import {
   MapPin,
   Bed,
@@ -206,6 +207,7 @@ export default function PropertyDetailsPage() {
   const [inspectionDate, setInspectionDate] = useState("");
   const [inspectionEmail, setInspectionEmail] = useState("");
   const [inspectionPhone, setInspectionPhone] = useState("");
+  const { toast } = useToast();
 
   useEffect(() => {
     // Simulate API call to fetch property
@@ -223,11 +225,12 @@ export default function PropertyDetailsPage() {
 
   const handleInspectionBooking = async (e: React.FormEvent) => {
     e.preventDefault();
-    alert(
-      `${
+    toast({
+      title: "Inspection Booked",
+      description: `${
         inspectionType === "physical" ? "Physical" : "Virtual"
-      } inspection booked successfully for ${inspectionDate}! Confirmation email sent to ${inspectionEmail}`
-    );
+      } inspection booked successfully for ${inspectionDate}! Confirmation email sent to ${inspectionEmail}`,
+    });
   };
 
   if (loading) {

@@ -2,7 +2,8 @@
 
 import { createContext, useContext, useState, useEffect } from "react";
 
-const BASE_API = process.env.NEXT_PUBLIC_API_URL || "https://ez-pay.realestway.com/api";
+const BASE_API =
+  process.env.NEXT_PUBLIC_API_URL || "https://ez-pay.realestway.com/api";
 
 type User = {
   id: number;
@@ -10,7 +11,7 @@ type User = {
   fullName: string;
   email: string;
   phone: string;
-  role: 'admin' | 'landlord' | 'tenant';
+  role: "admin" | "landlord" | "tenant";
 };
 
 type AuthContextType = {
@@ -70,7 +71,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setLoading(true);
       setMessage("");
       console.log(`Attempting login at: ${BASE_API}/login`);
-      
+
       const response = await fetch(`${BASE_API}/login`, {
         method: "POST",
         headers: {
@@ -95,20 +96,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.log("Login Response Data:", data);
 
       // Normalize possible response shapes: { data: { token, user } } OR { token, user } OR { access_token, user }
-      const tokenValue = data?.data?.token ?? data?.token ?? data?.access_token ?? data?.data?.access_token ?? null;
+      const tokenValue =
+        data?.data?.token ??
+        data?.token ??
+        data?.access_token ??
+        data?.data?.access_token ??
+        null;
       const userValue = data?.data?.user ?? data?.user ?? null;
 
       if (response.ok && tokenValue) {
         // Store token and user data
         localStorage.setItem("token", tokenValue);
         if (userValue) localStorage.setItem("user", JSON.stringify(userValue));
-        
+
         setToken(tokenValue);
         if (userValue) setUser(userValue);
         setIsAuthenticated(true);
         return true;
       } else {
-        const errorMsg = data?.message || data?.error || (response.status === 401 ? "Invalid credentials" : "Login failed");
+        const errorMsg =
+          data?.message ||
+          data?.error ||
+          (response.status === 401 ? "Invalid credentials" : "Login failed");
         console.error("Login failed:", errorMsg);
         setMessage(errorMsg);
         return false;
@@ -152,7 +161,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       console.log("Register Response Data:", result);
 
-      const tokenValue = result?.data?.token ?? result?.token ?? result?.access_token ?? result?.data?.access_token ?? null;
+      const tokenValue =
+        result?.data?.token ??
+        result?.token ??
+        result?.access_token ??
+        result?.data?.access_token ??
+        null;
       const userValue = result?.data?.user ?? result?.user ?? null;
 
       if (response.ok && tokenValue) {
@@ -164,7 +178,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setIsAuthenticated(true);
         return true;
       } else {
-        const errorMsg = result?.message || result?.error || "Registration failed";
+        const errorMsg =
+          result?.message || result?.error || "Registration failed";
         console.error("Registration failed:", errorMsg);
         setMessage(errorMsg);
         return false;

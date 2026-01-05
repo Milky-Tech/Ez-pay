@@ -56,6 +56,7 @@ import {
 import { useAuth } from "@/context/authcontext";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useToast } from "@/hooks/use-toast";
 
 // API Base URL
 const API_BASE_URL =
@@ -121,7 +122,8 @@ export default function AdminDashboard() {
   const [statusFilter, setStatusFilter] = useState("all");
   const { user, isAuthenticated, logout, token } = useAuth();
   const router = useRouter();
-  console.log(token);
+  const { toast } = useToast();
+
   // Fetch data based on active tab
   useEffect(() => {
     if (!isAuthenticated) {
@@ -137,6 +139,9 @@ export default function AdminDashboard() {
         fetchApplications();
         break;
       case "users":
+        fetchUsers();
+        break;
+      case "agents":
         fetchAgents();
         break;
       default:
@@ -317,15 +322,50 @@ export default function AdminDashboard() {
     }
   };
 
-  // Fetch agents from API
-  const fetchAgents = async () => {
+  // Fetch all users from API
+  const fetchUsers = async () => {
     try {
       setLoading((prev) => ({ ...prev, agents: true }));
-      const response = await fetch(`${API_BASE_URL}/agents`, {
+      const response = await fetch(`${API_BASE_URL}/users`, {
         method: "GET",
         headers: {
           Accept: "application/json",
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
+          Authorization: `Bearer ${token || localStorage.getItem("token")}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch users: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      setAgents(data.data || data); // Using agents state for now to reuse table
+
+      const activeCount = (data.data || data).filter(
+        (u: any) => u.status === "active"
+      ).length;
+
+      setStats((prev) => ({
+        ...prev,
+        totalAgents: (data.data || data).length,
+        activeAgents: activeCount,
+      }));
+    } catch (error) {
+      console.error("Error fetching users:", error);
+    } finally {
+      setLoading((prev) => ({ ...prev, agents: false }));
+    }
+  };
+
+  // Fetch agents (landlords) from API
+  const fetchAgents = async () => {
+    try {
+      setLoading((prev) => ({ ...prev, agents: true }));
+      const response = await fetch(`${API_BASE_URL}/agent`, {
+        method: "GET",
+        headers: {
+          Accept: "application/json",
+          Authorization: `Bearer ${token || localStorage.getItem("token")}`,
         },
       });
 
@@ -347,36 +387,155 @@ export default function AdminDashboard() {
       }));
     } catch (error) {
       console.error("Error fetching agents:", error);
-      // Mock data for development
-      if (process.env.NODE_ENV === "development") {
-        const mockAgents: Agent[] = [
-          {
-            id: "1",
-            full_name: "Tunde Williams",
-            email: "tunde@bridgent.com",
-            phone: "08011112222",
-            status: "active",
-            created_at: new Date().toISOString(),
-          },
-          {
-            id: "2",
-            full_name: "Ngozi Okoro",
-            email: "ngozi@bridgent.com",
-            phone: "08033334444",
-            status: "inactive",
-            created_at: new Date(Date.now() - 172800000).toISOString(), // 2 days ago
-          },
-        ];
-        setAgents(mockAgents);
-        setStats((prev) => ({
-          ...prev,
-          totalAgents: mockAgents.length,
-          activeAgents: mockAgents.filter((agent) => agent.status === "active")
-            .length,
-        }));
-      }
     } finally {
       setLoading((prev) => ({ ...prev, agents: false }));
+    }
+  };
+
+  // Update User
+  const updateUser = async (userId: string, data: any) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/users/${userId}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+          Authorization: `Bearer ${token || localStorage.getItem("token")}`,
+        },
+        body: JSON.stringify(data),
+      });
+
+      if (!response.ok) throw new Error("Failed to update user");
+
+      toast({
+        title: "User Updated",
+        description: "User details have been successfully updated.",
+      });
+
+      // Refresh data
+      if (activeTab === "users") fetchUsers();
+      else if (activeTab === "agents") fetchAgents();
+
+      return true;
+    } catch (error) {
+      console.error("Update user error:", error);
+      toast({
+        variant: "destructive",
+        title: "Update Failed",
+        description: "There was an error updating the user.",
+      });
+      return false;
+    }
+  };
+
+  // Delete User
+  const deleteUser = async (userId: string) => {
+    if (!confirm("Are you sure you want to delete this user?")) return;
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/users/${userId}`, {
+        method: "DELETE",
+        headers: {
+          Accept: "application/json",
+          Authorization: `Bearer ${token || localStorage.getItem("token")}`,
+        },
+      });
+
+      if (!response.ok) throw new Error("Failed to delete user");
+
+      toast({
+        title: "User Deleted",
+        description: "The user has been successfully deleted.",
+      });
+
+      // Refresh data
+      if (activeTab === "users") fetchUsers();
+      else if (activeTab === "agents") fetchAgents();
+
+      return true;
+    } catch (error) {
+      console.error("Delete user error:", error);
+      toast({
+        variant: "destructive",
+        title: "Delete Failed",
+        description: "There was an error deleting the user.",
+      });
+      return false;
+    }
+  };
+
+  // Update Property Status
+  const updatePropertyStatus = async (propertyId: string, status: string) => {
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/landlords/property/${propertyId}/status`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            Accept: "application/json",
+            Authorization: `Bearer ${token || localStorage.getItem("token")}`,
+          },
+          body: JSON.stringify({ status }),
+        }
+      );
+
+      if (!response.ok) throw new Error("Failed to update status");
+
+      toast({
+        title: "Status Updated",
+        description: "Property status has been updated.",
+      });
+
+      fetchProperties();
+      return true;
+    } catch (error) {
+      console.error("Update status error:", error);
+      toast({
+        variant: "destructive",
+        title: "Update Failed",
+        description: "There was an error updating the property status.",
+      });
+      return false;
+    }
+  };
+
+  // Update Application Status
+  const updateApplicationStatus = async (
+    applicationId: string,
+    status: string
+  ) => {
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/applications/${applicationId}/status`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            Accept: "application/json",
+            Authorization: `Bearer ${token || localStorage.getItem("token")}`,
+          },
+          body: JSON.stringify({ status }),
+        }
+      );
+
+      if (!response.ok) throw new Error("Failed to update application status");
+
+      toast({
+        title: "Status Updated",
+        description: "Application status has been updated.",
+      });
+
+      fetchApplications();
+      return true;
+    } catch (error) {
+      console.error("Update application error:", error);
+      toast({
+        variant: "destructive",
+        title: "Update Failed",
+        description: "There was an error updating the application status.",
+      });
+      return false;
     }
   };
 
@@ -498,144 +657,6 @@ export default function AdminDashboard() {
     );
   };
 
-  // Update property status
-  const updatePropertyStatus = async (propertyId: string, status: string) => {
-    try {
-      // Assuming there's an endpoint to update property status
-      const response = await fetch(
-        `${API_BASE_URL}/landlords/property/${propertyId}/status`,
-        {
-          method: "PUT",
-          headers: {
-            Accept: "application/json",
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-          },
-          body: JSON.stringify({ status }),
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error("Failed to update property status");
-      }
-
-      // Update local state
-      setProperties((prev) =>
-        prev.map((property) =>
-          property.id === propertyId
-            ? { ...property, availability_status: status }
-            : property
-        )
-      );
-
-      // Update stats
-      if (status === "available") {
-        setStats((prev) => ({
-          ...prev,
-          availableProperties: prev.availableProperties + 1,
-        }));
-      } else if (status === "rented") {
-        setStats((prev) => ({
-          ...prev,
-          availableProperties: Math.max(0, prev.availableProperties - 1),
-        }));
-      }
-
-      alert("Property status updated successfully!");
-    } catch (error) {
-      console.error("Error updating property status:", error);
-      alert("Failed to update property status. Please try again.");
-    }
-  };
-
-  // Update application status
-  const updateApplicationStatus = async (
-    applicationId: string,
-    status: string
-  ) => {
-    try {
-      // Assuming there's an endpoint to update application status
-      const response = await fetch(
-        `${API_BASE_URL}/applications/${applicationId}/status`,
-        {
-          method: "PUT",
-          headers: {
-            Accept: "application/json",
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-          },
-          body: JSON.stringify({ status }),
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error("Failed to update application status");
-      }
-
-      // Update local state
-      setApplications((prev) =>
-        prev.map((app) => (app.id === applicationId ? { ...app, status } : app))
-      );
-
-      // Update stats
-      if (status === "approved" || status === "rejected") {
-        setStats((prev) => ({
-          ...prev,
-          pendingApplications: Math.max(0, prev.pendingApplications - 1),
-        }));
-      }
-
-      alert("Application status updated successfully!");
-    } catch (error) {
-      console.error("Error updating application status:", error);
-      alert("Failed to update application status. Please try again.");
-    }
-  };
-
-  // Update agent status
-  const updateAgentStatus = async (agentId: string, status: string) => {
-    try {
-      const response = await fetch(`${API_BASE_URL}/agents/${agentId}/status`, {
-        method: "PUT",
-        headers: {
-          Accept: "application/json",
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
-        body: JSON.stringify({ status }),
-      });
-
-      if (!response.ok) {
-        throw new Error("Failed to update agent status");
-      }
-
-      // Update local state
-      setAgents((prev) =>
-        prev.map((agent) =>
-          agent.id === agentId ? { ...agent, status } : agent
-        )
-      );
-
-      // Update stats
-      if (status === "active") {
-        setStats((prev) => ({
-          ...prev,
-          activeAgents: prev.activeAgents + 1,
-        }));
-      } else if (status === "inactive") {
-        setStats((prev) => ({
-          ...prev,
-          activeAgents: Math.max(0, prev.activeAgents - 1),
-        }));
-      }
-
-      alert("Agent status updated successfully!");
-    } catch (error) {
-      console.error("Error updating agent status:", error);
-      alert("Failed to update agent status. Please try again.");
-    }
-  };
-
   const formatPrice = (price: number | null) => {
     if (!price) return "N/A";
     return new Intl.NumberFormat("en-NG", {
@@ -752,6 +773,10 @@ export default function AdminDashboard() {
             <TabsTrigger value="users" className="font-montserrat">
               <Users className="h-4 w-4 mr-2" />
               Users
+            </TabsTrigger>
+            <TabsTrigger value="agents" className="font-montserrat">
+              <UserCheck className="h-4 w-4 mr-2" />
+              Landlords
             </TabsTrigger>
           </TabsList>
 
@@ -1362,199 +1387,144 @@ export default function AdminDashboard() {
           </TabsContent>
 
           <TabsContent value="users">
-            <div className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <Card>
-                  <CardHeader>
-                    <div className="flex items-center justify-between">
-                      <CardTitle className="font-raleway">Agents</CardTitle>
-                      <Building2 className="h-5 w-5 text-gray-600" />
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="mb-4 flex items-center gap-4">
-                      <div className="relative flex-1">
-                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                        <Input
-                          placeholder="Search agents..."
-                          className="pl-10"
-                          value={searchTerm}
-                          onChange={(e) => setSearchTerm(e.target.value)}
-                        />
-                      </div>
-                      <Button
-                        onClick={fetchAgents}
-                        variant="outline"
-                        size="sm"
-                        disabled={loading.agents}
-                      >
-                        <RefreshCw
-                          className={`h-4 w-4 mr-2 ${
-                            loading.agents ? "animate-spin" : ""
-                          }`}
-                        />
-                      </Button>
-                    </div>
-
-                    {loading.agents ? (
-                      <div className="text-center py-8">
-                        <RefreshCw className="h-8 w-8 animate-spin mx-auto text-gray-400" />
-                        <p className="text-sm text-gray-500 mt-2">
-                          Loading agents...
-                        </p>
-                      </div>
-                    ) : filteredAgents.length === 0 ? (
-                      <div className="text-center py-8">
-                        <AlertCircle className="h-12 w-12 text-gray-300 mx-auto" />
-                        <p className="text-gray-500 mt-2">
-                          {searchTerm
-                            ? "No agents match your search"
-                            : "No agents found"}
-                        </p>
-                      </div>
-                    ) : (
-                      <div className="space-y-3">
-                        {filteredAgents.slice(0, 3).map((agent) => (
-                          <div
-                            key={agent.id}
-                            className="flex items-center justify-between p-3 border rounded-lg"
-                          >
-                            <div>
-                              <p className="font-semibold">{agent.full_name}</p>
-                              <p className="text-sm text-gray-600">
-                                {agent.email}
-                              </p>
-                              <p className="text-xs text-gray-500">
-                                {agent.phone}
-                              </p>
-                            </div>
-                            <div className="flex flex-col items-end gap-2">
-                              {getStatusBadge(agent.status)}
-                              <Dialog>
-                                <DialogTrigger asChild>
-                                  <Button variant="ghost" size="sm">
-                                    Manage
-                                  </Button>
-                                </DialogTrigger>
-                                <DialogContent>
-                                  <DialogHeader>
-                                    <DialogTitle>
-                                      Manage Agent: {agent.full_name}
-                                    </DialogTitle>
-                                  </DialogHeader>
-                                  <div className="space-y-4">
-                                    <div>
-                                      <Label>Current Status</Label>
-                                      <div className="mt-1">
-                                        {getStatusBadge(agent.status)}
-                                      </div>
-                                    </div>
-                                    <div>
-                                      <Label>Update Status</Label>
-                                      <Select
-                                        defaultValue={agent.status}
-                                        onValueChange={(value) =>
-                                          updateAgentStatus(agent.id, value)
-                                        }
-                                      >
-                                        <SelectTrigger>
-                                          <SelectValue />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                          <SelectItem value="active">
-                                            Active
-                                          </SelectItem>
-                                          <SelectItem value="inactive">
-                                            Inactive
-                                          </SelectItem>
-                                        </SelectContent>
-                                      </Select>
-                                    </div>
-                                    <div className="pt-4 border-t">
-                                      <Button
-                                        className="w-full"
-                                        variant="outline"
-                                      >
-                                        View Full Profile
-                                      </Button>
-                                    </div>
-                                  </div>
-                                </DialogContent>
-                              </Dialog>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                    <Button className="mt-4 w-full" variant="outline">
-                      View All Agents
-                    </Button>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader>
-                    <div className="flex items-center justify-between">
-                      <CardTitle className="font-raleway">Tenants</CardTitle>
-                      <UserCheck className="h-5 w-5 text-gray-600" />
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-gray-600">
-                      Manage tenant profiles and leases
-                    </p>
-                    <div className="mt-6 p-4 bg-blue-50 rounded-lg">
-                      <p className="text-sm text-blue-700">
-                        Tenant management features coming soon. For now, tenant
-                        data is managed through applications.
-                      </p>
-                    </div>
-                    <Button className="mt-4 w-full" variant="outline" disabled>
-                      View All Tenants (Coming Soon)
-                    </Button>
-                  </CardContent>
-                </Card>
-              </div>
-
-              {/* Statistics Card */}
-              <Card>
-                <CardHeader>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <div>
                   <CardTitle className="font-raleway">
-                    User Statistics
+                    User Management
                   </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <div className="text-center p-4 bg-gray-50 rounded-lg">
-                      <p className="text-2xl font-bold text-primary">
-                        {stats.totalAgents}
-                      </p>
-                      <p className="text-sm text-gray-600">Total Agents</p>
-                    </div>
-                    <div className="text-center p-4 bg-gray-50 rounded-lg">
-                      <p className="text-2xl font-bold text-secondary">
-                        {stats.activeAgents}
-                      </p>
-                      <p className="text-sm text-gray-600">Active Agents</p>
-                    </div>
-                    <div className="text-center p-4 bg-gray-50 rounded-lg">
-                      <p className="text-2xl font-bold text-accent">
-                        {stats.totalApplications}
-                      </p>
-                      <p className="text-sm text-gray-600">Total Applicants</p>
-                    </div>
-                    <div className="text-center p-4 bg-gray-50 rounded-lg">
-                      <p className="text-2xl font-bold text-primary">
-                        {stats.pendingApplications}
-                      </p>
-                      <p className="text-sm text-gray-600">
-                        Pending Applications
-                      </p>
-                    </div>
+                  <p className="text-sm text-gray-500">
+                    Manage all registered users
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="relative">
+                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
+                    <Input
+                      placeholder="Search users..."
+                      className="pl-9 w-[250px]"
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                    />
                   </div>
-                </CardContent>
-              </Card>
-            </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {loading.agents ? (
+                  <div className="text-center py-12">
+                    <RefreshCw className="h-8 w-8 animate-spin mx-auto text-gray-400" />
+                    <p className="text-sm text-gray-500 mt-2">
+                      Loading users...
+                    </p>
+                  </div>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Name</TableHead>
+                        <TableHead>Email</TableHead>
+                        <TableHead>Phone</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Joined</TableHead>
+                        <TableHead>Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredAgents.map((agent) => (
+                        <TableRow key={agent.id}>
+                          <TableCell className="font-medium">
+                            {agent.full_name}
+                          </TableCell>
+                          <TableCell>{agent.email}</TableCell>
+                          <TableCell>{agent.phone}</TableCell>
+                          <TableCell>{getStatusBadge(agent.status)}</TableCell>
+                          <TableCell>{formatDate(agent.created_at)}</TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                title="Edit User"
+                              >
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="text-destructive hover:text-destructive"
+                                title="Delete User"
+                                onClick={() => deleteUser(agent.id)}
+                              >
+                                <XCircle className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="agents">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <div>
+                  <CardTitle className="font-raleway">
+                    Landlord Submissions
+                  </CardTitle>
+                  <p className="text-sm text-gray-500">
+                    Manage property owners and their registrations
+                  </p>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {loading.agents ? (
+                  <div className="text-center py-12">
+                    <RefreshCw className="h-8 w-8 animate-spin mx-auto text-gray-400" />
+                    <p className="text-sm text-gray-500 mt-2">
+                      Loading landlords...
+                    </p>
+                  </div>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Name</TableHead>
+                        <TableHead>Contact</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Date</TableHead>
+                        <TableHead>Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredAgents.map((agent) => (
+                        <TableRow key={agent.id}>
+                          <TableCell className="font-medium">
+                            {agent.full_name}
+                          </TableCell>
+                          <TableCell>
+                            <div className="text-sm">
+                              <p>{agent.email}</p>
+                              <p className="text-gray-500">{agent.phone}</p>
+                            </div>
+                          </TableCell>
+                          <TableCell>{getStatusBadge(agent.status)}</TableCell>
+                          <TableCell>{formatDate(agent.created_at)}</TableCell>
+                          <TableCell>
+                            <Button variant="outline" size="sm">
+                              View Submission
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
+              </CardContent>
+            </Card>
           </TabsContent>
         </Tabs>
       </div>

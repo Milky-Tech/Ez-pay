@@ -295,6 +295,7 @@
 
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
+import { useToast } from "@/hooks/use-toast";
 import Link from "next/link";
 import Header from "@/components/header";
 import ChatWidget from "@/components/ui/chat-widget";
@@ -343,6 +344,7 @@ const stepTitles = [
 export default function RentalApplicationContent() {
   const params = useParams();
   const router = useRouter();
+  const { toast } = useToast();
   const [currentStep, setCurrentStep] = useState(0);
   const [formData, setFormData] = useState({
     fullName: "",
@@ -395,9 +397,10 @@ export default function RentalApplicationContent() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    alert(
-      `Application submitted successfully for ${property.typology}!\n\nYou will receive an email confirmation shortly. Our team will review your application within 24-48 hours.`
-    );
+    toast({
+      title: "Application Submitted",
+      description: `Your application for ${property.typology} has been submitted successfully. You will receive an email confirmation shortly.`,
+    });
 
     // Reset form
     setCurrentStep(0);
