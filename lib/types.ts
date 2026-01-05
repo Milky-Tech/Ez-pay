@@ -1,19 +1,3 @@
-import { createClient } from '@supabase/supabase-js';
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
-
-export type Profile = {
-  id: string;
-  role: 'admin' | 'landlord' | 'tenant';
-  full_name: string;
-  phone: string | null;
-  created_at: string;
-  updated_at: string;
-};
-
 export type Property = {
   id: string;
   landlord_id: string;
@@ -22,13 +6,13 @@ export type Property = {
   state: string;
   area: string;
   typology: string;
-  property_type: string; // Added to match demo data
+  property_type: string;
   number_of_units: number;
-  bedrooms: number; // Added
-  bathrooms: number; // Added
-  square_feet: number; // Added
-  power_supply: boolean; // Added
-  description: string; // Added
+  bedrooms: number;
+  bathrooms: number;
+  square_feet: number;
+  power_supply: boolean;
+  description: string;
   desired_annual_rent: number;
   monthly_cost: number | null;
   availability_status: 'available' | 'inspection_pending' | 'rented' | 'maintenance';

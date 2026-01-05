@@ -40,6 +40,7 @@ export default function SignUpPage() {
     password: "",
     confirmPassword: "",
   });
+  const { message: globalError } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [agreeTerms, setAgreeTerms] = useState(false);
@@ -423,10 +424,10 @@ export default function SignUpPage() {
             </div>
 
             {/* General Error */}
-            {errors.general && (
+            {(errors.general || globalError) && (
               <div className="bg-red-50 border border-red-200 rounded-lg p-3">
                 <p className="text-red-600 text-sm font-open-sans">
-                  {errors.general}
+                  {errors.general || globalError}
                 </p>
               </div>
             )}

@@ -34,7 +34,7 @@ import {
   Car,
   Wifi,
 } from "lucide-react";
-import { type Property } from "@/lib/supabase";
+import { type Property } from "@/lib/types";
 
 // Demo data (same as in listings page)
 const DEMO_PROPERTIES: Property[] = [

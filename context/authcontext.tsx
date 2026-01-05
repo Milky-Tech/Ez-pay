@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useState, useEffect } from "react";
 
-const BASE_API = "https://ez-pay.realestway.com/api";
+const BASE_API = process.env.NEXT_PUBLIC_API_URL || "https://ez-pay.realestway.com/api";
 
 type User = {
   id: number;
@@ -10,6 +10,7 @@ type User = {
   fullName: string;
   email: string;
   phone: string;
+  role: 'admin' | 'landlord' | 'tenant';
 };
 
 type AuthContextType = {
@@ -41,15 +42,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
+
   // Check for existing session on mount
   useEffect(() => {
-    const token = localStorage.getItem("token");
-    const userData = localStorage.getItem("user");
+    const storedToken = localStorage.getItem("token");
+    const storedUser = localStorage.getItem("user");
 
-    if (token && userData) {
+    if (storedToken && storedUser) {
       try {
-        setUser(JSON.parse(userData));
+        const parsedUser = JSON.parse(storedUser);
+        setUser(parsedUser);
+        setToken(storedToken);
         setIsAuthenticated(true);
+        console.debug("Session restored for:", parsedUser.email);
       } catch (error) {
         console.error("Failed to parse user data:", error);
         localStorage.removeItem("token");
@@ -64,6 +69,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       setLoading(true);
       setMessage("");
+      console.log(`Attempting login at: ${BASE_API}/login`);
+      
       const response = await fetch(`${BASE_API}/login`, {
         method: "POST",
         headers: {
@@ -73,27 +80,42 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         body: JSON.stringify({ email, password }),
       });
 
-      const data = await response.json();
+      console.log("Login Response Status:", response.status);
 
-      // Normalize possible response shapes: { data: { token, user } } OR { token, user }
-      const tokenValue = data?.data?.token ?? data?.token ?? null;
+      let data;
+      const contentType = response.headers.get("content-type");
+      if (contentType && contentType.includes("application/json")) {
+        data = await response.json();
+      } else {
+        const text = await response.text();
+        console.warn("Expected JSON but received:", text.substring(0, 100));
+        data = { message: "Server returned non-JSON response" };
+      }
+
+      console.log("Login Response Data:", data);
+
+      // Normalize possible response shapes: { data: { token, user } } OR { token, user } OR { access_token, user }
+      const tokenValue = data?.data?.token ?? data?.token ?? data?.access_token ?? data?.data?.access_token ?? null;
       const userValue = data?.data?.user ?? data?.user ?? null;
 
       if (response.ok && tokenValue) {
         // Store token and user data
         localStorage.setItem("token", tokenValue);
         if (userValue) localStorage.setItem("user", JSON.stringify(userValue));
+        
         setToken(tokenValue);
         if (userValue) setUser(userValue);
         setIsAuthenticated(true);
         return true;
       } else {
-        console.error("Login failed:", data?.message || "Invalid credentials");
-        setMessage(data?.message || "Login failed");
+        const errorMsg = data?.message || data?.error || (response.status === 401 ? "Invalid credentials" : "Login failed");
+        console.error("Login failed:", errorMsg);
+        setMessage(errorMsg);
         return false;
       }
     } catch (error) {
-      console.error("Login error:", error);
+      console.error("Network Error during login:", error);
+      setMessage("Network error. Please check your internet connection.");
       return false;
     } finally {
       setLoading(false);
@@ -105,6 +127,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       setLoading(true);
       setMessage("");
+      console.log(`Attempting register at: ${BASE_API}/register`);
+
       const response = await fetch(`${BASE_API}/register`, {
         method: "POST",
         headers: {
@@ -114,9 +138,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         body: JSON.stringify(data),
       });
 
-      const result = await response.json();
+      console.log("Register Response Status:", response.status);
 
-      const tokenValue = result?.data?.token ?? result?.token ?? null;
+      let result;
+      const contentType = response.headers.get("content-type");
+      if (contentType && contentType.includes("application/json")) {
+        result = await response.json();
+      } else {
+        const text = await response.text();
+        console.warn("Expected JSON but received:", text.substring(0, 100));
+        result = { message: "Server returned non-JSON response" };
+      }
+
+      console.log("Register Response Data:", result);
+
+      const tokenValue = result?.data?.token ?? result?.token ?? result?.access_token ?? result?.data?.access_token ?? null;
       const userValue = result?.data?.user ?? result?.user ?? null;
 
       if (response.ok && tokenValue) {
@@ -128,15 +164,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setIsAuthenticated(true);
         return true;
       } else {
-        console.error(
-          "Registration failed:",
-          result?.message || "Registration error"
-        );
-        setMessage(result?.message || "Registration failed");
+        const errorMsg = result?.message || result?.error || "Registration failed";
+        console.error("Registration failed:", errorMsg);
+        setMessage(errorMsg);
         return false;
       }
     } catch (error) {
-      console.error("Registration error:", error);
+      console.error("Network Error during registration:", error);
+      setMessage("Network error. Please check your internet connection.");
       return false;
     } finally {
       setLoading(false);
