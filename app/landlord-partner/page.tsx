@@ -21,10 +21,50 @@ import {
   Wrench,
   Battery,
   VolumeX,
+  Loader2,
 } from "lucide-react";
+
+// API Base URL
+const API_BASE_URL = "https://ez-pay.realestway.com/api";
+
+// File upload endpoint
+const UPLOAD_ENDPOINT = `${API_BASE_URL}/upload`;
+// Property registration endpoint
+const REGISTER_ENDPOINT = `${API_BASE_URL}/landlords/property/register`;
+
+// File type mapping
+type FileType = "image" | "document";
+
+// Interface for the form data
+interface PropertyFormData {
+  full_name: string;
+  designation: string;
+  occupation: string;
+  nationality: string;
+  state_of_origin: string;
+  lga_of_origin: string;
+  residential_address: string;
+  place_of_work: string;
+  business_name: string;
+  business_address: string;
+  property_address: string;
+  state: string;
+  area: string;
+  topology: string;
+  no_of_units: number;
+  rent: number;
+  ownership_doc: string;
+  gov_id: string;
+  cac_cert: string;
+  exterior_shot: string;
+  compound_road: string;
+  power_system: string;
+  interior_rooms: string[];
+}
 
 export default function LandlordPartnerPage() {
   const [currentStep, setCurrentStep] = useState(0);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [expandedSections, setExpandedSections] = useState<
     Record<string, boolean>
   >({
@@ -55,7 +95,59 @@ export default function LandlordPartnerPage() {
     desiredAnnualRent: "",
   });
 
+  // File states
+  const [files, setFiles] = useState<{
+    ownershipDoc: File | null;
+    govtId: File | null;
+    cacCert: File | null;
+    exteriorPhoto: File | null;
+    roadPhoto: File | null;
+    powerPhoto: File | null;
+    interiorPhotos: File[];
+  }>({
+    ownershipDoc: null,
+    govtId: null,
+    cacCert: null,
+    exteriorPhoto: null,
+    roadPhoto: null,
+    powerPhoto: null,
+    interiorPhotos: [],
+  });
+
+  const [uploadedPaths, setUploadedPaths] = useState<{
+    ownership_doc: string;
+    gov_id: string;
+    cac_cert: string;
+    exterior_shot: string;
+    compound_road: string;
+    power_system: string;
+    interior_rooms: string[];
+  }>({
+    ownership_doc: "",
+    gov_id: "",
+    cac_cert: "",
+    exterior_shot: "",
+    compound_road: "",
+    power_system: "",
+    interior_rooms: [],
+  });
+
+  const [toastMessage, setToastMessage] = useState<{
+    title: string;
+    description: string;
+    type: "success" | "error";
+  } | null>(null);
+
   const totalSteps = 4;
+
+  const showToast = (
+    title: string,
+    description: string,
+    type: "success" | "error" = "success"
+  ) => {
+    setToastMessage({ title, description, type });
+    setTimeout(() => setToastMessage(null), 5000);
+  };
 
   const toggleSection = (section: string) => {
     setExpandedSections((prev) => ({
@@ -76,17 +168,383 @@ export default function LandlordPartnerPage() {
     }
   };
 
+  // File upload function
+  const uploadFile = async (file: File, type: FileType): Promise<string> => {
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("type", type);
+
+    try {
+      const response = await fetch(UPLOAD_ENDPOINT, {
+        method: "POST",
+        headers: {
+          Accept: "application/json",
+        },
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(
+          errorData.message || `Upload failed: ${response.statusText}`
+        );
+      }
+
+      const data = await response.json();
+
+      // Adjust based on your actual API response structure
+      return (
+        data.path ||
+        data.url ||
+        data.filePath ||
+        `/storage/uploads/${type === "image" ? "images" : "documents"}/${
+          file.name
+        }`
+      );
+    } catch (error) {
+      console.error("Upload error:", error);
+      throw error;
+    }
+  };
+
+  // Upload all files
+  const uploadAllFiles = async () => {
+    const uploadPromises = [];
+    const newUploadedPaths = { ...uploadedPaths };
+
+    // Upload ownership document
+    if (files.ownershipDoc) {
+      uploadPromises.push(
+        uploadFile(files.ownershipDoc, "document")
+          .then((path) => {
+            newUploadedPaths.ownership_doc = path;
+          })
+          .catch(() => {
+            throw new Error("Failed to upload ownership document");
+          })
+      );
+    }
+
+    // Upload government ID
+    if (files.govtId) {
+      uploadPromises.push(
+        uploadFile(files.govtId, "document")
+          .then((path) => {
+            newUploadedPaths.gov_id = path;
+          })
+          .catch(() => {
+            throw new Error("Failed to upload government ID");
+          })
+      );
+    }
+
+    // Upload CAC certificate (optional)
+    if (files.cacCert) {
+      uploadPromises.push(
+        uploadFile(files.cacCert, "document")
+          .then((path) => {
+            newUploadedPaths.cac_cert = path;
+          })
+          .catch(() => {
+            throw new Error("Failed to upload CAC certificate");
+          })
+      );
+    }
+
+    // Upload exterior photo
+    if (files.exteriorPhoto) {
+      uploadPromises.push(
+        uploadFile(files.exteriorPhoto, "image")
+          .then((path) => {
+            newUploadedPaths.exterior_shot = path;
+          })
+          .catch(() => {
+            throw new Error("Failed to upload exterior photo");
+          })
+      );
+    }
+
+    // Upload road/compound photo
+    if (files.roadPhoto) {
+      uploadPromises.push(
+        uploadFile(files.roadPhoto, "image")
+          .then((path) => {
+            newUploadedPaths.compound_road = path;
+          })
+          .catch(() => {
+            throw new Error("Failed to upload road/compound photo");
+          })
+      );
+    }
+
+    // Upload power system photo
+    if (files.powerPhoto) {
+      uploadPromises.push(
+        uploadFile(files.powerPhoto, "image")
+          .then((path) => {
+            newUploadedPaths.power_system = path;
+          })
+          .catch(() => {
+            throw new Error("Failed to upload power system photo");
+          })
+      );
+    }
+
+    // Upload interior photos
+    if (files.interiorPhotos.length > 0) {
+      const interiorUploads = files.interiorPhotos.map((file) =>
+        uploadFile(file, "image")
+          .then((path) => path)
+          .catch(() => {
+            throw new Error("Failed to upload interior photos");
+          })
+      );
+
+      uploadPromises.push(
+        Promise.all(interiorUploads).then((paths) => {
+          newUploadedPaths.interior_rooms = paths;
+        })
+      );
+    }
+
+    await Promise.all(uploadPromises);
+    setUploadedPaths(newUploadedPaths);
+    return newUploadedPaths;
+  };
+
+  // Submit form data to backend
+  const submitFormData = async (paths: typeof uploadedPaths) => {
+    const payload: PropertyFormData = {
+      full_name: formData.fullName,
+      designation: formData.designation,
+      occupation: formData.occupation,
+      nationality: formData.nationality,
+      state_of_origin: formData.stateOfOrigin,
+      lga_of_origin: formData.lgaOfOrigin,
+      residential_address: formData.residentialAddress,
+      place_of_work: formData.placeOfWork,
+      business_name: formData.businessName,
+      business_address: formData.businessAddress,
+      property_address: formData.propertyAddress,
+      state: formData.state,
+      area: formData.area,
+      topology: formData.typology,
+      no_of_units: parseInt(formData.numberOfUnits) || 0,
+      rent: parseFloat(formData.desiredAnnualRent) || 0,
+      ownership_doc: paths.ownership_doc,
+      gov_id: paths.gov_id,
+      cac_cert: paths.cac_cert || "",
+      exterior_shot: paths.exterior_shot,
+      compound_road: paths.compound_road,
+      power_system: paths.power_system,
+      interior_rooms: paths.interior_rooms,
+    };
+
+    const response = await fetch(REGISTER_ENDPOINT, {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(
+        errorData.message || `Registration failed: ${response.statusText}`
+      );
+    }
+
+    return await response.json();
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    alert(
-      "Property submission successful! Our team will review and contact you within 48 hours."
-    );
+    setIsSubmitting(true);
+
+    try {
+      // Validate required fields
+      if (
+        !formData.fullName ||
+        !formData.occupation ||
+        !formData.nationality ||
+        !formData.stateOfOrigin ||
+        !formData.lgaOfOrigin ||
+        !formData.residentialAddress ||
+        !formData.propertyAddress ||
+        !formData.state ||
+        !formData.area ||
+        !formData.typology ||
+        !formData.numberOfUnits ||
+        !formData.desiredAnnualRent
+      ) {
+        throw new Error("Please fill in all required fields marked with *");
+      }
+
+      // Validate required files
+      if (
+        !files.ownershipDoc ||
+        !files.govtId ||
+        !files.exteriorPhoto ||
+        !files.roadPhoto ||
+        !files.powerPhoto ||
+        files.interiorPhotos.length === 0
+      ) {
+        throw new Error("Please upload all required files marked with *");
+      }
+
+      // Step 1: Upload all files
+      showToast(
+        "Uploading files...",
+        "Please wait while we upload your documents and images.",
+        "success"
+      );
+
+      const uploadedPaths = await uploadAllFiles();
+
+      // Step 2: Submit form data
+      showToast(
+        "Submitting property details...",
+        "Please wait while we register your property.",
+        "success"
+      );
+
+      await submitFormData(uploadedPaths);
+
+      // Success
+      showToast(
+        "Success!",
+        "Property submission successful! Our team will review and contact you within 48 hours.",
+        "success"
+      );
+
+      // Reset form
+      setFormData({
+        fullName: "",
+        designation: "",
+        occupation: "",
+        residentialAddress: "",
+        nationality: "",
+        stateOfOrigin: "",
+        lgaOfOrigin: "",
+        placeOfWork: "",
+        businessName: "",
+        businessAddress: "",
+        propertyAddress: "",
+        state: "",
+        area: "",
+        numberOfUnits: "",
+        typology: "",
+        desiredAnnualRent: "",
+      });
+
+      setFiles({
+        ownershipDoc: null,
+        govtId: null,
+        cacCert: null,
+        exteriorPhoto: null,
+        roadPhoto: null,
+        powerPhoto: null,
+        interiorPhotos: [],
+      });
+
+      setUploadedPaths({
+        ownership_doc: "",
+        gov_id: "",
+        cac_cert: "",
+        exterior_shot: "",
+        compound_road: "",
+        power_system: "",
+        interior_rooms: [],
+      });
+
+      setCurrentStep(0);
+    } catch (error) {
+      console.error("Submission error:", error);
+      showToast(
+        "Error",
+        error instanceof Error
+          ? error.message
+          : "Failed to submit property. Please try again.",
+        "error"
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // Handle file input changes
+  const handleFileChange = (
+    field: keyof typeof files,
+    file: File | File[] | null
+  ) => {
+    setFiles((prev) => ({
+      ...prev,
+      [field]: file,
+    }));
   };
 
   return (
     <div className="min-h-screen bg-gray-50">
       <Header />
       <ChatWidget />
+
+      {/* Toast Notification */}
+      {toastMessage && (
+        <div
+          className={`fixed top-4 right-4 z-50 p-4 rounded-lg shadow-lg max-w-md ${
+            toastMessage.type === "success"
+              ? "bg-green-50 border border-green-200"
+              : "bg-red-50 border border-red-200"
+          }`}
+        >
+          <div className="flex items-start">
+            <div className="flex-shrink-0">
+              {toastMessage.type === "success" ? (
+                <CheckCircle className="h-5 w-5 text-green-400" />
+              ) : (
+                <div className="h-5 w-5 text-red-400">!</div>
+              )}
+            </div>
+            <div className="ml-3">
+              <h3
+                className={`text-sm font-medium ${
+                  toastMessage.type === "success"
+                    ? "text-green-800"
+                    : "text-red-800"
+                }`}
+              >
+                {toastMessage.title}
+              </h3>
+              <p
+                className={`mt-1 text-sm ${
+                  toastMessage.type === "success"
+                    ? "text-green-700"
+                    : "text-red-700"
+                }`}
+              >
+                {toastMessage.description}
+              </p>
+            </div>
+            <button
+              onClick={() => setToastMessage(null)}
+              className="ml-auto pl-3"
+            >
+              <span className="sr-only">Close</span>
+              <span
+                className={`h-5 w-5 ${
+                  toastMessage.type === "success"
+                    ? "text-green-400"
+                    : "text-red-400"
+                }`}
+              >
+                ×
+              </span>
+            </button>
+          </div>
+        </div>
+      )}
 
       <div className="pt-24 pb-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -711,6 +1169,7 @@ export default function LandlordPartnerPage() {
                         <Input
                           id="numberOfUnits"
                           type="number"
+                          min="1"
                           value={formData.numberOfUnits}
                           onChange={(e) =>
                             setFormData({
@@ -728,6 +1187,8 @@ export default function LandlordPartnerPage() {
                         <Input
                           id="desiredAnnualRent"
                           type="number"
+                          min="0"
+                          step="1000"
                           placeholder="e.g., 6000000"
                           value={formData.desiredAnnualRent}
                           onChange={(e) =>
@@ -767,8 +1228,20 @@ export default function LandlordPartnerPage() {
                           id="ownershipDoc"
                           type="file"
                           className="mt-2"
+                          accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                          onChange={(e) =>
+                            handleFileChange(
+                              "ownershipDoc",
+                              e.target.files?.[0] || null
+                            )
+                          }
                           required
                         />
+                        {files.ownershipDoc && (
+                          <p className="text-sm text-green-600 mt-2">
+                            ✓ {files.ownershipDoc.name}
+                          </p>
+                        )}
                       </div>
                       <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
                         <Upload className="h-12 w-12 text-gray-400 mx-auto mb-3" />
@@ -782,8 +1255,20 @@ export default function LandlordPartnerPage() {
                           id="govtId"
                           type="file"
                           className="mt-2"
+                          accept=".jpg,.jpeg,.png,.pdf"
+                          onChange={(e) =>
+                            handleFileChange(
+                              "govtId",
+                              e.target.files?.[0] || null
+                            )
+                          }
                           required
                         />
+                        {files.govtId && (
+                          <p className="text-sm text-green-600 mt-2">
+                            ✓ {files.govtId.name}
+                          </p>
+                        )}
                       </div>
                       <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
                         <Upload className="h-12 w-12 text-gray-400 mx-auto mb-3" />
@@ -796,7 +1281,23 @@ export default function LandlordPartnerPage() {
                             (If business-owned)
                           </span>
                         </Label>
-                        <Input id="cacCert" type="file" className="mt-2" />
+                        <Input
+                          id="cacCert"
+                          type="file"
+                          className="mt-2"
+                          accept=".pdf,.jpg,.jpeg,.png"
+                          onChange={(e) =>
+                            handleFileChange(
+                              "cacCert",
+                              e.target.files?.[0] || null
+                            )
+                          }
+                        />
+                        {files.cacCert && (
+                          <p className="text-sm text-green-600 mt-2">
+                            ✓ {files.cacCert.name}
+                          </p>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -830,8 +1331,19 @@ export default function LandlordPartnerPage() {
                           type="file"
                           accept="image/*"
                           className="mt-2"
+                          onChange={(e) =>
+                            handleFileChange(
+                              "exteriorPhoto",
+                              e.target.files?.[0] || null
+                            )
+                          }
                           required
                         />
+                        {files.exteriorPhoto && (
+                          <p className="text-sm text-green-600 mt-2">
+                            ✓ {files.exteriorPhoto.name}
+                          </p>
+                        )}
                       </div>
                       <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
                         <Upload className="h-12 w-12 text-gray-400 mx-auto mb-3" />
@@ -845,8 +1357,19 @@ export default function LandlordPartnerPage() {
                           type="file"
                           accept="image/*"
                           className="mt-2"
+                          onChange={(e) =>
+                            handleFileChange(
+                              "roadPhoto",
+                              e.target.files?.[0] || null
+                            )
+                          }
                           required
                         />
+                        {files.roadPhoto && (
+                          <p className="text-sm text-green-600 mt-2">
+                            ✓ {files.roadPhoto.name}
+                          </p>
+                        )}
                       </div>
                       <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
                         <Upload className="h-12 w-12 text-gray-400 mx-auto mb-3" />
@@ -860,8 +1383,19 @@ export default function LandlordPartnerPage() {
                           type="file"
                           accept="image/*"
                           className="mt-2"
+                          onChange={(e) =>
+                            handleFileChange(
+                              "powerPhoto",
+                              e.target.files?.[0] || null
+                            )
+                          }
                           required
                         />
+                        {files.powerPhoto && (
+                          <p className="text-sm text-green-600 mt-2">
+                            ✓ {files.powerPhoto.name}
+                          </p>
+                        )}
                       </div>
                       <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
                         <Upload className="h-12 w-12 text-gray-400 mx-auto mb-3" />
@@ -883,8 +1417,19 @@ export default function LandlordPartnerPage() {
                           accept="image/*"
                           multiple
                           className="mt-2"
+                          onChange={(e) =>
+                            handleFileChange(
+                              "interiorPhotos",
+                              Array.from(e.target.files || [])
+                            )
+                          }
                           required
                         />
+                        {files.interiorPhotos.length > 0 && (
+                          <p className="text-sm text-green-600 mt-2">
+                            ✓ {files.interiorPhotos.length} file(s) selected
+                          </p>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -895,7 +1440,7 @@ export default function LandlordPartnerPage() {
                     type="button"
                     variant="outline"
                     onClick={handlePrevious}
-                    disabled={currentStep === 0}
+                    disabled={currentStep === 0 || isSubmitting}
                     className="font-montserrat"
                   >
                     Previous
@@ -905,6 +1450,7 @@ export default function LandlordPartnerPage() {
                       type="button"
                       onClick={handleNext}
                       className="bg-primary font-montserrat"
+                      disabled={isSubmitting}
                     >
                       Next
                     </Button>
@@ -912,8 +1458,16 @@ export default function LandlordPartnerPage() {
                     <Button
                       type="submit"
                       className="bg-primary font-montserrat"
+                      disabled={isSubmitting}
                     >
-                      Submit Property for Verification
+                      {isSubmitting ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Submitting...
+                        </>
+                      ) : (
+                        "Submit Property for Verification"
+                      )}
                     </Button>
                   )}
                 </div>

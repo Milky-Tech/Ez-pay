@@ -4,8 +4,7 @@
 import axios, { AxiosInstance, AxiosResponse, AxiosError } from "axios";
 
 // Define API base URL
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000/api";
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://ez-pay.realestway.com/api";
 
 // Create axios instance
 const api: AxiosInstance = axios.create({

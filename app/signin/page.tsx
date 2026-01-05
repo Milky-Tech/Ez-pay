@@ -28,7 +28,7 @@ import { useAuth } from "@/context/authcontext";
 
 export default function SignInPage() {
   const router = useRouter();
-  const { login, isAuthenticated, message, loading } = useAuth();
+  const { login, isAuthenticated, user, message, loading } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -38,10 +38,16 @@ export default function SignInPage() {
   const [successMessage, setSuccessMessage] = useState("");
 
   useEffect(() => {
-    if (isAuthenticated) {
-      router.push("/admin");
+    if (isAuthenticated && user) {
+      if (user.role === "admin") {
+        router.push("/admin");
+      } else if (user.role === "landlord") {
+        router.push("/landlord");
+      } else {
+        router.push("/profile");
+      }
     }
-  }, [isAuthenticated, router]);
+  }, [isAuthenticated, user, router]);
   // Show error message from AuthContext when it changes
   useEffect(() => {
     if (message) {
@@ -51,7 +57,7 @@ export default function SignInPage() {
   const handleSignIn = async (e: React.FormEvent) => {
     setError("");
     e.preventDefault();
-    login(email, password);
+    await login(email, password);
   };
 
   // Handle social sign-in (if needed)
