@@ -23,6 +23,13 @@ import {
   VolumeX,
   Loader2,
 } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 // API Base URL
 const API_BASE_URL = "https://ez-pay.realestway.com/api";
@@ -31,6 +38,864 @@ const API_BASE_URL = "https://ez-pay.realestway.com/api";
 const UPLOAD_ENDPOINT = `${API_BASE_URL}/upload`;
 // Property registration endpoint
 const REGISTER_ENDPOINT = `${API_BASE_URL}/landlords/property/register`;
+
+// Nigerian states and LGAs for validation
+const NIGERIAN_STATES_LGAS: Record<string, string[]> = {
+  Abia: [
+    "Aba North",
+    "Aba South",
+    "Arochukwu",
+    "Bende",
+    "Ikwuano",
+    "Isiala Ngwa North",
+    "Isiala Ngwa South",
+    "Isuikwuato",
+    "Obi Ngwa",
+    "Ohafia",
+    "Osisioma",
+    "Ugwunagbo",
+    "Ukwa East",
+    "Ukwa West",
+    "Umuahia North",
+    "Umuahia South",
+    "Umu Nneochi",
+  ],
+  Adamawa: [
+    "Demsa",
+    "Fufore",
+    "Ganye",
+    "Girei",
+    "Gombi",
+    "Guyuk",
+    "Hong",
+    "Jada",
+    "Lamurde",
+    "Madagali",
+    "Maiha",
+    "Mayo-Belwa",
+    "Michika",
+    "Mubi North",
+    "Mubi South",
+    "Numan",
+    "Shelleng",
+    "Song",
+    "Toungo",
+    "Yola North",
+    "Yola South",
+  ],
+  "Akwa Ibom": [
+    "Abak",
+    "Eastern Obolo",
+    "Eket",
+    "Esit Eket",
+    "Essien Udim",
+    "Etim Ekpo",
+    "Etinan",
+    "Ibeno",
+    "Ibesikpo Asutan",
+    "Ibiono Ibom",
+    "Ika",
+    "Ikono",
+    "Ikot Abasi",
+    "Ikot Ekpene",
+    "Ini",
+    "Itu",
+    "Mbo",
+    "Mkpat Enin",
+    "Nsit Atai",
+    "Nsit Ibom",
+    "Nsit Ubium",
+    "Obot Akara",
+    "Okobo",
+    "Onna",
+    "Oron",
+    "Oruk Anam",
+    "Udung Uko",
+    "Ukanafun",
+    "Uruan",
+    "Urue-Offong/Oruko",
+    "Uyo",
+  ],
+  Anambra: [
+    "Aguata",
+    "Anambra East",
+    "Anambra West",
+    "Anaocha",
+    "Awka North",
+    "Awka South",
+    "Ayamelum",
+    "Dunukofia",
+    "Ekwusigo",
+    "Idemili North",
+    "Idemili South",
+    "Ihiala",
+    "Njikoka",
+    "Nnewi North",
+    "Nnewi South",
+    "Ogbaru",
+    "Onitsha North",
+    "Onitsha South",
+    "Orumba North",
+    "Orumba South",
+    "Oyi",
+  ],
+  Bauchi: [
+    "Alkaleri",
+    "Bauchi",
+    "Bogoro",
+    "Damban",
+    "Darazo",
+    "Dass",
+    "Gamawa",
+    "Ganjuwa",
+    "Giade",
+    "Itas/Gadau",
+    "Jama'are",
+    "Katagum",
+    "Kirfi",
+    "Misau",
+    "Ningi",
+    "Shira",
+    "Tafawa Balewa",
+    "Toro",
+    "Warji",
+    "Zaki",
+  ],
+  Bayelsa: [
+    "Brass",
+    "Ekeremor",
+    "Kolokuma/Opokuma",
+    "Nembe",
+    "Ogbia",
+    "Sagbama",
+    "Southern Ijaw",
+    "Yenagoa",
+  ],
+  Benue: [
+    "Ado",
+    "Agatu",
+    "Apa",
+    "Buruku",
+    "Gboko",
+    "Guma",
+    "Gwer East",
+    "Gwer West",
+    "Katsina-Ala",
+    "Konshisha",
+    "Kwande",
+    "Logo",
+    "Makurdi",
+    "Obi",
+    "Ogbadibo",
+    "Ohimini",
+    "Oju",
+    "Okpokwu",
+    "Oturkpo",
+    "Tarka",
+    "Ukum",
+    "Ushongo",
+    "Vandeikya",
+  ],
+  Borno: [
+    "Abadam",
+    "Askira/Uba",
+    "Bama",
+    "Bayo",
+    "Biu",
+    "Chibok",
+    "Damboa",
+    "Dikwa",
+    "Gubio",
+    "Guzamala",
+    "Gwoza",
+    "Hawul",
+    "Jere",
+    "Kaga",
+    "Kala/Balge",
+    "Konduga",
+    "Kukawa",
+    "Kwaya Kusar",
+    "Mafa",
+    "Magumeri",
+    "Maiduguri",
+    "Marte",
+    "Mobbar",
+    "Monguno",
+    "Ngala",
+    "Nganzai",
+    "Shani",
+  ],
+  "Cross River": [
+    "Abi",
+    "Akamkpa",
+    "Akpabuyo",
+    "Bakassi",
+    "Bekwarra",
+    "Biase",
+    "Boki",
+    "Calabar Municipal",
+    "Calabar South",
+    "Etung",
+    "Ikom",
+    "Obanliku",
+    "Obubra",
+    "Obudu",
+    "Odukpani",
+    "Ogoja",
+    "Yakurr",
+    "Yala",
+  ],
+  Delta: [
+    "Aniocha North",
+    "Aniocha South",
+    "Bomadi",
+    "Burutu",
+    "Ethiope East",
+    "Ethiope West",
+    "Ika North East",
+    "Ika South",
+    "Isoko North",
+    "Isoko South",
+    "Ndokwa East",
+    "Ndokwa West",
+    "Okpe",
+    "Oshimili North",
+    "Oshimili South",
+    "Patani",
+    "Sapele",
+    "Udu",
+    "Ughelli North",
+    "Ughelli South",
+    "Ukwuani",
+    "Uvwie",
+    "Warri North",
+    "Warri South",
+    "Warri South West",
+  ],
+  Ebonyi: [
+    "Abakaliki",
+    "Afikpo North",
+    "Afikpo South",
+    "Ebonyi",
+    "Ezza North",
+    "Ezza South",
+    "Ikwo",
+    "Ishielu",
+    "Ivo",
+    "Izzi",
+    "Ohaozara",
+    "Ohaukwu",
+    "Onicha",
+  ],
+  Edo: [
+    "Akoko-Edo",
+    "Egor",
+    "Esan Central",
+    "Esan North-East",
+    "Esan South-East",
+    "Esan West",
+    "Etsako Central",
+    "Etsako East",
+    "Etsako West",
+    "Igueben",
+    "Ikpoba-Okha",
+    "Oredo",
+    "Orhionmwon",
+    "Ovia North-East",
+    "Ovia South-West",
+    "Owan East",
+    "Owan West",
+    "Uhunmwonde",
+  ],
+  Ekiti: [
+    "Ado Ekiti",
+    "Efon",
+    "Ekiti East",
+    "Ekiti South-West",
+    "Ekiti West",
+    "Emure",
+    "Gbonyin",
+    "Ido Osi",
+    "Ijero",
+    "Ikere",
+    "Ikole",
+    "Ilejemeje",
+    "Irepodun/Ifelodun",
+    "Ise/Orun",
+    "Moba",
+    "Oye",
+  ],
+  Enugu: [
+    "Aninri",
+    "Awgu",
+    "Enugu East",
+    "Enugu North",
+    "Enugu South",
+    "Ezeagu",
+    "Igbo Etiti",
+    "Igbo Eze North",
+    "Igbo Eze South",
+    "Isi Uzo",
+    "Nkanu East",
+    "Nkanu West",
+    "Nsukka",
+    "Oji River",
+    "Udenu",
+    "Udi",
+    "Uzo-Uwani",
+  ],
+  FCT: [
+    "Abaji",
+    "Bwari",
+    "Gwagwalada",
+    "Kuje",
+    "Kwali",
+    "Municipal Area Council",
+  ],
+  Gombe: [
+    "Akko",
+    "Balanga",
+    "Billiri",
+    "Dukku",
+    "Funakaye",
+    "Gombe",
+    "Kaltungo",
+    "Kwami",
+    "Nafada",
+    "Shomgom",
+    "Yamaltu/Deba",
+  ],
+  Imo: [
+    "Aboh Mbaise",
+    "Ahiazu Mbaise",
+    "Ehime Mbano",
+    "Ezinihitte",
+    "Ideato North",
+    "Ideato South",
+    "Ihitte/Uboma",
+    "Ikeduru",
+    "Isiala Mbano",
+    "Isu",
+    "Mbaitoli",
+    "Ngor Okpala",
+    "Njaba",
+    "Nkwerre",
+    "Nwangele",
+    "Obowo",
+    "Oguta",
+    "Ohaji/Egbema",
+    "Okigwe",
+    "Onuimo",
+    "Orlu",
+    "Orsu",
+    "Oru East",
+    "Oru West",
+    "Owerri Municipal",
+    "Owerri North",
+    "Owerri West",
+  ],
+  Jigawa: [
+    "Auyo",
+    "Babura",
+    "Biriniwa",
+    "Birnin Kudu",
+    "Buji",
+    "Dutse",
+    "Gagarawa",
+    "Garki",
+    "Gumel",
+    "Guri",
+    "Gwaram",
+    "Gwiwa",
+    "Hadejia",
+    "Jahun",
+    "Kafin Hausa",
+    "Kaita",
+    "Kankara",
+    "Kankia",
+    "Karasuwa",
+    "Kiri Kasama",
+    "Kiyawa",
+    "Maigatari",
+    "Malam Madori",
+    "Miga",
+    "Ringim",
+    "Roni",
+    "Sule Tankarkar",
+    "Taura",
+    "Tudun Wada",
+    "Ungogo",
+    "Warawa",
+    "Wudil",
+  ],
+  Kaduna: [
+    "Birnin Gwari",
+    "Chikun",
+    "Giwa",
+    "Igabi",
+    "Ikara",
+    "Jaba",
+    "Jema'a",
+    "Kachia",
+    "Kaduna North",
+    "Kaduna South",
+    "Kagarko",
+    "Kajuru",
+    "Kaura",
+    "Kauru",
+    "Kubau",
+    "Kudan",
+    "Lere",
+    "Makarfi",
+    "Sabon Gari",
+    "Sanga",
+    "Soba",
+    "Zangon Kataf",
+    "Zaria",
+  ],
+  Kano: [
+    "Ajingi",
+    "Albasu",
+    "Bagwai",
+    "Bebeji",
+    "Bichi",
+    "Bunkure",
+    "Dala",
+    "Dambatta",
+    "Dawakin Kudu",
+    "Dawakin Tofa",
+    "Doguwa",
+    "Fagge",
+    "Gabasawa",
+    "Garko",
+    "Garun Mallam",
+    "Gaya",
+    "Gezawa",
+    "Gwale",
+    "Gwarzo",
+    "Kabo",
+    "Kano Municipal",
+    "Karaye",
+    "Kibiya",
+    "Kiru",
+    "Kumbotso",
+    "Kunchi",
+    "Kura",
+    "Madobi",
+    "Makoda",
+    "Minjibir",
+    "Nasarawa",
+    "Rano",
+    "Rimin Gado",
+    "Rogo",
+    "Shanono",
+    "Sumaila",
+    "Takai",
+    "Tarauni",
+    "Tofa",
+    "Tsanyawa",
+    "Tudun Wada",
+    "Ungogo",
+    "Warawa",
+    "Wudil",
+  ],
+  Katsina: [
+    "Bakori",
+    "Batagarawa",
+    "Batsari",
+    "Baure",
+    "Bindawa",
+    "Charanchi",
+    "Dan Musa",
+    "Dandume",
+    "Danja",
+    "Daura",
+    "Dutsi",
+    "Dutsin-Ma",
+    "Faskari",
+    "Funtua",
+    "Ingawa",
+    "Jibia",
+    "Kafur",
+    "Kaita",
+    "Kankara",
+    "Kankia",
+    "Katsina",
+    "Kurfi",
+    "Kusada",
+    "Mai'Adua",
+    "Malumfashi",
+    "Mani",
+    "Mashi",
+    "Matazu",
+    "Musawa",
+    "Rimi",
+    "Sabuwa",
+    "Safana",
+    "Sandamu",
+    "Zango",
+  ],
+  Kebbi: [
+    "Aleiro",
+    "Arewa Dandi",
+    "Argungu",
+    "Augie",
+    "Bagudo",
+    "Birnin Kebbi",
+    "Bunza",
+    "Dandi",
+    "Fakai",
+    "Gwandu",
+    "Jega",
+    "Kalgo",
+    "Koko/Besse",
+    "Maiyama",
+    "Ngaski",
+    "Sakaba",
+    "Shanga",
+    "Suru",
+    "Wasagu/Danko",
+    "Yauri",
+    "Zuru",
+  ],
+  Kogi: [
+    "Adavi",
+    "Ajaokuta",
+    "Ankpa",
+    "Bassa",
+    "Dekina",
+    "Ibaji",
+    "Idah",
+    "Igalamela-Odolu",
+    "Ijumu",
+    "Kabba/Bunu",
+    "Kogi",
+    "Lokoja",
+    "Mopa-Muro",
+    "Ofu",
+    "Ogori/Mangongo",
+    "Okehi",
+    "Okene",
+    "Olamaboro",
+    "Omala",
+    "Yagba East",
+    "Yagba West",
+  ],
+  Kwara: [
+    "Asa",
+    "Baruten",
+    "Edu",
+    "Ekiti",
+    "Ifelodun",
+    "Ilorin East",
+    "Ilorin South",
+    "Ilorin West",
+    "Irepodun",
+    "Isin",
+    "Kaiama",
+    "Moro",
+    "Offa",
+    "Oke Ero",
+    "Oyun",
+    "Pategi",
+  ],
+  Lagos: [
+    "Agege",
+    "Ajeromi-Ifelodun",
+    "Alimosho",
+    "Amuwo-Odofin",
+    "Apapa",
+    "Badagry",
+    "Epe",
+    "Eti-Osa",
+    "Ibeju/Lekki",
+    "Ifako-Ijaye",
+    "Ikeja",
+    "Ikorodu",
+    "Kosofe",
+    "Lagos Island",
+    "Lagos Mainland",
+    "Mushin",
+    "Ojo",
+    "Oshodi-Isolo",
+    "Shomolu",
+    "Surulere",
+  ],
+  Nasarawa: [
+    "Akwanga",
+    "Awe",
+    "Doma",
+    "Karu",
+    "Keana",
+    "Keffi",
+    "Kokona",
+    "Lafia",
+    "Nasarawa",
+    "Nasarawa-Eggon",
+    "Obi",
+    "Toto",
+    "Wamba",
+  ],
+  Niger: [
+    "Agaie",
+    "Agwara",
+    "Bida",
+    "Borgu",
+    "Bosso",
+    "Chanchaga",
+    "Edati",
+    "Gbako",
+    "Gurara",
+    "Katcha",
+    "Kontagora",
+    "Lapai",
+    "Lavun",
+    "Magama",
+    "Mariga",
+    "Mashegu",
+    "Mokwa",
+    "Muya",
+    "Pailoro",
+    "Rafi",
+    "Rijau",
+    "Shiroro",
+    "Suleja",
+    "Tafa",
+    "Wushishi",
+  ],
+  Ogun: [
+    "Abeokuta North",
+    "Abeokuta South",
+    "Ado-Odo/Ota",
+    "Egbado North",
+    "Egbado South",
+    "Ewekoro",
+    "Ifo",
+    "Ijebu East",
+    "Ijebu North",
+    "Ijebu North East",
+    "Ijebu Ode",
+    "Ikenne",
+    "Imeko Afon",
+    "Ipokia",
+    "Obafemi Owode",
+    "Odeda",
+    "Odogbolu",
+    "Ogun Waterside",
+    "Remo North",
+    "Sagamu",
+  ],
+  Ondo: [
+    "Akoko North East",
+    "Akoko North West",
+    "Akoko South Akure East",
+    "Akoko South West",
+    "Akure North",
+    "Akure South",
+    "Ese Odo",
+    "Idanre",
+    "Ifedore",
+    "Ilaje",
+    "Ile Oluji/Okeigbo",
+    "Irele",
+    "Odigbo",
+    "Okitipupa",
+    "Ondo East",
+    "Ondo West",
+    "Ose",
+    "Owo",
+  ],
+  Osun: [
+    "Aiyedaade",
+    "Aiyedire",
+    "Atakumosa East",
+    "Atakumosa West",
+    "Boluwaduro",
+    "Boripe",
+    "Ede North",
+    "Ede South",
+    "Egbedore",
+    "Ejigbo",
+    "Ife Central",
+    "Ife East",
+    "Ife North",
+    "Ife South",
+    "Ifedayo",
+    "Ifelodun",
+    "Ila",
+    "Ilesha East",
+    "Ilesha West",
+    "Irepodun",
+    "Irewole",
+    "Isokan",
+    "Iwo",
+    "Obokun",
+    "Odo Otin",
+    "Ola Oluwa",
+    "Olorunda",
+    "Oriade",
+    "Orolu",
+    "Osogbo",
+  ],
+  Oyo: [
+    "Afijio",
+    "Akinyele",
+    "Atiba",
+    "Atisbo",
+    "Egbeda",
+    "Ibadan Central",
+    "Ibadan North",
+    "Ibadan North West",
+    "Ibadan South East",
+    "Ibadan South West",
+    "Ibarapa Central",
+    "Ibarapa East",
+    "Ibarapa North",
+    "Ibarapa West",
+    "Ido",
+    "Irepo",
+    "Iseyin",
+    "Itesiwaju",
+    "Iwajowa",
+    "Kajola",
+    "Lagelu",
+    "Ogbomosho North",
+    "Ogbomosho South",
+    "Ogo Oluwa",
+    "Olorunsogo",
+    "Oluyole",
+    "Ona Ara",
+    "Orelope",
+    "Ori Ire",
+    "Oyo East",
+    "Oyo West",
+    "Saki East",
+    "Saki West",
+    "Surulere",
+  ],
+  Plateau: [
+    "Barikin Ladi",
+    "Bassa",
+    "Bokkos",
+    "Jos East",
+    "Jos North",
+    "Jos South",
+    "Kanam",
+    "Kanke",
+    "Langtang North",
+    "Langtang South",
+    "Mangu",
+    "Mikang",
+    "Pankshin",
+    "Qua'an Pan",
+    "Riyom",
+    "Shendam",
+    "Wase",
+  ],
+  Rivers: [
+    "Abua/Odual",
+    "Ahoada East",
+    "Ahoada West",
+    "Akuku Toru",
+    "Andoni",
+    "Asari-Toru",
+    "Bonny",
+    "Degema",
+    "Emohua",
+    "Eleme",
+    "Etche",
+    "Gokana",
+    "Ikwerre",
+    "Khana",
+    "Obia/Akpor",
+    "Ogba/Egbema/Ndoni",
+    "Ogu/Bolo",
+    "Okrika",
+    "Omumma",
+    "Opobo/Nkoro",
+    "Oyigbo",
+    "Port Harcourt",
+    "Tai",
+  ],
+  Sokoto: [
+    "Binji",
+    "Bodinga",
+    "Dange Shuni",
+    "Gada",
+    "Goronyo",
+    "Gudu",
+    "Gwadabawa",
+    "Illela",
+    "Isa",
+    "Kebbe",
+    "Kware",
+    "Rabah",
+    "Sabon Birni",
+    "Shagari",
+    "Silame",
+    "Sokoto North",
+    "Sokoto South",
+    "Tambuwal",
+    "Tqngaza",
+    "Tureta",
+    "Wamako",
+    "Wurno",
+    "Yabo",
+  ],
+  Taraba: [
+    "Ardo Kola",
+    "Bali",
+    "Donga",
+    "Gashaka",
+    "Gassol",
+    "Ibi",
+    "Jalingo",
+    "Karin Lamido",
+    "Kurmi",
+    "Lau",
+    "Sardauna",
+    "Takum",
+    "Ussa",
+    "Wukari",
+    "Yorro",
+    "Zing",
+  ],
+  Yobe: [
+    "Bade",
+    "Bursari",
+    "Damaturu",
+    "Fika",
+    "Fune",
+    "Geidam",
+    "Gujba",
+    "Gulani",
+    "Jakusko",
+    "Karasuwa",
+    "Karawa",
+    "Machina",
+    "Nangere",
+    "Nguru",
+    "Potiskum",
+    "Tarmuwa",
+    "Yunusari",
+  ],
+  Zamfara: [
+    "Anka",
+    "Bakura",
+    "Birnin Magaji",
+    "Bukkuyum",
+    "Bungudu",
+    "Gummi",
+    "Gusau",
+    "Kaura Namoda",
+    "Maradun",
+    "Maru",
+    "Shinkafi",
+    "Talata Mafara",
+    "Tsafe",
+    "Zurmi",
+  ],
+};
 
 // File type mapping
 type FileType = "image" | "document";
@@ -59,7 +924,7 @@ interface PropertyFormData {
   exterior_shot: string;
   compound_road: string;
   power_system: string;
-  interior_rooms: string[];
+  interior_rooms: string;
 }
 
 export default function LandlordPartnerPage() {
@@ -103,7 +968,7 @@ export default function LandlordPartnerPage() {
     exteriorPhoto: File | null;
     roadPhoto: File | null;
     powerPhoto: File | null;
-    interiorPhotos: File[];
+    interiorPhoto: File | null;
   }>({
     ownershipDoc: null,
     govtId: null,
@@ -111,7 +976,7 @@ export default function LandlordPartnerPage() {
     exteriorPhoto: null,
     roadPhoto: null,
     powerPhoto: null,
-    interiorPhotos: [],
+    interiorPhoto: null,
   });
 
   const [uploadedPaths, setUploadedPaths] = useState<{
@@ -121,7 +986,7 @@ export default function LandlordPartnerPage() {
     exterior_shot: string;
     compound_road: string;
     power_system: string;
-    interior_rooms: string[];
+    interior_rooms: string;
   }>({
     ownership_doc: "",
     gov_id: "",
@@ -129,7 +994,25 @@ export default function LandlordPartnerPage() {
     exterior_shot: "",
     compound_road: "",
     power_system: "",
-    interior_rooms: [],
+    interior_rooms: "",
+  });
+
+  const [uploading, setUploading] = useState<{
+    ownershipDoc: boolean;
+    govtId: boolean;
+    cacCert: boolean;
+    exteriorPhoto: boolean;
+    roadPhoto: boolean;
+    powerPhoto: boolean;
+    interiorPhoto: boolean;
+  }>({
+    ownershipDoc: false,
+    govtId: false,
+    cacCert: false,
+    exteriorPhoto: false,
+    roadPhoto: false,
+    powerPhoto: false,
+    interiorPhoto: false,
   });
 
   const [toastMessage, setToastMessage] = useState<{
@@ -207,111 +1090,6 @@ export default function LandlordPartnerPage() {
     }
   };
 
-  // Upload all files
-  const uploadAllFiles = async () => {
-    const uploadPromises = [];
-    const newUploadedPaths = { ...uploadedPaths };
-
-    // Upload ownership document
-    if (files.ownershipDoc) {
-      uploadPromises.push(
-        uploadFile(files.ownershipDoc, "document")
-          .then((path) => {
-            newUploadedPaths.ownership_doc = path;
-          })
-          .catch(() => {
-            throw new Error("Failed to upload ownership document");
-          })
-      );
-    }
-
-    // Upload government ID
-    if (files.govtId) {
-      uploadPromises.push(
-        uploadFile(files.govtId, "document")
-          .then((path) => {
-            newUploadedPaths.gov_id = path;
-          })
-          .catch(() => {
-            throw new Error("Failed to upload government ID");
-          })
-      );
-    }
-
-    // Upload CAC certificate (optional)
-    if (files.cacCert) {
-      uploadPromises.push(
-        uploadFile(files.cacCert, "document")
-          .then((path) => {
-            newUploadedPaths.cac_cert = path;
-          })
-          .catch(() => {
-            throw new Error("Failed to upload CAC certificate");
-          })
-      );
-    }
-
-    // Upload exterior photo
-    if (files.exteriorPhoto) {
-      uploadPromises.push(
-        uploadFile(files.exteriorPhoto, "image")
-          .then((path) => {
-            newUploadedPaths.exterior_shot = path;
-          })
-          .catch(() => {
-            throw new Error("Failed to upload exterior photo");
-          })
-      );
-    }
-
-    // Upload road/compound photo
-    if (files.roadPhoto) {
-      uploadPromises.push(
-        uploadFile(files.roadPhoto, "image")
-          .then((path) => {
-            newUploadedPaths.compound_road = path;
-          })
-          .catch(() => {
-            throw new Error("Failed to upload road/compound photo");
-          })
-      );
-    }
-
-    // Upload power system photo
-    if (files.powerPhoto) {
-      uploadPromises.push(
-        uploadFile(files.powerPhoto, "image")
-          .then((path) => {
-            newUploadedPaths.power_system = path;
-          })
-          .catch(() => {
-            throw new Error("Failed to upload power system photo");
-          })
-      );
-    }
-
-    // Upload interior photos
-    if (files.interiorPhotos.length > 0) {
-      const interiorUploads = files.interiorPhotos.map((file) =>
-        uploadFile(file, "image")
-          .then((path) => path)
-          .catch(() => {
-            throw new Error("Failed to upload interior photos");
-          })
-      );
-
-      uploadPromises.push(
-        Promise.all(interiorUploads).then((paths) => {
-          newUploadedPaths.interior_rooms = paths;
-        })
-      );
-    }
-
-    await Promise.all(uploadPromises);
-    setUploadedPaths(newUploadedPaths);
-    return newUploadedPaths;
-  };
-
   // Submit form data to backend
   const submitFormData = async (paths: typeof uploadedPaths) => {
     const payload: PropertyFormData = {
@@ -384,26 +1162,17 @@ export default function LandlordPartnerPage() {
 
       // Validate required files
       if (
-        !files.ownershipDoc ||
-        !files.govtId ||
-        !files.exteriorPhoto ||
-        !files.roadPhoto ||
-        !files.powerPhoto ||
-        files.interiorPhotos.length === 0
+        !uploadedPaths.ownership_doc ||
+        !uploadedPaths.gov_id ||
+        !uploadedPaths.exterior_shot ||
+        !uploadedPaths.compound_road ||
+        !uploadedPaths.power_system ||
+        !uploadedPaths.interior_rooms
       ) {
         throw new Error("Please upload all required files marked with *");
       }
 
-      // Step 1: Upload all files
-      showToast(
-        "Uploading files...",
-        "Please wait while we upload your documents and images.",
-        "success"
-      );
-
-      const uploadedPaths = await uploadAllFiles();
-
-      // Step 2: Submit form data
+      // Step 1: Submit form data
       showToast(
         "Submitting property details...",
         "Please wait while we register your property.",
@@ -446,7 +1215,7 @@ export default function LandlordPartnerPage() {
         exteriorPhoto: null,
         roadPhoto: null,
         powerPhoto: null,
-        interiorPhotos: [],
+        interiorPhoto: null,
       });
 
       setUploadedPaths({
@@ -456,7 +1225,17 @@ export default function LandlordPartnerPage() {
         exterior_shot: "",
         compound_road: "",
         power_system: "",
-        interior_rooms: [],
+        interior_rooms: "",
+      });
+
+      setUploading({
+        ownershipDoc: false,
+        govtId: false,
+        cacCert: false,
+        exteriorPhoto: false,
+        roadPhoto: false,
+        powerPhoto: false,
+        interiorPhoto: false,
       });
 
       setCurrentStep(0);
@@ -475,14 +1254,99 @@ export default function LandlordPartnerPage() {
   };
 
   // Handle file input changes
-  const handleFileChange = (
+  const handleFileChange = async (
     field: keyof typeof files,
     file: File | File[] | null
   ) => {
+    let actualFile: File | null = null;
+    if (field === "interiorPhoto" && Array.isArray(file)) {
+      actualFile = file[0] || null;
+    } else if (!Array.isArray(file)) {
+      actualFile = file;
+    }
+
     setFiles((prev) => ({
       ...prev,
-      [field]: file,
+      [field]: actualFile,
     }));
+
+    if (actualFile) {
+      try {
+        setUploading((prev) => ({ ...prev, [field]: true }));
+        const fileType: FileType =
+          field === "exteriorPhoto" ||
+          field === "roadPhoto" ||
+          field === "powerPhoto" ||
+          field === "interiorPhoto"
+            ? "image"
+            : "document";
+        const pathKey =
+          field === "ownershipDoc"
+            ? "ownership_doc"
+            : field === "govtId"
+            ? "gov_id"
+            : field === "cacCert"
+            ? "cac_cert"
+            : field === "exteriorPhoto"
+            ? "exterior_shot"
+            : field === "roadPhoto"
+            ? "compound_road"
+            : field === "powerPhoto"
+            ? "power_system"
+            : field === "interiorPhoto"
+            ? "interior_rooms"
+            : "";
+
+        const uploadedPath = await uploadFile(actualFile, fileType);
+        setUploadedPaths((prev) => ({
+          ...prev,
+          [pathKey]: uploadedPath,
+        }));
+        showToast(
+          "File uploaded successfully",
+          `${actualFile.name} has been uploaded.`,
+          "success"
+        );
+      } catch (error) {
+        console.error("Upload error:", error);
+        showToast(
+          "Upload failed",
+          error instanceof Error
+            ? error.message
+            : "Failed to upload file. Please try again.",
+          "error"
+        );
+        // Clear the file if upload failed
+        setFiles((prev) => ({
+          ...prev,
+          [field]: null,
+        }));
+      } finally {
+        setUploading((prev) => ({ ...prev, [field]: false }));
+      }
+    } else {
+      // If file is cleared, clear the path
+      const pathKey =
+        field === "ownershipDoc"
+          ? "ownership_doc"
+          : field === "govtId"
+          ? "gov_id"
+          : field === "cacCert"
+          ? "cac_cert"
+          : field === "exteriorPhoto"
+          ? "exterior_shot"
+          : field === "roadPhoto"
+          ? "compound_road"
+          : field === "powerPhoto"
+          ? "power_system"
+          : field === "interiorPhoto"
+          ? "interior_rooms"
+          : "";
+      setUploadedPaths((prev) => ({
+        ...prev,
+        [pathKey]: "",
+      }));
+    }
   };
 
   return (
@@ -1016,31 +1880,60 @@ export default function LandlordPartnerPage() {
                       </div>
                       <div>
                         <Label htmlFor="stateOfOrigin">State of Origin *</Label>
-                        <Input
-                          id="stateOfOrigin"
+                        <Select
                           value={formData.stateOfOrigin}
-                          onChange={(e) =>
+                          onValueChange={(value) =>
                             setFormData({
                               ...formData,
-                              stateOfOrigin: e.target.value,
+                              stateOfOrigin: value,
+                              lgaOfOrigin: "", // Reset LGA when state changes
                             })
                           }
-                          required
-                        />
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select your state of origin" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {Object.keys(NIGERIAN_STATES_LGAS).map((state) => (
+                              <SelectItem key={state} value={state}>
+                                {state}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       </div>
                       <div>
                         <Label htmlFor="lgaOfOrigin">LGA of Origin *</Label>
-                        <Input
-                          id="lgaOfOrigin"
+                        <Select
                           value={formData.lgaOfOrigin}
-                          onChange={(e) =>
+                          onValueChange={(value) =>
                             setFormData({
                               ...formData,
-                              lgaOfOrigin: e.target.value,
+                              lgaOfOrigin: value,
                             })
                           }
-                          required
-                        />
+                          disabled={!formData.stateOfOrigin}
+                        >
+                          <SelectTrigger>
+                            <SelectValue
+                              placeholder={
+                                formData.stateOfOrigin
+                                  ? "Select your LGA"
+                                  : "Select state first"
+                              }
+                            />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {formData.stateOfOrigin &&
+                              NIGERIAN_STATES_LGAS[formData.stateOfOrigin]?.map(
+                                (lga) => (
+                                  <SelectItem key={lga} value={lga}>
+                                    {lga}
+                                  </SelectItem>
+                                )
+                              )}
+                          </SelectContent>
+                        </Select>
                       </div>
                       <div className="md:col-span-2">
                         <Label htmlFor="residentialAddress">
@@ -1129,25 +2022,60 @@ export default function LandlordPartnerPage() {
                       </div>
                       <div>
                         <Label htmlFor="state">State *</Label>
-                        <Input
-                          id="state"
+                        <Select
                           value={formData.state}
-                          onChange={(e) =>
-                            setFormData({ ...formData, state: e.target.value })
+                          onValueChange={(value) =>
+                            setFormData({
+                              ...formData,
+                              state: value,
+                              area: "", // Reset area when state changes
+                            })
                           }
-                          required
-                        />
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select property state" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {Object.keys(NIGERIAN_STATES_LGAS).map((state) => (
+                              <SelectItem key={state} value={state}>
+                                {state}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       </div>
                       <div>
-                        <Label htmlFor="area">Area *</Label>
-                        <Input
-                          id="area"
+                        <Label htmlFor="area">Area (LGA) *</Label>
+                        <Select
                           value={formData.area}
-                          onChange={(e) =>
-                            setFormData({ ...formData, area: e.target.value })
+                          onValueChange={(value) =>
+                            setFormData({
+                              ...formData,
+                              area: value,
+                            })
                           }
-                          required
-                        />
+                          disabled={!formData.state}
+                        >
+                          <SelectTrigger>
+                            <SelectValue
+                              placeholder={
+                                formData.state
+                                  ? "Select property area"
+                                  : "Select state first"
+                              }
+                            />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {formData.state &&
+                              NIGERIAN_STATES_LGAS[formData.state]?.map(
+                                (lga) => (
+                                  <SelectItem key={lga} value={lga}>
+                                    {lga}
+                                  </SelectItem>
+                                )
+                              )}
+                          </SelectContent>
+                        </Select>
                       </div>
                       <div>
                         <Label htmlFor="typology">Typology *</Label>
@@ -1237,9 +2165,15 @@ export default function LandlordPartnerPage() {
                           }
                           required
                         />
-                        {files.ownershipDoc && (
+                        {uploading.ownershipDoc && (
+                          <p className="text-sm text-blue-600 mt-2 flex items-center justify-center">
+                            <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                            Uploading...
+                          </p>
+                        )}
+                        {files.ownershipDoc && !uploading.ownershipDoc && (
                           <p className="text-sm text-green-600 mt-2">
-                            ✓ {files.ownershipDoc.name}
+                            ✓ {files.ownershipDoc.name} uploaded
                           </p>
                         )}
                       </div>
@@ -1264,9 +2198,15 @@ export default function LandlordPartnerPage() {
                           }
                           required
                         />
-                        {files.govtId && (
+                        {uploading.govtId && (
+                          <p className="text-sm text-blue-600 mt-2 flex items-center justify-center">
+                            <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                            Uploading...
+                          </p>
+                        )}
+                        {files.govtId && !uploading.govtId && (
                           <p className="text-sm text-green-600 mt-2">
-                            ✓ {files.govtId.name}
+                            ✓ {files.govtId.name} uploaded
                           </p>
                         )}
                       </div>
@@ -1293,9 +2233,15 @@ export default function LandlordPartnerPage() {
                             )
                           }
                         />
-                        {files.cacCert && (
+                        {uploading.cacCert && (
+                          <p className="text-sm text-blue-600 mt-2 flex items-center justify-center">
+                            <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                            Uploading...
+                          </p>
+                        )}
+                        {files.cacCert && !uploading.cacCert && (
                           <p className="text-sm text-green-600 mt-2">
-                            ✓ {files.cacCert.name}
+                            ✓ {files.cacCert.name} uploaded
                           </p>
                         )}
                       </div>
@@ -1339,9 +2285,15 @@ export default function LandlordPartnerPage() {
                           }
                           required
                         />
-                        {files.exteriorPhoto && (
+                        {uploading.exteriorPhoto && (
+                          <p className="text-sm text-blue-600 mt-2 flex items-center justify-center">
+                            <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                            Uploading...
+                          </p>
+                        )}
+                        {files.exteriorPhoto && !uploading.exteriorPhoto && (
                           <p className="text-sm text-green-600 mt-2">
-                            ✓ {files.exteriorPhoto.name}
+                            ✓ {files.exteriorPhoto.name} uploaded
                           </p>
                         )}
                       </div>
@@ -1365,9 +2317,15 @@ export default function LandlordPartnerPage() {
                           }
                           required
                         />
-                        {files.roadPhoto && (
+                        {uploading.roadPhoto && (
+                          <p className="text-sm text-blue-600 mt-2 flex items-center justify-center">
+                            <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                            Uploading...
+                          </p>
+                        )}
+                        {files.roadPhoto && !uploading.roadPhoto && (
                           <p className="text-sm text-green-600 mt-2">
-                            ✓ {files.roadPhoto.name}
+                            ✓ {files.roadPhoto.name} uploaded
                           </p>
                         )}
                       </div>
@@ -1391,43 +2349,50 @@ export default function LandlordPartnerPage() {
                           }
                           required
                         />
-                        {files.powerPhoto && (
+                        {uploading.powerPhoto && (
+                          <p className="text-sm text-blue-600 mt-2 flex items-center justify-center">
+                            <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                            Uploading...
+                          </p>
+                        )}
+                        {files.powerPhoto && !uploading.powerPhoto && (
                           <p className="text-sm text-green-600 mt-2">
-                            ✓ {files.powerPhoto.name}
+                            ✓ {files.powerPhoto.name} uploaded
                           </p>
                         )}
                       </div>
                       <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
                         <Upload className="h-12 w-12 text-gray-400 mx-auto mb-3" />
                         <Label
-                          htmlFor="interiorPhotos"
+                          htmlFor="interiorPhoto"
                           className="cursor-pointer"
                         >
                           <span className="text-primary font-semibold">
-                            All Interior Rooms *
-                          </span>
-                          <span className="text-gray-600">
-                            {" "}
-                            (Multiple files)
+                            Interior Rooms *
                           </span>
                         </Label>
                         <Input
-                          id="interiorPhotos"
+                          id="interiorPhoto"
                           type="file"
                           accept="image/*"
-                          multiple
                           className="mt-2"
                           onChange={(e) =>
                             handleFileChange(
-                              "interiorPhotos",
-                              Array.from(e.target.files || [])
+                              "interiorPhoto",
+                              e.target.files?.[0] || null
                             )
                           }
                           required
                         />
-                        {files.interiorPhotos.length > 0 && (
+                        {uploading.interiorPhoto && (
+                          <p className="text-sm text-blue-600 mt-2 flex items-center justify-center">
+                            <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                            Uploading...
+                          </p>
+                        )}
+                        {files.interiorPhoto && !uploading.interiorPhoto && (
                           <p className="text-sm text-green-600 mt-2">
-                            ✓ {files.interiorPhotos.length} file(s) selected
+                            ✓ {files.interiorPhoto.name} uploaded
                           </p>
                         )}
                       </div>

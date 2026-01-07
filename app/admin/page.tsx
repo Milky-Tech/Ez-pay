@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -57,6 +57,10 @@ import { useAuth } from "@/context/authcontext";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
+import PropertyReviewDialog from "./components/PropertyReviewDialog";
+import OverviewTab from "./components/OverviewTab";
+import PropertiesTab from "./components/PropertiesTab";
+import ApplicationsTab from "./components/ApplicationsTab";
 
 // API Base URL
 const API_BASE_URL =
@@ -66,17 +70,18 @@ const API_BASE_URL =
 interface Property {
   id: string;
   code_name: string;
-  typology: string;
+  topology: string;
   area: string;
   state: string;
   monthly_cost: number | null;
   availability_status: string;
-  full_name: string;
+  status?: string; // Submission status: approved, pending, in_review, etc.
+  fullName: string;
   property_address: string;
-  no_of_units: number;
+  noOfUnits: number;
   rent: number;
-  created_at: string;
-  updated_at: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 interface Application {
@@ -86,37 +91,53 @@ interface Application {
   payment_plan_preference: string;
   created_at: string;
   properties?: Property;
-  full_name?: string;
+  fullName?: string;
   email?: string;
   phone?: string;
 }
 
-interface Agent {
+interface Landlord {
   id: string;
-  full_name: string;
+  fullName: string;
   email: string;
   phone: string;
   status: string;
-  created_at: string;
+  createdAt: string;
 }
+
+// Helper function for price formatting
+
+// Helper function for price formatting
+const formatPrice = (price: number | null) => {
+  if (!price) return "N/A";
+  return new Intl.NumberFormat("en-NG", {
+    style: "currency",
+    currency: "NGN",
+  }).format(price);
+};
 
 export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState("overview");
   const [properties, setProperties] = useState<Property[]>([]);
+  const [listings, setListings] = useState<Property[]>([]);
   const [applications, setApplications] = useState<Application[]>([]);
-  const [agents, setAgents] = useState<Agent[]>([]);
+  const [users, setUsers] = useState<Landlord[]>([]);
+  const [landlords, setLandlords] = useState<Landlord[]>([]);
   const [stats, setStats] = useState({
     totalProperties: 0,
     availableProperties: 0,
     totalApplications: 0,
     pendingApplications: 0,
-    totalAgents: 0,
-    activeAgents: 0,
+    totalLandlords: 0,
+    activeLandlords: 0,
   });
+
   const [loading, setLoading] = useState({
     properties: false,
+    listings: false,
     applications: false,
-    agents: false,
+    users: false,
+    landlords: false,
   });
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -125,36 +146,21 @@ export default function AdminDashboard() {
   const { toast } = useToast();
 
   // Fetch data based on active tab
-  useEffect(() => {
-    if (!isAuthenticated) {
-      router.push("/signin");
-      return;
-    }
-
-    switch (activeTab) {
-      case "properties":
-        fetchProperties();
-        break;
-      case "applications":
-        fetchApplications();
-        break;
-      case "users":
-        fetchUsers();
-        break;
-      case "agents":
-        fetchAgents();
-        break;
-      default:
-        fetchDashboardData();
-        break;
-    }
-  }, [activeTab, isAuthenticated, router]);
 
   // Fetch all dashboard data for overview
-  const fetchDashboardData = async () => {
+  const fetchDashboardData = useCallback(async () => {
     try {
-      setLoading((prev) => ({ ...prev, properties: true, applications: true }));
-      await Promise.all([fetchProperties(), fetchApplications()]);
+      setLoading((prev) => ({
+        ...prev,
+        properties: true,
+        applications: true,
+        listings: true,
+      }));
+      await Promise.all([
+        fetchProperties(),
+        fetchApplications(),
+        fetchListings(),
+      ]);
     } catch (error) {
       console.error("Error fetching dashboard data:", error);
     } finally {
@@ -162,12 +168,13 @@ export default function AdminDashboard() {
         ...prev,
         properties: false,
         applications: false,
+        listings: false,
       }));
     }
-  };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Fetch properties from API
-  const fetchProperties = async () => {
+  const fetchProperties = useCallback(async () => {
     try {
       setLoading((prev) => ({ ...prev, properties: true }));
       const response = await fetch(
@@ -187,71 +194,115 @@ export default function AdminDashboard() {
 
       const data = await response.json();
       setProperties(data.data || data);
-      console.log(data);
       // Update stats
-      const availableCount = (data.data || data).filter(
-        (p: Property) =>
-          p.availability_status === "available" ||
-          p.availability_status === "active"
+      const approvedCount = (data.data || data).filter(
+        (p: Property) => p.status === "approved"
       ).length;
 
       setStats((prev) => ({
         ...prev,
         totalProperties: (data.data || data).length,
-        availableProperties: availableCount,
+        availableProperties: approvedCount,
       }));
     } catch (error) {
       console.error("Error fetching properties:", error);
+      // // For development, use mock data
+      // if (process.env.NODE_ENV === "development") {
+      //   const mockProperties: Property[] = [
+      //     {
+      //       id: "1",
+      //       code_name: "BG-001",
+      //       typology: "Flat",
+      //       area: "Lekki",
+      //       state: "Lagos",
+      //       monthly_cost: 1500000,
+      //       availability_status: "available",
+      //       fullName: "John Adewale Okafor",
+      //       property_address: "Plot 23, Lekki Phase 1, Lagos",
+      //       no_of_units: 12,
+      //       rent: 1800000,
+      //       created_at: new Date().toISOString(),
+      //       updated_at: new Date().toISOString(),
+      //     },
+      //     {
+      //       id: "2",
+      //       code_name: "BG-002",
+      //       typology: "Duplex",
+      //       area: "Victoria Island",
+      //       state: "Lagos",
+      //       monthly_cost: 2500000,
+      //       availability_status: "rented",
+      //       fullName: "Chinwe Okonkwo",
+      //       property_address: "45 Marina Road, Lagos Island",
+      //       no_of_units: 6,
+      //       rent: 3000000,
+      //       created_at: new Date().toISOString(),
+      //       updated_at: new Date().toISOString(),
+      //     },
+      //   ];
+      //   setProperties(mockProperties);
+      //   setStats((prev) => ({
+      //     ...prev,
+      //     totalProperties: mockProperties.length,
+      //     availableProperties: mockProperties.filter(
+      //       (p) => p.availability_status === "available"
+      //     ).length,
+      //   }));
+      // }
+    } finally {
+      setLoading((prev) => ({ ...prev, properties: false }));
+    }
+  }, [token]);
+
+  // Fetch listings from API
+  const fetchListings = useCallback(async () => {
+    try {
+      setLoading((prev) => ({ ...prev, listings: true }));
+      const response = await fetch(`${API_BASE_URL}/listings`, {
+        method: "GET",
+        headers: {
+          Accept: "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch listings: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      setListings(data.data || data);
+      console.log(data);
+    } catch (error) {
+      console.error("Error fetching listings:", error);
       // For development, use mock data
       if (process.env.NODE_ENV === "development") {
-        const mockProperties: Property[] = [
+        const mockListings: Property[] = [
           {
             id: "1",
             code_name: "BG-001",
-            typology: "Flat",
+            topology: "Flat",
             area: "Lekki",
             state: "Lagos",
             monthly_cost: 1500000,
             availability_status: "available",
-            full_name: "John Adewale Okafor",
+            fullName: "John Adewale Okafor",
             property_address: "Plot 23, Lekki Phase 1, Lagos",
-            no_of_units: 12,
+            noOfUnits: 12,
             rent: 1800000,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-          },
-          {
-            id: "2",
-            code_name: "BG-002",
-            typology: "Duplex",
-            area: "Victoria Island",
-            state: "Lagos",
-            monthly_cost: 2500000,
-            availability_status: "rented",
-            full_name: "Chinwe Okonkwo",
-            property_address: "45 Marina Road, Lagos Island",
-            no_of_units: 6,
-            rent: 3000000,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
           },
         ];
-        setProperties(mockProperties);
-        setStats((prev) => ({
-          ...prev,
-          totalProperties: mockProperties.length,
-          availableProperties: mockProperties.filter(
-            (p) => p.availability_status === "available"
-          ).length,
-        }));
+        setListings(mockListings);
       }
     } finally {
-      setLoading((prev) => ({ ...prev, properties: false }));
+      setLoading((prev) => ({ ...prev, listings: false }));
     }
-  };
+  }, [token]);
 
   // Fetch applications from API
-  const fetchApplications = async () => {
+  const fetchApplications = useCallback(async () => {
     try {
       setLoading((prev) => ({ ...prev, applications: true }));
       // Assuming there's an endpoint for applications
@@ -292,7 +343,7 @@ export default function AdminDashboard() {
             status: "vetting_pending",
             payment_plan_preference: "ez_anchor",
             created_at: new Date().toISOString(),
-            full_name: "Adebayo Johnson",
+            fullName: "Adebayo Johnson",
             email: "adebayo@example.com",
             phone: "08012345678",
           },
@@ -302,7 +353,7 @@ export default function AdminDashboard() {
             status: "approved",
             payment_plan_preference: "ez_ascend",
             created_at: new Date(Date.now() - 86400000).toISOString(), // 1 day ago
-            full_name: "Chioma Nwosu",
+            fullName: "Chioma Nwosu",
             email: "chioma@example.com",
             phone: "08087654321",
           },
@@ -320,12 +371,12 @@ export default function AdminDashboard() {
     } finally {
       setLoading((prev) => ({ ...prev, applications: false }));
     }
-  };
+  }, []);
 
   // Fetch all users from API
-  const fetchUsers = async () => {
+  const fetchUsers = useCallback(async () => {
     try {
-      setLoading((prev) => ({ ...prev, agents: true }));
+      setLoading((prev) => ({ ...prev, users: true }));
       const response = await fetch(`${API_BASE_URL}/users`, {
         method: "GET",
         headers: {
@@ -339,7 +390,7 @@ export default function AdminDashboard() {
       }
 
       const data = await response.json();
-      setAgents(data.data || data); // Using agents state for now to reuse table
+      setUsers(data.data || data); // Using users state for users tab
 
       const activeCount = (data.data || data).filter(
         (u: any) => u.status === "active"
@@ -347,21 +398,57 @@ export default function AdminDashboard() {
 
       setStats((prev) => ({
         ...prev,
-        totalAgents: (data.data || data).length,
-        activeAgents: activeCount,
+        totalLandlords: (data.data || data).length,
+        activeLandlords: activeCount,
       }));
     } catch (error) {
       console.error("Error fetching users:", error);
     } finally {
-      setLoading((prev) => ({ ...prev, agents: false }));
+      setLoading((prev) => ({ ...prev, users: false }));
     }
-  };
+  }, [token]);
 
-  // Fetch agents (landlords) from API
-  const fetchAgents = async () => {
+  // Fetch landlords from API (only those with approved properties)
+  const fetchLandlords = useCallback(async () => {
     try {
-      setLoading((prev) => ({ ...prev, agents: true }));
-      const response = await fetch(`${API_BASE_URL}/agent`, {
+      setLoading((prev) => ({ ...prev, landlords: true }));
+
+      // First fetch all properties to identify landlords with approved properties
+      const propertiesResponse = await fetch(
+        `${API_BASE_URL}/landlords/property/properties`,
+        {
+          method: "GET",
+          headers: {
+            Accept: "application/json",
+            Authorization: `Bearer ${token || localStorage.getItem("token")}`,
+          },
+        }
+      );
+
+      if (!propertiesResponse.ok) {
+        throw new Error(
+          `Failed to fetch properties: ${propertiesResponse.statusText}`
+        );
+      }
+
+      const propertiesData = await propertiesResponse.json();
+      const allProperties = propertiesData.data || propertiesData;
+
+      // Get unique landlord names who have at least one approved property
+      const approvedLandlordNames = Array.from(
+        new Set(
+          allProperties
+            .filter(
+              (property: Property) =>
+                property.availability_status === "approved" ||
+                property.availability_status === "active"
+            )
+            .map((property: Property) => property.fullName)
+        )
+      );
+
+      // Now fetch all landlords
+      const landlordsResponse = await fetch(`${API_BASE_URL}/landlords`, {
         method: "GET",
         headers: {
           Accept: "application/json",
@@ -369,28 +456,84 @@ export default function AdminDashboard() {
         },
       });
 
-      if (!response.ok) {
-        throw new Error(`Failed to fetch agents: ${response.statusText}`);
+      if (!landlordsResponse.ok) {
+        throw new Error(
+          `Failed to fetch landlords: ${landlordsResponse.statusText}`
+        );
       }
 
-      const data = await response.json();
-      setAgents(data.data || data);
+      const landlordsData = await landlordsResponse.json();
+      const allLandlords = landlordsData.data || landlordsData;
 
-      const activeCount = (data.data || data).filter(
-        (agent: Agent) => agent.status === "active"
+      // Filter landlords who have approved properties
+      const verifiedLandlords = allLandlords.filter((landlord: Landlord) =>
+        approvedLandlordNames.includes(landlord.fullName)
+      );
+
+      setLandlords(verifiedLandlords);
+
+      const activeCount = verifiedLandlords.filter(
+        (landlord: Landlord) => landlord.status === "active"
       ).length;
 
       setStats((prev) => ({
         ...prev,
-        totalAgents: (data.data || data).length,
-        activeAgents: activeCount,
+        totalLandlords: verifiedLandlords.length,
+        activeLandlords: activeCount,
       }));
     } catch (error) {
-      console.error("Error fetching agents:", error);
+      console.error("Error fetching verified landlords:", error);
+      // For development, use mock data
+      if (process.env.NODE_ENV === "development") {
+        const mockVerifiedLandlords: Landlord[] = [
+          {
+            id: "1",
+            fullName: "John Adewale Okafor",
+            email: "john.okafors@example.com",
+            phone: "+2348012345678",
+            status: "active",
+            createdAt: new Date().toISOString(),
+          },
+        ];
+        setLandlords(mockVerifiedLandlords);
+        setStats((prev) => ({
+          ...prev,
+          totalLandlords: mockVerifiedLandlords.length,
+          activeLandlords: mockVerifiedLandlords.filter(
+            (l) => l.status === "active"
+          ).length,
+        }));
+      }
     } finally {
-      setLoading((prev) => ({ ...prev, agents: false }));
+      setLoading((prev) => ({ ...prev, landlords: false }));
     }
-  };
+  }, [token]);
+
+  // Handle tab changes and initial data loading
+  useEffect(() => {
+    if (!isAuthenticated) {
+      router.push("/signin");
+      return;
+    }
+
+    switch (activeTab) {
+      case "properties":
+        fetchProperties();
+        break;
+      case "applications":
+        fetchApplications();
+        break;
+      case "users":
+        fetchUsers();
+        break;
+      case "landlords":
+        fetchLandlords();
+        break;
+      default:
+        fetchDashboardData();
+        break;
+    }
+  }, [activeTab, isAuthenticated, router]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Update User
   const updateUser = async (userId: string, data: any) => {
@@ -414,7 +557,7 @@ export default function AdminDashboard() {
 
       // Refresh data
       if (activeTab === "users") fetchUsers();
-      else if (activeTab === "agents") fetchAgents();
+      else if (activeTab === "landlords") fetchLandlords();
 
       return true;
     } catch (error) {
@@ -450,7 +593,7 @@ export default function AdminDashboard() {
 
       // Refresh data
       if (activeTab === "users") fetchUsers();
-      else if (activeTab === "agents") fetchAgents();
+      else if (activeTab === "landlords") fetchLandlords();
 
       return true;
     } catch (error) {
@@ -470,7 +613,7 @@ export default function AdminDashboard() {
       const response = await fetch(
         `${API_BASE_URL}/landlords/property/${propertyId}/status`,
         {
-          method: "PATCH",
+          method: "PUT",
           headers: {
             "Content-Type": "application/json",
             Accept: "application/json",
@@ -539,16 +682,147 @@ export default function AdminDashboard() {
     }
   };
 
+  // Approve Property Submission
+  const approveProperty = async (property: Property) => {
+    try {
+      // First approve the property
+      const response = await fetch(
+        `${API_BASE_URL}/landlords/property/${property.id}/status`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Accept: "application/json",
+            Authorization: `Bearer ${token || localStorage.getItem("token")}`,
+          },
+          body: JSON.stringify({ status: "approved" }),
+        }
+      );
+
+      if (!response.ok) throw new Error("Failed to approve property");
+
+      // Register the landlord
+      const landlordData = {
+        fullName: property.fullName,
+        email: `${property.fullName
+          .toLowerCase()
+          .replace(/\s+/g, ".")}@ezpay.com`,
+        phone: "09000000000",
+        password: "12345678",
+        password_confirmation: "12345678",
+        company_name: `${property.fullName} Housing`,
+        address: property.property_address,
+        nin: "12345678901",
+        account_name: property.fullName,
+        account_number: "2045678901",
+        bank_name: "First Bank",
+      };
+
+      const landlordResponse = await fetch(`${API_BASE_URL}/landlords`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+          Authorization: `Bearer ${token || localStorage.getItem("token")}`,
+        },
+        body: JSON.stringify(landlordData),
+      });
+
+      if (!landlordResponse.ok) {
+        console.warn(
+          "Failed to register landlord, but property was approved:",
+          landlordResponse.statusText
+        );
+        // Don't throw error here, as the property approval succeeded
+      }
+
+      toast({
+        title: "Property Approved",
+        description:
+          "Property submission has been approved and landlord registered.",
+      });
+
+      fetchProperties();
+      fetchListings();
+      fetchLandlords(); // Refresh landlords list
+      return true;
+    } catch (error) {
+      console.error("Approve property error:", error);
+      toast({
+        variant: "destructive",
+        title: "Approval Failed",
+        description: "There was an error approving the property.",
+      });
+      return false;
+    }
+  };
+
+  // Reject Property Submission
+  const rejectProperty = async (propertyId: string) => {
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/landlords/property/${propertyId}/status`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            Accept: "application/json",
+            Authorization: `Bearer ${token || localStorage.getItem("token")}`,
+          },
+          body: JSON.stringify({ status: "rejected" }),
+        }
+      );
+
+      if (!response.ok) throw new Error("Failed to reject property");
+
+      toast({
+        title: "Property Rejected",
+        description: "Property submission has been rejected.",
+      });
+
+      fetchProperties();
+      return true;
+    } catch (error) {
+      console.error("Reject property error:", error);
+      toast({
+        variant: "destructive",
+        title: "Rejection Failed",
+        description: "There was an error rejecting the property.",
+      });
+      return false;
+    }
+  };
+
   // Filter properties based on search and status
   const filteredProperties = properties.filter((property) => {
     const matchesSearch =
       searchTerm === "" ||
-      property.code_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      property.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
       property.area.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      property.full_name.toLowerCase().includes(searchTerm.toLowerCase());
+      property.fullName.toLowerCase().includes(searchTerm.toLowerCase());
 
     const matchesStatus =
-      statusFilter === "all" || property.availability_status === statusFilter;
+      statusFilter === "all" || property.status === statusFilter;
+
+    return matchesSearch && matchesStatus;
+  });
+
+  // Filter listings based on search and status
+  const filteredListings = listings.filter((listing) => {
+    const matchesSearch =
+      searchTerm === "" ||
+      (listing.id?.toString() || "")
+        .toLowerCase()
+        .includes(searchTerm.toLowerCase()) ||
+      (listing.area?.toString() || "")
+        .toLowerCase()
+        .includes(searchTerm.toLowerCase()) ||
+      (listing.fullName?.toString() || "")
+        .toLowerCase()
+        .includes(searchTerm.toLowerCase());
+
+    const matchesStatus =
+      statusFilter === "all" || listing.availability_status === statusFilter;
 
     return matchesSearch && matchesStatus;
   });
@@ -557,10 +831,10 @@ export default function AdminDashboard() {
   const filteredApplications = applications.filter((application) => {
     const matchesSearch =
       searchTerm === "" ||
-      (application.properties?.code_name || "")
+      (application.properties?.id?.toString() || "")
         .toLowerCase()
         .includes(searchTerm.toLowerCase()) ||
-      (application.full_name || "")
+      (application.fullName?.toString() || "")
         .toLowerCase()
         .includes(searchTerm.toLowerCase());
 
@@ -570,15 +844,36 @@ export default function AdminDashboard() {
     return matchesSearch && matchesStatus;
   });
 
-  // Filter agents
-  const filteredAgents = agents.filter((agent) => {
+  // Filter landlords
+  const filteredLandlords = landlords.filter((landlord) => {
     const matchesSearch =
       searchTerm === "" ||
-      agent.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      agent.email.toLowerCase().includes(searchTerm.toLowerCase());
+      (landlord.fullName?.toString() || "")
+        .toLowerCase()
+        .includes(searchTerm.toLowerCase()) ||
+      (landlord.email?.toString() || "")
+        .toLowerCase()
+        .includes(searchTerm.toLowerCase());
 
     const matchesStatus =
-      statusFilter === "all" || agent.status === statusFilter;
+      statusFilter === "all" || landlord.status === statusFilter;
+
+    return matchesSearch && matchesStatus;
+  });
+
+  // Filter users
+  const filteredUsers = users.filter((user) => {
+    const matchesSearch =
+      searchTerm === "" ||
+      (user.fullName?.toString() || "")
+        .toLowerCase()
+        .includes(searchTerm.toLowerCase()) ||
+      (user.email?.toString() || "")
+        .toLowerCase()
+        .includes(searchTerm.toLowerCase());
+
+    const matchesStatus =
+      statusFilter === "all" || user.status === statusFilter;
 
     return matchesSearch && matchesStatus;
   });
@@ -637,6 +932,16 @@ export default function AdminDashboard() {
         label: "Approved",
         icon: <CheckCircle className="h-3 w-3 mr-1" />,
       },
+      pending: {
+        variant: "secondary",
+        label: "Pending",
+        icon: <Clock className="h-3 w-3 mr-1" />,
+      },
+      in_review: {
+        variant: "outline",
+        label: "In Review",
+        icon: <Eye className="h-3 w-3 mr-1" />,
+      },
       rejected: {
         variant: "destructive",
         label: "Rejected",
@@ -692,7 +997,7 @@ export default function AdminDashboard() {
         fetchApplications();
         break;
       case "users":
-        fetchAgents();
+        fetchUsers();
         break;
       default:
         fetchDashboardData();
@@ -737,12 +1042,12 @@ export default function AdminDashboard() {
             variant="outline"
             size="sm"
             disabled={
-              loading.properties || loading.applications || loading.agents
+              loading.properties || loading.applications || loading.landlords
             }
           >
             <RefreshCw
               className={`h-4 w-4 mr-2 ${
-                loading.properties || loading.applications || loading.agents
+                loading.properties || loading.applications || loading.landlords
                   ? "animate-spin"
                   : ""
               }`}
@@ -755,252 +1060,109 @@ export default function AdminDashboard() {
         <Tabs
           value={activeTab}
           onValueChange={setActiveTab}
-          className="space-y-6"
+          className="space-y-6 mt-2 mb-8 sm:mt-4"
         >
-          <TabsList className="grid w-full grid-cols-4 lg:w-auto lg:inline-grid">
-            <TabsTrigger value="overview" className="font-montserrat">
-              <TrendingUp className="h-4 w-4 mr-2" />
-              Overview
+          <TabsList className="grid w-full grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:w-auto xl:inline-grid gap-1">
+            <TabsTrigger
+              value="overview"
+              className="font-montserrat text-xs sm:text-sm px-2 sm:px-4"
+            >
+              <TrendingUp className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+              <span className="hidden sm:inline">Overview</span>
+              <span className="sm:hidden">Overview</span>
             </TabsTrigger>
-            <TabsTrigger value="properties" className="font-montserrat">
-              <Home className="h-4 w-4 mr-2" />
-              Properties
+            <TabsTrigger
+              value="properties"
+              className="font-montserrat text-xs sm:text-sm px-2 sm:px-4"
+            >
+              <Home className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+              <span className="hidden sm:inline">Submissions</span>
+              <span className="sm:hidden">Submit</span>
             </TabsTrigger>
-            <TabsTrigger value="applications" className="font-montserrat">
-              <FileText className="h-4 w-4 mr-2" />
-              Applications
+            <TabsTrigger
+              value="listings"
+              className="font-montserrat text-xs sm:text-sm px-2 sm:px-4"
+            >
+              <Building2 className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+              <span className="hidden sm:inline">Listings</span>
+              <span className="sm:hidden">Listings</span>
             </TabsTrigger>
-            <TabsTrigger value="users" className="font-montserrat">
-              <Users className="h-4 w-4 mr-2" />
-              Users
+            <TabsTrigger
+              value="applications"
+              className="font-montserrat text-xs sm:text-sm px-2 sm:px-4"
+            >
+              <FileText className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+              <span className="hidden sm:inline">Applications</span>
+              <span className="sm:hidden">Apps</span>
             </TabsTrigger>
-            <TabsTrigger value="agents" className="font-montserrat">
-              <UserCheck className="h-4 w-4 mr-2" />
-              Landlords
+            <TabsTrigger
+              value="users"
+              className="font-montserrat text-xs sm:text-sm px-2 sm:px-4"
+            >
+              <Users className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+              <span className="hidden sm:inline">Users</span>
+              <span className="sm:hidden">Users</span>
+            </TabsTrigger>
+            <TabsTrigger
+              value="landlords"
+              className="font-montserrat text-xs sm:text-sm px-2 sm:px-4"
+            >
+              <UserCheck className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+              <span className="hidden sm:inline">Landlords</span>
+              <span className="sm:hidden">Landlords</span>
             </TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between pb-2">
-                  <CardTitle className="text-sm font-medium text-gray-600">
-                    Total Properties
-                  </CardTitle>
-                  <Home className="h-4 w-4 text-gray-600" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-3xl font-bold text-primary">
-                    {stats.totalProperties}
-                  </div>
-                  <p className="text-xs text-gray-500 mt-1">
-                    {stats.availableProperties} available
-                  </p>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between pb-2">
-                  <CardTitle className="text-sm font-medium text-gray-600">
-                    Available
-                  </CardTitle>
-                  <CheckCircle className="h-4 w-4 text-secondary" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-3xl font-bold text-secondary">
-                    {stats.availableProperties}
-                  </div>
-                  <p className="text-xs text-gray-500 mt-1">
-                    Ready for tenants
-                  </p>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between pb-2">
-                  <CardTitle className="text-sm font-medium text-gray-600">
-                    Total Applications
-                  </CardTitle>
-                  <FileText className="h-4 w-4 text-gray-600" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-3xl font-bold text-primary">
-                    {stats.totalApplications}
-                  </div>
-                  <p className="text-xs text-gray-500 mt-1">
-                    {stats.pendingApplications} pending
-                  </p>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between pb-2">
-                  <CardTitle className="text-sm font-medium text-gray-600">
-                    Active Agents
-                  </CardTitle>
-                  <UserCheck className="h-4 w-4 text-gray-600" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-3xl font-bold text-primary">
-                    {stats.activeAgents}
-                  </div>
-                  <p className="text-xs text-gray-500 mt-1">
-                    out of {stats.totalAgents} total
-                  </p>
-                </CardContent>
-              </Card>
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <Card>
-                <CardHeader>
-                  <div className="flex justify-between items-center">
-                    <CardTitle className="font-raleway">
-                      Recent Properties
-                    </CardTitle>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={fetchProperties}
-                      disabled={loading.properties}
-                    >
-                      View All
-                    </Button>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  {loading.properties ? (
-                    <div className="text-center py-4">
-                      <RefreshCw className="h-8 w-8 animate-spin mx-auto text-gray-400" />
-                      <p className="text-sm text-gray-500 mt-2">
-                        Loading properties...
-                      </p>
-                    </div>
-                  ) : properties.length === 0 ? (
-                    <div className="text-center py-8">
-                      <AlertCircle className="h-12 w-12 text-gray-300 mx-auto" />
-                      <p className="text-gray-500 mt-2">No properties found</p>
-                    </div>
-                  ) : (
-                    <div className="space-y-4">
-                      {properties.slice(0, 5).map((property) => (
-                        <div
-                          key={property.id}
-                          className="flex items-center justify-between pb-3 border-b last:border-0"
-                        >
-                          <div>
-                            <p className="font-semibold text-sm">
-                              {property.code_name || "Pending Code"}
-                            </p>
-                            <p className="text-xs text-gray-600 flex items-center gap-1">
-                              <MapPin className="h-3 w-3" />
-                              {property.area}, {property.state}
-                            </p>
-                            <p className="text-xs text-gray-500 mt-1">
-                              Owner: {property.full_name}
-                            </p>
-                          </div>
-                          <div className="flex flex-col items-end gap-1">
-                            {getStatusBadge(property.availability_status)}
-                            <p className="text-xs font-semibold text-primary">
-                              {formatPrice(property.monthly_cost)}
-                            </p>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <div className="flex justify-between items-center">
-                    <CardTitle className="font-raleway">
-                      Recent Applications
-                    </CardTitle>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={fetchApplications}
-                      disabled={loading.applications}
-                    >
-                      View All
-                    </Button>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  {loading.applications ? (
-                    <div className="text-center py-4">
-                      <RefreshCw className="h-8 w-8 animate-spin mx-auto text-gray-400" />
-                      <p className="text-sm text-gray-500 mt-2">
-                        Loading applications...
-                      </p>
-                    </div>
-                  ) : applications.length === 0 ? (
-                    <div className="text-center py-8">
-                      <AlertCircle className="h-12 w-12 text-gray-300 mx-auto" />
-                      <p className="text-gray-500 mt-2">
-                        No applications found
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="space-y-4">
-                      {applications.slice(0, 5).map((app) => (
-                        <div
-                          key={app.id}
-                          className="flex items-center justify-between pb-3 border-b last:border-0"
-                        >
-                          <div>
-                            <p className="font-semibold text-sm">
-                              {app.properties?.code_name || "Property"}
-                            </p>
-                            <p className="text-xs text-gray-600 flex items-center gap-1">
-                              <User className="h-3 w-3" />
-                              {app.full_name || "Applicant"}
-                            </p>
-                            <p className="text-xs text-gray-500 mt-1 flex items-center gap-1">
-                              <Calendar className="h-3 w-3" />
-                              {formatDate(app.created_at)}
-                            </p>
-                          </div>
-                          <div className="flex flex-col items-end gap-1">
-                            {getStatusBadge(app.status)}
-                            <Badge variant="outline" className="text-xs">
-                              {app.payment_plan_preference === "ez_anchor"
-                                ? "EZ-Anchor"
-                                : "EZ-Ascend"}
-                            </Badge>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </div>
+            <OverviewTab
+              stats={stats}
+              properties={properties}
+              applications={applications}
+              loading={loading}
+              getStatusBadge={getStatusBadge}
+              formatPrice={formatPrice}
+              formatDate={formatDate}
+              fetchProperties={fetchProperties}
+              fetchApplications={fetchApplications}
+            />
           </TabsContent>
 
           <TabsContent value="properties">
+            <PropertiesTab
+              properties={properties}
+              loading={loading}
+              searchTerm={searchTerm}
+              setSearchTerm={setSearchTerm}
+              statusFilter={statusFilter}
+              setStatusFilter={setStatusFilter}
+              getStatusBadge={getStatusBadge}
+              formatPrice={formatPrice}
+              fetchProperties={fetchProperties}
+              approveProperty={approveProperty}
+              rejectProperty={rejectProperty}
+            />
+          </TabsContent>
+
+          <TabsContent value="listings">
             <Card>
               <CardHeader>
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                   <CardTitle className="font-raleway">
-                    Property Management
+                    Property Listings
                   </CardTitle>
                   <div className="flex items-center gap-4">
                     <Button
-                      onClick={fetchProperties}
+                      onClick={fetchListings}
                       variant="outline"
                       size="sm"
-                      disabled={loading.properties}
+                      disabled={loading.listings}
                     >
                       <RefreshCw
                         className={`h-4 w-4 mr-2 ${
-                          loading.properties ? "animate-spin" : ""
+                          loading.listings ? "animate-spin" : ""
                         }`}
                       />
                       Refresh
-                    </Button>
-                    <Button className="bg-primary font-montserrat">
-                      Add New Property
                     </Button>
                   </div>
                 </div>
@@ -1010,7 +1172,7 @@ export default function AdminDashboard() {
                   <div className="relative flex-1">
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
                     <Input
-                      placeholder="Search properties by name, code, or location..."
+                      placeholder="Search listings by name, code, or location..."
                       className="pl-10"
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
@@ -1030,20 +1192,19 @@ export default function AdminDashboard() {
                   </Select>
                 </div>
 
-                {loading.properties ? (
+                {loading.listings ? (
                   <div className="text-center py-12">
                     <RefreshCw className="h-12 w-12 animate-spin mx-auto text-gray-400" />
-                    <p className="text-gray-500 mt-4">Loading properties...</p>
+                    <p className="text-gray-500 mt-4">Loading listings...</p>
                   </div>
-                ) : filteredProperties.length === 0 ? (
+                ) : filteredListings.length === 0 ? (
                   <div className="text-center py-12">
                     <AlertCircle className="h-16 w-16 text-gray-300 mx-auto" />
                     <p className="text-gray-500 mt-4">
                       {searchTerm || statusFilter !== "all"
-                        ? "No properties match your search criteria"
-                        : "No properties found. Add your first property to get started."}
+                        ? "No listings match your search criteria"
+                        : "No listings found."}
                     </p>
-                    <Button className="mt-4">Add Property</Button>
                   </div>
                 ) : (
                   <div className="overflow-x-auto">
@@ -1053,7 +1214,6 @@ export default function AdminDashboard() {
                           <TableHead>Code</TableHead>
                           <TableHead>Type</TableHead>
                           <TableHead>Location</TableHead>
-                          <TableHead>Owner</TableHead>
                           <TableHead>Monthly Rent</TableHead>
                           <TableHead>Units</TableHead>
                           <TableHead>Status</TableHead>
@@ -1061,96 +1221,30 @@ export default function AdminDashboard() {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {filteredProperties.map((property) => (
-                          <TableRow key={property.id}>
+                        {filteredListings.map((listing) => (
+                          <TableRow key={listing.id}>
                             <TableCell className="font-medium">
-                              {property.code_name || "PENDING"}
+                              {listing.code_name}
                             </TableCell>
                             <TableCell>
                               <Badge variant="outline">
-                                {property.typology}
+                                {listing.topology}
                               </Badge>
                             </TableCell>
                             <TableCell>
                               <div className="max-w-[200px] truncate">
-                                {property.area}, {property.state}
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              <div className="max-w-[150px] truncate">
-                                {property.full_name}
+                                {listing.area}, {listing.state}
                               </div>
                             </TableCell>
                             <TableCell className="font-semibold">
-                              {formatPrice(property.monthly_cost)}
+                              {formatPrice(listing.monthly_cost)}
                             </TableCell>
-                            <TableCell>{property.no_of_units}</TableCell>
+                            <TableCell>{listing.noOfUnits}</TableCell>
                             <TableCell>
-                              {getStatusBadge(property.availability_status)}
+                              {getStatusBadge(listing.availability_status)}
                             </TableCell>
                             <TableCell>
                               <div className="flex gap-2">
-                                <Dialog>
-                                  <DialogTrigger asChild>
-                                    <Button variant="outline" size="sm">
-                                      <Edit className="h-4 w-4" />
-                                    </Button>
-                                  </DialogTrigger>
-                                  <DialogContent>
-                                    <DialogHeader>
-                                      <DialogTitle>
-                                        Update Property Status
-                                      </DialogTitle>
-                                    </DialogHeader>
-                                    <div className="space-y-4">
-                                      <div>
-                                        <Label>
-                                          Property: {property.code_name}
-                                        </Label>
-                                        <p className="text-sm text-gray-600">
-                                          {property.property_address}
-                                        </p>
-                                      </div>
-                                      <div>
-                                        <Label>Current Status</Label>
-                                        <div className="mt-1">
-                                          {getStatusBadge(
-                                            property.availability_status
-                                          )}
-                                        </div>
-                                      </div>
-                                      <div>
-                                        <Label>Update Status</Label>
-                                        <Select
-                                          defaultValue={
-                                            property.availability_status
-                                          }
-                                          onValueChange={(value) =>
-                                            updatePropertyStatus(
-                                              property.id,
-                                              value
-                                            )
-                                          }
-                                        >
-                                          <SelectTrigger>
-                                            <SelectValue />
-                                          </SelectTrigger>
-                                          <SelectContent>
-                                            <SelectItem value="available">
-                                              Available
-                                            </SelectItem>
-                                            <SelectItem value="rented">
-                                              Rented
-                                            </SelectItem>
-                                            <SelectItem value="maintenance">
-                                              Maintenance
-                                            </SelectItem>
-                                          </SelectContent>
-                                        </Select>
-                                      </div>
-                                    </div>
-                                  </DialogContent>
-                                </Dialog>
                                 <Button variant="outline" size="sm">
                                   <Eye className="h-4 w-4" />
                                 </Button>
@@ -1167,223 +1261,18 @@ export default function AdminDashboard() {
           </TabsContent>
 
           <TabsContent value="applications">
-            <Card>
-              <CardHeader>
-                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                  <CardTitle className="font-raleway">
-                    Rental Applications
-                  </CardTitle>
-                  <Button
-                    onClick={fetchApplications}
-                    variant="outline"
-                    size="sm"
-                    disabled={loading.applications}
-                  >
-                    <RefreshCw
-                      className={`h-4 w-4 mr-2 ${
-                        loading.applications ? "animate-spin" : ""
-                      }`}
-                    />
-                    Refresh
-                  </Button>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="mb-4 flex flex-col md:flex-row gap-4">
-                  <div className="relative flex-1">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                    <Input
-                      placeholder="Search applications by property, applicant name, or email..."
-                      className="pl-10"
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                    />
-                  </div>
-                  <Select value={statusFilter} onValueChange={setStatusFilter}>
-                    <SelectTrigger className="w-full md:w-[180px]">
-                      <Filter className="h-4 w-4 mr-2" />
-                      <SelectValue placeholder="Filter by status" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Applications</SelectItem>
-                      <SelectItem value="submitted">Submitted</SelectItem>
-                      <SelectItem value="vetting_pending">
-                        Vetting Pending
-                      </SelectItem>
-                      <SelectItem value="approved">Approved</SelectItem>
-                      <SelectItem value="rejected">Rejected</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {loading.applications ? (
-                  <div className="text-center py-12">
-                    <RefreshCw className="h-12 w-12 animate-spin mx-auto text-gray-400" />
-                    <p className="text-gray-500 mt-4">
-                      Loading applications...
-                    </p>
-                  </div>
-                ) : filteredApplications.length === 0 ? (
-                  <div className="text-center py-12">
-                    <AlertCircle className="h-16 w-16 text-gray-300 mx-auto" />
-                    <p className="text-gray-500 mt-4">
-                      {searchTerm || statusFilter !== "all"
-                        ? "No applications match your search criteria"
-                        : "No applications found."}
-                    </p>
-                  </div>
-                ) : (
-                  <div className="overflow-x-auto">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Property</TableHead>
-                          <TableHead>Applicant</TableHead>
-                          <TableHead>Contact</TableHead>
-                          <TableHead>Application Date</TableHead>
-                          <TableHead>Payment Plan</TableHead>
-                          <TableHead>Status</TableHead>
-                          <TableHead>Actions</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {filteredApplications.map((app) => (
-                          <TableRow key={app.id}>
-                            <TableCell>
-                              <div>
-                                <p className="font-medium">
-                                  {app.properties?.code_name || "N/A"}
-                                </p>
-                                <p className="text-xs text-gray-600">
-                                  {app.properties?.typology}
-                                </p>
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              <div>
-                                <p className="font-medium">
-                                  {app.full_name || "N/A"}
-                                </p>
-                                <p className="text-xs text-gray-600">
-                                  ID: {app.id.substring(0, 8)}
-                                </p>
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              <div className="space-y-1">
-                                <div className="flex items-center gap-1">
-                                  <Mail className="h-3 w-3" />
-                                  <span className="text-xs">{app.email}</span>
-                                </div>
-                                <div className="flex items-center gap-1">
-                                  <Phone className="h-3 w-3" />
-                                  <span className="text-xs">{app.phone}</span>
-                                </div>
-                              </div>
-                            </TableCell>
-                            <TableCell>{formatDate(app.created_at)}</TableCell>
-                            <TableCell>
-                              <Badge variant="outline">
-                                {app.payment_plan_preference === "ez_anchor"
-                                  ? "EZ-Anchor"
-                                  : "EZ-Ascend"}
-                              </Badge>
-                            </TableCell>
-                            <TableCell>{getStatusBadge(app.status)}</TableCell>
-                            <TableCell>
-                              <div className="flex gap-2">
-                                <Dialog>
-                                  <DialogTrigger asChild>
-                                    <Button variant="outline" size="sm">
-                                      Review
-                                    </Button>
-                                  </DialogTrigger>
-                                  <DialogContent className="max-w-2xl">
-                                    <DialogHeader>
-                                      <DialogTitle>
-                                        Application Review
-                                      </DialogTitle>
-                                    </DialogHeader>
-                                    <div className="space-y-4">
-                                      <div className="grid grid-cols-2 gap-4">
-                                        <div>
-                                          <Label className="text-sm font-semibold">
-                                            Applicant
-                                          </Label>
-                                          <p>{app.full_name}</p>
-                                        </div>
-                                        <div>
-                                          <Label className="text-sm font-semibold">
-                                            Property
-                                          </Label>
-                                          <p>{app.properties?.code_name}</p>
-                                        </div>
-                                        <div>
-                                          <Label className="text-sm font-semibold">
-                                            Email
-                                          </Label>
-                                          <p>{app.email}</p>
-                                        </div>
-                                        <div>
-                                          <Label className="text-sm font-semibold">
-                                            Phone
-                                          </Label>
-                                          <p>{app.phone}</p>
-                                        </div>
-                                      </div>
-                                      <div>
-                                        <Label>Payment Plan Preference</Label>
-                                        <p className="font-medium">
-                                          {app.payment_plan_preference ===
-                                          "ez_anchor"
-                                            ? "EZ-Anchor (Pay monthly)"
-                                            : "EZ-Ascend (Pay annually)"}
-                                        </p>
-                                      </div>
-                                      <div>
-                                        <Label>Update Status</Label>
-                                        <Select
-                                          defaultValue={app.status}
-                                          onValueChange={(value) =>
-                                            updateApplicationStatus(
-                                              app.id,
-                                              value
-                                            )
-                                          }
-                                        >
-                                          <SelectTrigger>
-                                            <SelectValue placeholder="Select status" />
-                                          </SelectTrigger>
-                                          <SelectContent>
-                                            <SelectItem value="vetting_pending">
-                                              Vetting Pending
-                                            </SelectItem>
-                                            <SelectItem value="approved">
-                                              Approve
-                                            </SelectItem>
-                                            <SelectItem value="rejected">
-                                              Reject
-                                            </SelectItem>
-                                          </SelectContent>
-                                        </Select>
-                                      </div>
-                                      <div>
-                                        <Label>Admin Notes</Label>
-                                        <Textarea placeholder="Add notes about this application..." />
-                                      </div>
-                                    </div>
-                                  </DialogContent>
-                                </Dialog>
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+            <ApplicationsTab
+              applications={applications}
+              loading={loading}
+              searchTerm={searchTerm}
+              setSearchTerm={setSearchTerm}
+              statusFilter={statusFilter}
+              setStatusFilter={setStatusFilter}
+              getStatusBadge={getStatusBadge}
+              formatDate={formatDate}
+              fetchApplications={fetchApplications}
+              updateApplicationStatus={updateApplicationStatus}
+            />
           </TabsContent>
 
           <TabsContent value="users">
@@ -1410,7 +1299,7 @@ export default function AdminDashboard() {
                 </div>
               </CardHeader>
               <CardContent>
-                {loading.agents ? (
+                {loading.users ? (
                   <div className="text-center py-12">
                     <RefreshCw className="h-8 w-8 animate-spin mx-auto text-gray-400" />
                     <p className="text-sm text-gray-500 mt-2">
@@ -1424,21 +1313,21 @@ export default function AdminDashboard() {
                         <TableHead>Name</TableHead>
                         <TableHead>Email</TableHead>
                         <TableHead>Phone</TableHead>
-                        <TableHead>Status</TableHead>
+                        <TableHead>Role</TableHead>
                         <TableHead>Joined</TableHead>
                         <TableHead>Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {filteredAgents.map((agent) => (
-                        <TableRow key={agent.id}>
+                      {filteredUsers.map((user) => (
+                        <TableRow key={user.id}>
                           <TableCell className="font-medium">
-                            {agent.full_name}
+                            {user.fullName}
                           </TableCell>
-                          <TableCell>{agent.email}</TableCell>
-                          <TableCell>{agent.phone}</TableCell>
-                          <TableCell>{getStatusBadge(agent.status)}</TableCell>
-                          <TableCell>{formatDate(agent.created_at)}</TableCell>
+                          <TableCell>{user.email}</TableCell>
+                          <TableCell>{user.phone}</TableCell>
+                          <TableCell>{getStatusBadge(user.status)}</TableCell>
+                          <TableCell>{formatDate(user.createdAt)}</TableCell>
                           <TableCell>
                             <div className="flex items-center gap-2">
                               <Button
@@ -1453,7 +1342,7 @@ export default function AdminDashboard() {
                                 size="icon"
                                 className="text-destructive hover:text-destructive"
                                 title="Delete User"
-                                onClick={() => deleteUser(agent.id)}
+                                onClick={() => deleteUser(user.id)}
                               >
                                 <XCircle className="h-4 w-4" />
                               </Button>
@@ -1468,7 +1357,7 @@ export default function AdminDashboard() {
             </Card>
           </TabsContent>
 
-          <TabsContent value="agents">
+          <TabsContent value="landlords">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between">
                 <div>
@@ -1481,7 +1370,7 @@ export default function AdminDashboard() {
                 </div>
               </CardHeader>
               <CardContent>
-                {loading.agents ? (
+                {loading.landlords ? (
                   <div className="text-center py-12">
                     <RefreshCw className="h-8 w-8 animate-spin mx-auto text-gray-400" />
                     <p className="text-sm text-gray-500 mt-2">
@@ -1500,19 +1389,23 @@ export default function AdminDashboard() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {filteredAgents.map((agent) => (
-                        <TableRow key={agent.id}>
+                      {filteredLandlords.map((landlord) => (
+                        <TableRow key={landlord.id}>
                           <TableCell className="font-medium">
-                            {agent.full_name}
+                            {landlord.fullName}
                           </TableCell>
                           <TableCell>
                             <div className="text-sm">
-                              <p>{agent.email}</p>
-                              <p className="text-gray-500">{agent.phone}</p>
+                              <p>{landlord.email}</p>
+                              <p className="text-gray-500">{landlord.phone}</p>
                             </div>
                           </TableCell>
-                          <TableCell>{getStatusBadge(agent.status)}</TableCell>
-                          <TableCell>{formatDate(agent.created_at)}</TableCell>
+                          <TableCell>
+                            {getStatusBadge(landlord.status)}
+                          </TableCell>
+                          <TableCell>
+                            {formatDate(landlord.createdAt)}
+                          </TableCell>
                           <TableCell>
                             <Button variant="outline" size="sm">
                               View Submission

@@ -17,7 +17,7 @@ export default function Header() {
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
 
   return (
     <header
@@ -86,7 +86,11 @@ export default function Header() {
               FAQ
             </Link>
             {isAuthenticated ? (
-              <Link href="/admin">
+              <Link href={
+                user?.role === "admin" ? "/admin" :
+                user?.role === "landlord" ? "/landlord" :
+                "/profile"
+              }>
                 <Button
                   variant={isScrolled ? "secondary" : "default"}
                   size="sm"
@@ -148,7 +152,11 @@ export default function Header() {
                 FAQ
               </Link>
               {isAuthenticated ? (
-                <Link href="/admin">
+                <Link href={
+                  user?.role === "admin" ? "/admin" :
+                  user?.role === "landlord" ? "/landlord" :
+                  "/profile"
+                }>
                   <Button
                     variant="default"
                     size="sm"
