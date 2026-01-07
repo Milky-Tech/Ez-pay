@@ -177,6 +177,8 @@ export default function PropertiesTab({
                   <TableHead>Owner</TableHead>
                   <TableHead>Monthly Rent</TableHead>
                   <TableHead>Units</TableHead>
+                  <TableHead>Quality Score</TableHead>
+                  <TableHead>Recommendation</TableHead>
                   <TableHead>Submission Status</TableHead>
                   <TableHead>Actions</TableHead>
                 </TableRow>
@@ -209,6 +211,16 @@ export default function PropertiesTab({
                         : formatPrice(property.monthly_cost)}
                     </TableCell>
                     <TableCell>{property.noOfUnits}</TableCell>
+                    <TableCell>
+                      <Badge variant="outline" className="text-xs">
+                        Pending Review
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="secondary" className="text-xs">
+                        Calculate on Review
+                      </Badge>
+                    </TableCell>
                     <TableCell>
                       {getStatusBadge(property.status || "pending")}
                     </TableCell>
