@@ -144,7 +144,7 @@ export default function AdminDashboard() {
   const { user, isAuthenticated, logout, token } = useAuth();
   const router = useRouter();
   const { toast } = useToast();
-
+  console.log(token);
   // Fetch data based on active tab
 
   // Fetch all dashboard data for overview

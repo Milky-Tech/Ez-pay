@@ -1061,7 +1061,9 @@ export default function PropertyScoringEngine({
     // Ensure full URL for realestway.com documents
     const fullDocUrl = docUrl.startsWith("http")
       ? docUrl
-      : `https://realestway.com${docUrl.startsWith("/") ? "" : "/"}${docUrl}`;
+      : `https://ez-pay.realestway.com${
+          docUrl.startsWith("/") ? "" : "/"
+        }${docUrl}`;
 
     try {
       const response = await fetch(fullDocUrl, { method: "HEAD" });
