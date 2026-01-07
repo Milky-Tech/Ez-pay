@@ -171,7 +171,7 @@ const PropertyReviewDialog = ({
     if (!url) return "";
     return url.startsWith("http")
       ? url
-      : `https://realestway.com${url.startsWith("/") ? "" : "/"}${url}`;
+      : `https://ez-pay.realestway.com${url.startsWith("/") ? "" : "/"}${url}`;
   };
 
   // Collect all available images
