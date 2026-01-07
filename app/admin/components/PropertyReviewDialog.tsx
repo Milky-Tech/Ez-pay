@@ -47,11 +47,122 @@ interface PropertyReviewDialogProps {
   onReject: () => void;
 }
 
+// Image Carousel Component
+const ImageCarousel = ({
+  images,
+  isOpen,
+  onClose,
+}: {
+  images: { url: string; label: string }[];
+  isOpen: boolean;
+  onClose: () => void;
+}) => {
+  const [currentIndex, setCurrentIndex] = useState(0);
+
+  if (!isOpen || images.length === 0) return null;
+
+  const nextImage = () => {
+    setCurrentIndex((prev) => (prev + 1) % images.length);
+  };
+
+  const prevImage = () => {
+    setCurrentIndex((prev) => (prev - 1 + images.length) % images.length);
+  };
+
+  const goToImage = (index: number) => {
+    setCurrentIndex(index);
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
+      <div className="relative max-w-4xl max-h-full p-4">
+        {/* Close button */}
+        <button
+          onClick={onClose}
+          className="absolute top-2 right-2 z-10 bg-black bg-opacity-50 text-white rounded-full p-2 hover:bg-opacity-75"
+        >
+          <X className="h-6 w-6" />
+        </button>
+
+        {/* Main image */}
+        <div className="relative">
+          <img
+            src={images[currentIndex].url}
+            alt={images[currentIndex].label}
+            className="max-w-full max-h-[70vh] object-contain rounded-lg"
+            onError={(e) => {
+              const target = e.target as HTMLImageElement;
+              target.src = "/placeholder-image.png"; // Fallback image
+            }}
+          />
+
+          {/* Navigation arrows */}
+          {images.length > 1 && (
+            <>
+              <button
+                onClick={prevImage}
+                className="absolute left-2 top-1/2 transform -translate-y-1/2 bg-black bg-opacity-50 text-white rounded-full p-2 hover:bg-opacity-75"
+              >
+                <ChevronLeft className="h-6 w-6" />
+              </button>
+              <button
+                onClick={nextImage}
+                className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-black bg-opacity-50 text-white rounded-full p-2 hover:bg-opacity-75"
+              >
+                <ChevronRight className="h-6 w-6" />
+              </button>
+            </>
+          )}
+        </div>
+
+        {/* Image label */}
+        <div className="text-center mt-4">
+          <p className="text-white text-lg font-medium">
+            {images[currentIndex].label}
+          </p>
+          <p className="text-gray-300 text-sm">
+            {currentIndex + 1} of {images.length}
+          </p>
+        </div>
+
+        {/* Thumbnail indicators */}
+        {images.length > 1 && (
+          <div className="flex justify-center mt-4 space-x-2 overflow-x-auto">
+            {images.map((image, index) => (
+              <button
+                key={index}
+                onClick={() => goToImage(index)}
+                className={`flex-shrink-0 w-16 h-16 rounded border-2 overflow-hidden ${
+                  index === currentIndex
+                    ? "border-white"
+                    : "border-gray-500 hover:border-gray-300"
+                }`}
+              >
+                <img
+                  src={image.url}
+                  alt={image.label}
+                  className="w-full h-full object-cover"
+                  onError={(e) => {
+                    const target = e.target as HTMLImageElement;
+                    target.src = "/placeholder-image.png";
+                  }}
+                />
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
 const PropertyReviewDialog = ({
   property,
   onApprove,
   onReject,
 }: PropertyReviewDialogProps) => {
+  const [propertyDetails, setPropertyDetails] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [isCarouselOpen, setIsCarouselOpen] = useState(false);
 
@@ -60,7 +171,7 @@ const PropertyReviewDialog = ({
     if (!url) return "";
     return url.startsWith("http")
       ? url
-      : `https://ez-pay.realestway.com${url.startsWith("/") ? "" : "/"}${url}`;
+      : `https://realestway.com${url.startsWith("/") ? "" : "/"}${url}`;
   };
 
   // Collect all available images
@@ -88,117 +199,6 @@ const PropertyReviewDialog = ({
 
     return images;
   };
-
-  // Image Carousel Component
-  const ImageCarousel = ({
-    images,
-    isOpen,
-    onClose,
-  }: {
-    images: { url: string; label: string }[];
-    isOpen: boolean;
-    onClose: () => void;
-  }) => {
-    const [currentIndex, setCurrentIndex] = useState(0);
-
-    if (!isOpen || images.length === 0) return null;
-
-    const nextImage = () => {
-      setCurrentIndex((prev) => (prev + 1) % images.length);
-    };
-
-    const prevImage = () => {
-      setCurrentIndex((prev) => (prev - 1 + images.length) % images.length);
-    };
-
-    const goToImage = (index: number) => {
-      setCurrentIndex(index);
-    };
-
-    return (
-      <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
-        <div className="relative max-w-4xl max-h-full p-4">
-          {/* Close button */}
-          <button
-            onClick={onClose}
-            className="absolute top-2 right-2 z-10 bg-black bg-opacity-50 text-white rounded-full p-2 hover:bg-opacity-75"
-          >
-            <X className="h-6 w-6" />
-          </button>
-
-          {/* Main image */}
-          <div className="relative">
-            <img
-              src={images[currentIndex].url}
-              alt={images[currentIndex].label}
-              className="max-w-full max-h-[70vh] object-contain rounded-lg"
-              onError={(e) => {
-                const target = e.target as HTMLImageElement;
-                target.src = "/placeholder-image.png"; // Fallback image
-              }}
-            />
-
-            {/* Navigation arrows */}
-            {images.length > 1 && (
-              <>
-                <button
-                  onClick={prevImage}
-                  className="absolute left-2 top-1/2 transform -translate-y-1/2 bg-black bg-opacity-50 text-white rounded-full p-2 hover:bg-opacity-75"
-                >
-                  <ChevronLeft className="h-6 w-6" />
-                </button>
-                <button
-                  onClick={nextImage}
-                  className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-black bg-opacity-50 text-white rounded-full p-2 hover:bg-opacity-75"
-                >
-                  <ChevronRight className="h-6 w-6" />
-                </button>
-              </>
-            )}
-          </div>
-
-          {/* Image label */}
-          <div className="text-center mt-4">
-            <p className="text-white text-lg font-medium">
-              {images[currentIndex].label}
-            </p>
-            <p className="text-gray-300 text-sm">
-              {currentIndex + 1} of {images.length}
-            </p>
-          </div>
-
-          {/* Thumbnail indicators */}
-          {images.length > 1 && (
-            <div className="flex justify-center mt-4 space-x-2 overflow-x-auto">
-              {images.map((image, index) => (
-                <button
-                  key={index}
-                  onClick={() => goToImage(index)}
-                  className={`flex-shrink-0 w-16 h-16 rounded border-2 overflow-hidden ${
-                    index === currentIndex
-                      ? "border-white"
-                      : "border-gray-500 hover:border-gray-300"
-                  }`}
-                >
-                  <img
-                    src={image.url}
-                    alt={image.label}
-                    className="w-full h-full object-cover"
-                    onError={(e) => {
-                      const target = e.target as HTMLImageElement;
-                      target.src = "/placeholder-image.png";
-                    }}
-                  />
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-    );
-  };
-  const [propertyDetails, setPropertyDetails] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchPropertyDetails = async () => {
