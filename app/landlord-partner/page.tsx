@@ -59,7 +59,7 @@ interface PropertyFormData {
   exterior_shot: string;
   compound_road: string;
   power_system: string;
-  interior_rooms: string[];
+  interior_rooms: string;
 }
 
 export default function LandlordPartnerPage() {
@@ -103,7 +103,7 @@ export default function LandlordPartnerPage() {
     exteriorPhoto: File | null;
     roadPhoto: File | null;
     powerPhoto: File | null;
-    interiorPhotos: File[];
+    interiorPhoto: File | null;
   }>({
     ownershipDoc: null,
     govtId: null,
@@ -111,7 +111,7 @@ export default function LandlordPartnerPage() {
     exteriorPhoto: null,
     roadPhoto: null,
     powerPhoto: null,
-    interiorPhotos: [],
+    interiorPhoto: null,
   });
 
   const [uploadedPaths, setUploadedPaths] = useState<{
@@ -121,7 +121,7 @@ export default function LandlordPartnerPage() {
     exterior_shot: string;
     compound_road: string;
     power_system: string;
-    interior_rooms: string[];
+    interior_rooms: string;
   }>({
     ownership_doc: "",
     gov_id: "",
@@ -129,7 +129,25 @@ export default function LandlordPartnerPage() {
     exterior_shot: "",
     compound_road: "",
     power_system: "",
-    interior_rooms: [],
+    interior_rooms: "",
+  });
+
+  const [uploading, setUploading] = useState<{
+    ownershipDoc: boolean;
+    govtId: boolean;
+    cacCert: boolean;
+    exteriorPhoto: boolean;
+    roadPhoto: boolean;
+    powerPhoto: boolean;
+    interiorPhoto: boolean;
+  }>({
+    ownershipDoc: false,
+    govtId: false,
+    cacCert: false,
+    exteriorPhoto: false,
+    roadPhoto: false,
+    powerPhoto: false,
+    interiorPhoto: false,
   });
 
   const [toastMessage, setToastMessage] = useState<{
@@ -207,111 +225,6 @@ export default function LandlordPartnerPage() {
     }
   };
 
-  // Upload all files
-  const uploadAllFiles = async () => {
-    const uploadPromises = [];
-    const newUploadedPaths = { ...uploadedPaths };
-
-    // Upload ownership document
-    if (files.ownershipDoc) {
-      uploadPromises.push(
-        uploadFile(files.ownershipDoc, "document")
-          .then((path) => {
-            newUploadedPaths.ownership_doc = path;
-          })
-          .catch(() => {
-            throw new Error("Failed to upload ownership document");
-          })
-      );
-    }
-
-    // Upload government ID
-    if (files.govtId) {
-      uploadPromises.push(
-        uploadFile(files.govtId, "document")
-          .then((path) => {
-            newUploadedPaths.gov_id = path;
-          })
-          .catch(() => {
-            throw new Error("Failed to upload government ID");
-          })
-      );
-    }
-
-    // Upload CAC certificate (optional)
-    if (files.cacCert) {
-      uploadPromises.push(
-        uploadFile(files.cacCert, "document")
-          .then((path) => {
-            newUploadedPaths.cac_cert = path;
-          })
-          .catch(() => {
-            throw new Error("Failed to upload CAC certificate");
-          })
-      );
-    }
-
-    // Upload exterior photo
-    if (files.exteriorPhoto) {
-      uploadPromises.push(
-        uploadFile(files.exteriorPhoto, "image")
-          .then((path) => {
-            newUploadedPaths.exterior_shot = path;
-          })
-          .catch(() => {
-            throw new Error("Failed to upload exterior photo");
-          })
-      );
-    }
-
-    // Upload road/compound photo
-    if (files.roadPhoto) {
-      uploadPromises.push(
-        uploadFile(files.roadPhoto, "image")
-          .then((path) => {
-            newUploadedPaths.compound_road = path;
-          })
-          .catch(() => {
-            throw new Error("Failed to upload road/compound photo");
-          })
-      );
-    }
-
-    // Upload power system photo
-    if (files.powerPhoto) {
-      uploadPromises.push(
-        uploadFile(files.powerPhoto, "image")
-          .then((path) => {
-            newUploadedPaths.power_system = path;
-          })
-          .catch(() => {
-            throw new Error("Failed to upload power system photo");
-          })
-      );
-    }
-
-    // Upload interior photos
-    if (files.interiorPhotos.length > 0) {
-      const interiorUploads = files.interiorPhotos.map((file) =>
-        uploadFile(file, "image")
-          .then((path) => path)
-          .catch(() => {
-            throw new Error("Failed to upload interior photos");
-          })
-      );
-
-      uploadPromises.push(
-        Promise.all(interiorUploads).then((paths) => {
-          newUploadedPaths.interior_rooms = paths;
-        })
-      );
-    }
-
-    await Promise.all(uploadPromises);
-    setUploadedPaths(newUploadedPaths);
-    return newUploadedPaths;
-  };
-
   // Submit form data to backend
   const submitFormData = async (paths: typeof uploadedPaths) => {
     const payload: PropertyFormData = {
@@ -384,26 +297,17 @@ export default function LandlordPartnerPage() {
 
       // Validate required files
       if (
-        !files.ownershipDoc ||
-        !files.govtId ||
-        !files.exteriorPhoto ||
-        !files.roadPhoto ||
-        !files.powerPhoto ||
-        files.interiorPhotos.length === 0
+        !uploadedPaths.ownership_doc ||
+        !uploadedPaths.gov_id ||
+        !uploadedPaths.exterior_shot ||
+        !uploadedPaths.compound_road ||
+        !uploadedPaths.power_system ||
+        !uploadedPaths.interior_rooms
       ) {
         throw new Error("Please upload all required files marked with *");
       }
 
-      // Step 1: Upload all files
-      showToast(
-        "Uploading files...",
-        "Please wait while we upload your documents and images.",
-        "success"
-      );
-
-      const uploadedPaths = await uploadAllFiles();
-
-      // Step 2: Submit form data
+      // Step 1: Submit form data
       showToast(
         "Submitting property details...",
         "Please wait while we register your property.",
@@ -446,7 +350,7 @@ export default function LandlordPartnerPage() {
         exteriorPhoto: null,
         roadPhoto: null,
         powerPhoto: null,
-        interiorPhotos: [],
+        interiorPhoto: null,
       });
 
       setUploadedPaths({
@@ -456,7 +360,17 @@ export default function LandlordPartnerPage() {
         exterior_shot: "",
         compound_road: "",
         power_system: "",
-        interior_rooms: [],
+        interior_rooms: "",
+      });
+
+      setUploading({
+        ownershipDoc: false,
+        govtId: false,
+        cacCert: false,
+        exteriorPhoto: false,
+        roadPhoto: false,
+        powerPhoto: false,
+        interiorPhoto: false,
       });
 
       setCurrentStep(0);
@@ -475,14 +389,99 @@ export default function LandlordPartnerPage() {
   };
 
   // Handle file input changes
-  const handleFileChange = (
+  const handleFileChange = async (
     field: keyof typeof files,
     file: File | File[] | null
   ) => {
+    let actualFile: File | null = null;
+    if (field === "interiorPhoto" && Array.isArray(file)) {
+      actualFile = file[0] || null;
+    } else if (!Array.isArray(file)) {
+      actualFile = file;
+    }
+
     setFiles((prev) => ({
       ...prev,
-      [field]: file,
+      [field]: actualFile,
     }));
+
+    if (actualFile) {
+      try {
+        setUploading((prev) => ({ ...prev, [field]: true }));
+        const fileType: FileType =
+          field === "exteriorPhoto" ||
+          field === "roadPhoto" ||
+          field === "powerPhoto" ||
+          field === "interiorPhoto"
+            ? "image"
+            : "document";
+        const pathKey =
+          field === "ownershipDoc"
+            ? "ownership_doc"
+            : field === "govtId"
+            ? "gov_id"
+            : field === "cacCert"
+            ? "cac_cert"
+            : field === "exteriorPhoto"
+            ? "exterior_shot"
+            : field === "roadPhoto"
+            ? "compound_road"
+            : field === "powerPhoto"
+            ? "power_system"
+            : field === "interiorPhoto"
+            ? "interior_rooms"
+            : "";
+
+        const uploadedPath = await uploadFile(actualFile, fileType);
+        setUploadedPaths((prev) => ({
+          ...prev,
+          [pathKey]: uploadedPath,
+        }));
+        showToast(
+          "File uploaded successfully",
+          `${actualFile.name} has been uploaded.`,
+          "success"
+        );
+      } catch (error) {
+        console.error("Upload error:", error);
+        showToast(
+          "Upload failed",
+          error instanceof Error
+            ? error.message
+            : "Failed to upload file. Please try again.",
+          "error"
+        );
+        // Clear the file if upload failed
+        setFiles((prev) => ({
+          ...prev,
+          [field]: null,
+        }));
+      } finally {
+        setUploading((prev) => ({ ...prev, [field]: false }));
+      }
+    } else {
+      // If file is cleared, clear the path
+      const pathKey =
+        field === "ownershipDoc"
+          ? "ownership_doc"
+          : field === "govtId"
+          ? "gov_id"
+          : field === "cacCert"
+          ? "cac_cert"
+          : field === "exteriorPhoto"
+          ? "exterior_shot"
+          : field === "roadPhoto"
+          ? "compound_road"
+          : field === "powerPhoto"
+          ? "power_system"
+          : field === "interiorPhoto"
+          ? "interior_rooms"
+          : "";
+      setUploadedPaths((prev) => ({
+        ...prev,
+        [pathKey]: "",
+      }));
+    }
   };
 
   return (
@@ -1237,9 +1236,15 @@ export default function LandlordPartnerPage() {
                           }
                           required
                         />
-                        {files.ownershipDoc && (
+                        {uploading.ownershipDoc && (
+                          <p className="text-sm text-blue-600 mt-2 flex items-center justify-center">
+                            <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                            Uploading...
+                          </p>
+                        )}
+                        {files.ownershipDoc && !uploading.ownershipDoc && (
                           <p className="text-sm text-green-600 mt-2">
-                            ✓ {files.ownershipDoc.name}
+                            ✓ {files.ownershipDoc.name} uploaded
                           </p>
                         )}
                       </div>
@@ -1264,9 +1269,15 @@ export default function LandlordPartnerPage() {
                           }
                           required
                         />
-                        {files.govtId && (
+                        {uploading.govtId && (
+                          <p className="text-sm text-blue-600 mt-2 flex items-center justify-center">
+                            <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                            Uploading...
+                          </p>
+                        )}
+                        {files.govtId && !uploading.govtId && (
                           <p className="text-sm text-green-600 mt-2">
-                            ✓ {files.govtId.name}
+                            ✓ {files.govtId.name} uploaded
                           </p>
                         )}
                       </div>
@@ -1293,9 +1304,15 @@ export default function LandlordPartnerPage() {
                             )
                           }
                         />
-                        {files.cacCert && (
+                        {uploading.cacCert && (
+                          <p className="text-sm text-blue-600 mt-2 flex items-center justify-center">
+                            <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                            Uploading...
+                          </p>
+                        )}
+                        {files.cacCert && !uploading.cacCert && (
                           <p className="text-sm text-green-600 mt-2">
-                            ✓ {files.cacCert.name}
+                            ✓ {files.cacCert.name} uploaded
                           </p>
                         )}
                       </div>
@@ -1339,9 +1356,15 @@ export default function LandlordPartnerPage() {
                           }
                           required
                         />
-                        {files.exteriorPhoto && (
+                        {uploading.exteriorPhoto && (
+                          <p className="text-sm text-blue-600 mt-2 flex items-center justify-center">
+                            <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                            Uploading...
+                          </p>
+                        )}
+                        {files.exteriorPhoto && !uploading.exteriorPhoto && (
                           <p className="text-sm text-green-600 mt-2">
-                            ✓ {files.exteriorPhoto.name}
+                            ✓ {files.exteriorPhoto.name} uploaded
                           </p>
                         )}
                       </div>
@@ -1365,9 +1388,15 @@ export default function LandlordPartnerPage() {
                           }
                           required
                         />
-                        {files.roadPhoto && (
+                        {uploading.roadPhoto && (
+                          <p className="text-sm text-blue-600 mt-2 flex items-center justify-center">
+                            <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                            Uploading...
+                          </p>
+                        )}
+                        {files.roadPhoto && !uploading.roadPhoto && (
                           <p className="text-sm text-green-600 mt-2">
-                            ✓ {files.roadPhoto.name}
+                            ✓ {files.roadPhoto.name} uploaded
                           </p>
                         )}
                       </div>
@@ -1391,43 +1420,50 @@ export default function LandlordPartnerPage() {
                           }
                           required
                         />
-                        {files.powerPhoto && (
+                        {uploading.powerPhoto && (
+                          <p className="text-sm text-blue-600 mt-2 flex items-center justify-center">
+                            <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                            Uploading...
+                          </p>
+                        )}
+                        {files.powerPhoto && !uploading.powerPhoto && (
                           <p className="text-sm text-green-600 mt-2">
-                            ✓ {files.powerPhoto.name}
+                            ✓ {files.powerPhoto.name} uploaded
                           </p>
                         )}
                       </div>
                       <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
                         <Upload className="h-12 w-12 text-gray-400 mx-auto mb-3" />
                         <Label
-                          htmlFor="interiorPhotos"
+                          htmlFor="interiorPhoto"
                           className="cursor-pointer"
                         >
                           <span className="text-primary font-semibold">
-                            All Interior Rooms *
-                          </span>
-                          <span className="text-gray-600">
-                            {" "}
-                            (Multiple files)
+                            Interior Rooms *
                           </span>
                         </Label>
                         <Input
-                          id="interiorPhotos"
+                          id="interiorPhoto"
                           type="file"
                           accept="image/*"
-                          multiple
                           className="mt-2"
                           onChange={(e) =>
                             handleFileChange(
-                              "interiorPhotos",
-                              Array.from(e.target.files || [])
+                              "interiorPhoto",
+                              e.target.files?.[0] || null
                             )
                           }
                           required
                         />
-                        {files.interiorPhotos.length > 0 && (
+                        {uploading.interiorPhoto && (
+                          <p className="text-sm text-blue-600 mt-2 flex items-center justify-center">
+                            <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                            Uploading...
+                          </p>
+                        )}
+                        {files.interiorPhoto && !uploading.interiorPhoto && (
                           <p className="text-sm text-green-600 mt-2">
-                            ✓ {files.interiorPhotos.length} file(s) selected
+                            ✓ {files.interiorPhoto.name} uploaded
                           </p>
                         )}
                       </div>

@@ -62,8 +62,16 @@ const DEMO_PROPERTIES: Property[] = [
     onboarding_stage: "completed",
     partnership_tier: "ez_prime",
     power_supply: true,
-    amenities: ["Swimming Pool", "Gym", "Security", "Parking", "Garden", "Tennis Court"],
-    description: "Luxury villa with panoramic views of the lagoon. Features modern architecture with premium finishes throughout.",
+    amenities: [
+      "Swimming Pool",
+      "Gym",
+      "Security",
+      "Parking",
+      "Garden",
+      "Tennis Court",
+    ],
+    description:
+      "Luxury villa with panoramic views of the lagoon. Features modern architecture with premium finishes throughout.",
   },
   {
     id: "2",
@@ -89,7 +97,8 @@ const DEMO_PROPERTIES: Property[] = [
     partnership_tier: "ez_prime",
     power_supply: true,
     amenities: ["Concierge", "Rooftop Terrace", "Smart Home", "Pool", "Gym"],
-    description: "Modern penthouse in prime location with stunning city views and smart home automation.",
+    description:
+      "Modern penthouse in prime location with stunning city views and smart home automation.",
   },
   {
     id: "3",
@@ -114,8 +123,15 @@ const DEMO_PROPERTIES: Property[] = [
     onboarding_stage: "completed",
     partnership_tier: "ez_prime",
     power_supply: true,
-    amenities: ["Garden", "Pool", "Security Quarters", "Home Theater", "Wine Cellar"],
-    description: "Spacious duplex with premium finishes, ideal for large families or entertaining.",
+    amenities: [
+      "Garden",
+      "Pool",
+      "Security Quarters",
+      "Home Theater",
+      "Wine Cellar",
+    ],
+    description:
+      "Spacious duplex with premium finishes, ideal for large families or entertaining.",
   },
   {
     id: "4",
@@ -141,7 +157,8 @@ const DEMO_PROPERTIES: Property[] = [
     partnership_tier: "ez_prime",
     power_supply: true,
     amenities: ["Borehole", "Generator", "CCTV", "Garden", "Parking"],
-    description: "Secure family home with ample space, perfect for comfortable living in a quiet neighborhood.",
+    description:
+      "Secure family home with ample space, perfect for comfortable living in a quiet neighborhood.",
   },
   {
     id: "5",
@@ -167,7 +184,8 @@ const DEMO_PROPERTIES: Property[] = [
     partnership_tier: "ez_prime",
     power_supply: true,
     amenities: ["Pool", "Gym", "24/7 Security", "Playground", "Barbecue Area"],
-    description: "Modern apartment in gated community with excellent amenities and family-friendly environment.",
+    description:
+      "Modern apartment in gated community with excellent amenities and family-friendly environment.",
   },
   {
     id: "6",
@@ -192,8 +210,17 @@ const DEMO_PROPERTIES: Property[] = [
     onboarding_stage: "completed",
     partnership_tier: "ez_prime",
     power_supply: true,
-    amenities: ["Helipad", "Cinema", "Wine Cellar", "Staff Quarters", "Pool", "Tennis Court", "Garden"],
-    description: "Ultra-luxury mansion with premium amenities, perfect for luxury living and entertainment.",
+    amenities: [
+      "Helipad",
+      "Cinema",
+      "Wine Cellar",
+      "Staff Quarters",
+      "Pool",
+      "Tennis Court",
+      "Garden",
+    ],
+    description:
+      "Ultra-luxury mansion with premium amenities, perfect for luxury living and entertainment.",
   },
 ];
 
@@ -409,12 +436,14 @@ export default function PropertyDetailsPage() {
                       Amenities & Services
                     </h2>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                      {property.amenities?.map((amenity: string, index: number) => (
-                        <div key={index} className="flex items-start">
-                          <CheckCircle className="h-5 w-5 text-secondary mr-2 mt-0.5 flex-shrink-0" />
-                          <span>{amenity}</span>
-                        </div>
-                      ))}
+                      {property.amenities?.map(
+                        (amenity: string, index: number) => (
+                          <div key={index} className="flex items-start">
+                            <CheckCircle className="h-5 w-5 text-secondary mr-2 mt-0.5 flex-shrink-0" />
+                            <span>{amenity}</span>
+                          </div>
+                        )
+                      )}
                       <div className="flex items-start">
                         <CheckCircle className="h-5 w-5 text-secondary mr-2 mt-0.5 flex-shrink-0" />
                         <span>Guaranteed 15+ hours of power daily</span>
