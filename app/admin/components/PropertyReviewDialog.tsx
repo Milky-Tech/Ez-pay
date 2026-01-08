@@ -27,7 +27,7 @@ const API_BASE_URL =
 interface Property {
   id: string;
   code_name: string;
-  topology: string;
+  typology: string;
   area: string;
   state: string;
   monthly_cost: number | null;
@@ -37,6 +37,10 @@ interface Property {
   property_address: string;
   noOfUnits: number;
   rent: number;
+  compound_road?: string;
+  power_system?: string;
+  interior_rooms?: string;
+  exterior_shot?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -262,7 +266,7 @@ const PropertyReviewDialog = ({
             <div>
               <Label className="text-sm font-medium">Type</Label>
               <p className="text-sm text-gray-600">
-                {propertyDetails?.topology || property.topology}
+                {propertyDetails?.typology || property.typology}
               </p>
             </div>
             <div>
@@ -546,7 +550,7 @@ const PropertyReviewDialog = ({
                 propertyDetails.property_address || property.property_address,
               state: propertyDetails.state || property.state,
               area: propertyDetails.area || property.area,
-              topology: propertyDetails.topology || property.topology,
+              typology: propertyDetails.typology || property.typology,
               noOfUnits: propertyDetails.noOfUnits || property.noOfUnits,
               rent: propertyDetails.rent || property.rent,
               ownershipDoc: propertyDetails.ownershipDoc,

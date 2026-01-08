@@ -70,7 +70,7 @@ const API_BASE_URL =
 interface Property {
   id: string;
   code_name: string;
-  topology: string;
+  typology: string;
   area: string;
   state: string;
   monthly_cost: number | null;
@@ -80,6 +80,11 @@ interface Property {
   property_address: string;
   noOfUnits: number;
   rent: number;
+  phone?: string;
+  compound_road?: string;
+  power_system?: string;
+  interior_rooms?: string;
+  exterior_shot?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -98,9 +103,24 @@ interface Application {
 
 interface Landlord {
   id: string;
-  fullName: string;
+  full_name: string;
+  fullName?: string; // For backward compatibility
   email: string;
   phone: string;
+  password?: string;
+  password_confirmation?: string;
+  designation?: string;
+  occupation?: string;
+  nationality?: string;
+  state_of_origin?: string;
+  lga_of_origin?: string;
+  residential_address?: string;
+  place_of_work?: string;
+  business_name?: string;
+  business_address?: string;
+  account_name?: string;
+  account_number?: string;
+  bank_name?: string;
   status: string;
   createdAt: string;
 }
@@ -141,10 +161,15 @@ export default function AdminDashboard() {
   });
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [approvalDialog, setApprovalDialog] = useState({
+    open: false,
+    property: null as Property | null,
+    password: "",
+  });
   const { user, isAuthenticated, logout, token } = useAuth();
   const router = useRouter();
   const { toast } = useToast();
-  console.log(token);
+
   // Fetch data based on active tab
 
   // Fetch all dashboard data for overview
@@ -206,49 +231,6 @@ export default function AdminDashboard() {
       }));
     } catch (error) {
       console.error("Error fetching properties:", error);
-      // // For development, use mock data
-      // if (process.env.NODE_ENV === "development") {
-      //   const mockProperties: Property[] = [
-      //     {
-      //       id: "1",
-      //       code_name: "BG-001",
-      //       typology: "Flat",
-      //       area: "Lekki",
-      //       state: "Lagos",
-      //       monthly_cost: 1500000,
-      //       availability_status: "available",
-      //       fullName: "John Adewale Okafor",
-      //       property_address: "Plot 23, Lekki Phase 1, Lagos",
-      //       no_of_units: 12,
-      //       rent: 1800000,
-      //       created_at: new Date().toISOString(),
-      //       updated_at: new Date().toISOString(),
-      //     },
-      //     {
-      //       id: "2",
-      //       code_name: "BG-002",
-      //       typology: "Duplex",
-      //       area: "Victoria Island",
-      //       state: "Lagos",
-      //       monthly_cost: 2500000,
-      //       availability_status: "rented",
-      //       fullName: "Chinwe Okonkwo",
-      //       property_address: "45 Marina Road, Lagos Island",
-      //       no_of_units: 6,
-      //       rent: 3000000,
-      //       created_at: new Date().toISOString(),
-      //       updated_at: new Date().toISOString(),
-      //     },
-      //   ];
-      //   setProperties(mockProperties);
-      //   setStats((prev) => ({
-      //     ...prev,
-      //     totalProperties: mockProperties.length,
-      //     availableProperties: mockProperties.filter(
-      //       (p) => p.availability_status === "available"
-      //     ).length,
-      //   }));
-      // }
     } finally {
       setLoading((prev) => ({ ...prev, properties: false }));
     }
@@ -281,7 +263,7 @@ export default function AdminDashboard() {
           {
             id: "1",
             code_name: "BG-001",
-            topology: "Flat",
+            typology: "Flat",
             area: "Lekki",
             state: "Lagos",
             monthly_cost: 1500000,
@@ -467,7 +449,7 @@ export default function AdminDashboard() {
 
       // Filter landlords who have approved properties
       const verifiedLandlords = allLandlords.filter((landlord: Landlord) =>
-        approvedLandlordNames.includes(landlord.fullName)
+        approvedLandlordNames.includes(landlord.full_name)
       );
 
       setLandlords(verifiedLandlords);
@@ -488,7 +470,7 @@ export default function AdminDashboard() {
         const mockVerifiedLandlords: Landlord[] = [
           {
             id: "1",
-            fullName: "John Adewale Okafor",
+            full_name: "John Adewale Okafor",
             email: "john.okafors@example.com",
             phone: "+2348012345678",
             status: "active",
@@ -682,8 +664,17 @@ export default function AdminDashboard() {
     }
   };
 
+  // Open approval dialog
+  const openApprovalDialog = (property: Property) => {
+    setApprovalDialog({ open: true, property, password: "" });
+  };
+
   // Approve Property Submission
-  const approveProperty = async (property: Property) => {
+  const approveProperty = async () => {
+    const { property, password } = approvalDialog;
+
+    if (!property || !password) return;
+
     try {
       // First approve the property
       const response = await fetch(
@@ -703,19 +694,25 @@ export default function AdminDashboard() {
 
       // Register the landlord
       const landlordData = {
-        fullName: property.fullName,
+        full_name: property.fullName,
         email: `${property.fullName
           .toLowerCase()
-          .replace(/\s+/g, ".")}@ezpay.com`,
-        phone: "09000000000",
-        password: "12345678",
-        password_confirmation: "12345678",
-        company_name: `${property.fullName} Housing`,
-        address: property.property_address,
-        nin: "12345678901",
+          .replace(/\s+/g, ".")}@ezpay.com`, // Generate email
+        phone: property.phone || "08000000000", // Use property phone if available
+        password: password,
+        password_confirmation: password,
+        designation: "Mr", // Default
+        occupation: "Landlord", // Default
+        nationality: "Nigerian", // Default
+        state_of_origin: property.state || "Lagos", // Use property state
+        lga_of_origin: property.area || "Ikeja", // Use property area
+        residential_address: property.property_address,
+        place_of_work: property.property_address, // Default to property address
+        business_name: `${property.fullName} Properties`,
+        business_address: property.property_address,
         account_name: property.fullName,
-        account_number: "2045678901",
-        bank_name: "First Bank",
+        account_number: "0000000000", // Placeholder
+        bank_name: "Access Bank", // Default
       };
 
       const landlordResponse = await fetch(`${API_BASE_URL}/landlords`, {
@@ -729,29 +726,67 @@ export default function AdminDashboard() {
       });
 
       if (!landlordResponse.ok) {
-        console.warn(
-          "Failed to register landlord, but property was approved:",
-          landlordResponse.statusText
-        );
-        // Don't throw error here, as the property approval succeeded
+        const errorData = await landlordResponse.json();
+        console.warn("Failed to register landlord:", errorData);
+        throw new Error("Failed to register landlord");
       }
+
+      const landlordResult = await landlordResponse.json();
+      console.log("Landlord created:", landlordResult);
+
+      // Create property listing
+      const listingData = {
+        property_address: property.property_address,
+        state: property.state,
+        area: property.area,
+        typology: property.typology,
+        number_of_units: property.noOfUnits,
+        rent: property.rent,
+        compound_road: property.compound_road, // Default
+        power_system: property.power_system, // Default
+        interior_rooms: property.interior_rooms, // Placeholder
+        exterior_shot: property.exterior_shot, // Placeholder
+      };
+
+      const listingResponse = await fetch(`${API_BASE_URL}/listings`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+          Authorization: `Bearer ${token || localStorage.getItem("token")}`,
+        },
+        body: JSON.stringify(listingData),
+      });
+
+      if (!listingResponse.ok) {
+        const errorData = await listingResponse.json();
+        console.warn("Failed to create listing:", errorData);
+        throw new Error("Failed to create listing");
+      }
+
+      const listingResult = await listingResponse.json();
+      console.log("Listing created:", listingResult);
 
       toast({
         title: "Property Approved",
         description:
-          "Property submission has been approved and landlord registered.",
+          "Property has been approved, landlord created, and listing added.",
       });
 
+      setApprovalDialog({ open: false, property: null, password: "" });
       fetchProperties();
       fetchListings();
-      fetchLandlords(); // Refresh landlords list
+      fetchLandlords();
       return true;
     } catch (error) {
       console.error("Approve property error:", error);
       toast({
         variant: "destructive",
         title: "Approval Failed",
-        description: "There was an error approving the property.",
+        description:
+          error instanceof Error
+            ? error.message
+            : "There was an error approving the property.",
       });
       return false;
     }
@@ -793,11 +828,207 @@ export default function AdminDashboard() {
     }
   };
 
+  // Landlord CRUD operations
+  const getLandlord = async (id: string) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/landlords/${id}`, {
+        method: "GET",
+        headers: {
+          Accept: "application/json",
+          Authorization: `Bearer ${token || localStorage.getItem("token")}`,
+        },
+      });
+
+      if (!response.ok) throw new Error("Failed to fetch landlord");
+
+      return await response.json();
+    } catch (error) {
+      console.error("Get landlord error:", error);
+      throw error;
+    }
+  };
+
+  const updateLandlord = async (id: string, data: Partial<Landlord>) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/landlords/${id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+          Authorization: `Bearer ${token || localStorage.getItem("token")}`,
+        },
+        body: JSON.stringify(data),
+      });
+
+      if (!response.ok) throw new Error("Failed to update landlord");
+
+      toast({
+        title: "Landlord Updated",
+        description: "Landlord information has been updated successfully.",
+      });
+
+      fetchLandlords();
+      return await response.json();
+    } catch (error) {
+      console.error("Update landlord error:", error);
+      toast({
+        variant: "destructive",
+        title: "Update Failed",
+        description: "There was an error updating the landlord.",
+      });
+      throw error;
+    }
+  };
+
+  const deleteLandlord = async (id: string) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/landlords/${id}`, {
+        method: "DELETE",
+        headers: {
+          Accept: "application/json",
+          Authorization: `Bearer ${token || localStorage.getItem("token")}`,
+        },
+      });
+
+      if (!response.ok) throw new Error("Failed to delete landlord");
+
+      toast({
+        title: "Landlord Deleted",
+        description: "Landlord has been deleted successfully.",
+      });
+
+      fetchLandlords();
+      return true;
+    } catch (error) {
+      console.error("Delete landlord error:", error);
+      toast({
+        variant: "destructive",
+        title: "Delete Failed",
+        description: "There was an error deleting the landlord.",
+      });
+      throw error;
+    }
+  };
+
+  const updateLandlordStatus = async (id: string, status: string) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/landlords/${id}/status`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+          Authorization: `Bearer ${token || localStorage.getItem("token")}`,
+        },
+        body: JSON.stringify({ status }),
+      });
+
+      if (!response.ok) throw new Error("Failed to update landlord status");
+
+      toast({
+        title: "Status Updated",
+        description: "Landlord status has been updated successfully.",
+      });
+
+      fetchLandlords();
+      return await response.json();
+    } catch (error) {
+      console.error("Update landlord status error:", error);
+      toast({
+        variant: "destructive",
+        title: "Status Update Failed",
+        description: "There was an error updating the landlord status.",
+      });
+      throw error;
+    }
+  };
+
+  // Listing CRUD operations
+  const getListing = async (id: string) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/listings/${id}`, {
+        method: "GET",
+        headers: {
+          Accept: "application/json",
+          Authorization: `Bearer ${token || localStorage.getItem("token")}`,
+        },
+      });
+
+      if (!response.ok) throw new Error("Failed to fetch listing");
+
+      return await response.json();
+    } catch (error) {
+      console.error("Get listing error:", error);
+      throw error;
+    }
+  };
+
+  const updateListing = async (id: string, data: any) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/listings/${id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+          Authorization: `Bearer ${token || localStorage.getItem("token")}`,
+        },
+        body: JSON.stringify(data),
+      });
+
+      if (!response.ok) throw new Error("Failed to update listing");
+
+      toast({
+        title: "Listing Updated",
+        description: "Listing information has been updated successfully.",
+      });
+
+      fetchListings();
+      return await response.json();
+    } catch (error) {
+      console.error("Update listing error:", error);
+      toast({
+        variant: "destructive",
+        title: "Update Failed",
+        description: "There was an error updating the listing.",
+      });
+      throw error;
+    }
+  };
+
+  const deleteListing = async (id: string) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/listings/${id}`, {
+        method: "DELETE",
+        headers: {
+          Accept: "application/json",
+          Authorization: `Bearer ${token || localStorage.getItem("token")}`,
+        },
+      });
+
+      if (!response.ok) throw new Error("Failed to delete listing");
+
+      toast({
+        title: "Listing Deleted",
+        description: "Listing has been deleted successfully.",
+      });
+
+      fetchListings();
+      return true;
+    } catch (error) {
+      console.error("Delete listing error:", error);
+      toast({
+        variant: "destructive",
+        title: "Delete Failed",
+        description: "There was an error deleting the listing.",
+      });
+      throw error;
+    }
+  };
+
   // Filter properties based on search and status
   const filteredProperties = properties.filter((property) => {
     const matchesSearch =
       searchTerm === "" ||
-      property.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      property.id.toString().toLowerCase().includes(searchTerm.toLowerCase()) ||
       property.area.toLowerCase().includes(searchTerm.toLowerCase()) ||
       property.fullName.toLowerCase().includes(searchTerm.toLowerCase());
 
@@ -848,7 +1079,7 @@ export default function AdminDashboard() {
   const filteredLandlords = landlords.filter((landlord) => {
     const matchesSearch =
       searchTerm === "" ||
-      (landlord.fullName?.toString() || "")
+      (landlord.full_name?.toString() || "")
         .toLowerCase()
         .includes(searchTerm.toLowerCase()) ||
       (landlord.email?.toString() || "")
@@ -865,7 +1096,7 @@ export default function AdminDashboard() {
   const filteredUsers = users.filter((user) => {
     const matchesSearch =
       searchTerm === "" ||
-      (user.fullName?.toString() || "")
+      (user.full_name?.toString() || "")
         .toLowerCase()
         .includes(searchTerm.toLowerCase()) ||
       (user.email?.toString() || "")
@@ -1010,8 +1241,8 @@ export default function AdminDashboard() {
     return null; // Will redirect via useEffect
   }
 
-  // Safely handle user.fullName
-  const userName = user?.fullName ? user.fullName.toUpperCase() : "ADMIN";
+  // Safely handle user.full_name
+  const userName = user?.full_name ? user.full_name.toUpperCase() : "ADMIN";
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -1138,7 +1369,7 @@ export default function AdminDashboard() {
               getStatusBadge={getStatusBadge}
               formatPrice={formatPrice}
               fetchProperties={fetchProperties}
-              approveProperty={approveProperty}
+              openApprovalDialog={openApprovalDialog}
               rejectProperty={rejectProperty}
             />
           </TabsContent>
@@ -1228,7 +1459,7 @@ export default function AdminDashboard() {
                             </TableCell>
                             <TableCell>
                               <Badge variant="outline">
-                                {listing.topology}
+                                {listing.typology}
                               </Badge>
                             </TableCell>
                             <TableCell>
@@ -1247,6 +1478,16 @@ export default function AdminDashboard() {
                               <div className="flex gap-2">
                                 <Button variant="outline" size="sm">
                                   <Eye className="h-4 w-4" />
+                                </Button>
+                                <Button variant="outline" size="sm">
+                                  <Edit className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="text-red-600 hover:text-red-700"
+                                >
+                                  <XCircle className="h-4 w-4" />
                                 </Button>
                               </div>
                             </TableCell>
@@ -1322,7 +1563,7 @@ export default function AdminDashboard() {
                       {filteredUsers.map((user) => (
                         <TableRow key={user.id}>
                           <TableCell className="font-medium">
-                            {user.fullName}
+                            {user.full_name}
                           </TableCell>
                           <TableCell>{user.email}</TableCell>
                           <TableCell>{user.phone}</TableCell>
@@ -1392,7 +1633,7 @@ export default function AdminDashboard() {
                       {filteredLandlords.map((landlord) => (
                         <TableRow key={landlord.id}>
                           <TableCell className="font-medium">
-                            {landlord.fullName}
+                            {landlord.full_name}
                           </TableCell>
                           <TableCell>
                             <div className="text-sm">
@@ -1407,9 +1648,23 @@ export default function AdminDashboard() {
                             {formatDate(landlord.createdAt)}
                           </TableCell>
                           <TableCell>
-                            <Button variant="outline" size="sm">
-                              View Submission
-                            </Button>
+                            <div className="flex gap-2">
+                              <Button variant="outline" size="sm">
+                                View Submission
+                              </Button>
+                              <Button variant="outline" size="sm">
+                                <Edit className="h-4 w-4 mr-1" />
+                                Edit
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="text-red-600 hover:text-red-700"
+                              >
+                                <XCircle className="h-4 w-4 mr-1" />
+                                Delete
+                              </Button>
+                            </div>
                           </TableCell>
                         </TableRow>
                       ))}
@@ -1421,6 +1676,108 @@ export default function AdminDashboard() {
           </TabsContent>
         </Tabs>
       </div>
+
+      {/* Approval Dialog */}
+      <Dialog
+        open={approvalDialog.open}
+        onOpenChange={(open) =>
+          setApprovalDialog((prev) => ({ ...prev, open }))
+        }
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Approve Property - Set Landlord Password</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p>
+              Approving property for:{" "}
+              <strong>{approvalDialog.property?.fullName}</strong>
+            </p>
+            <div>
+              <Label htmlFor="password">Password for Landlord Account</Label>
+              <Input
+                id="password"
+                type="password"
+                value={approvalDialog.password}
+                onChange={(e) =>
+                  setApprovalDialog((prev) => ({
+                    ...prev,
+                    password: e.target.value,
+                  }))
+                }
+                placeholder="Enter password"
+              />
+            </div>
+          </div>
+          <div className="flex justify-end space-x-2">
+            <Button
+              variant="outline"
+              onClick={() =>
+                setApprovalDialog({ open: false, property: null, password: "" })
+              }
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={approveProperty}
+              disabled={!approvalDialog.password}
+            >
+              Approve & Create Landlord
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Approval Dialog */}
+      <Dialog
+        open={approvalDialog.open}
+        onOpenChange={(open) =>
+          setApprovalDialog((prev) => ({ ...prev, open }))
+        }
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Approve Property & Create Landlord</DialogTitle>
+            <p className="text-sm text-muted-foreground">
+              Enter a password for the landlord account for{" "}
+              {approvalDialog.property?.fullName}
+            </p>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="password">Password</Label>
+              <Input
+                id="password"
+                type="password"
+                value={approvalDialog.password}
+                onChange={(e) =>
+                  setApprovalDialog((prev) => ({
+                    ...prev,
+                    password: e.target.value,
+                  }))
+                }
+                placeholder="Enter password for landlord account"
+              />
+            </div>
+          </div>
+          <div className="flex justify-end space-x-2">
+            <Button
+              variant="outline"
+              onClick={() =>
+                setApprovalDialog({ open: false, property: null, password: "" })
+              }
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={approveProperty}
+              disabled={!approvalDialog.password}
+            >
+              Approve & Create Landlord
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -35,7 +35,7 @@ import {
 const API_BASE_URL = "https://ez-pay.realestway.com/api";
 
 // File upload endpoint
-const UPLOAD_ENDPOINT = `${API_BASE_URL}/upload`;
+const UPLOAD_ENDPOINT = `${API_BASE_URL}/upload/single`;
 // Property registration endpoint
 const REGISTER_ENDPOINT = `${API_BASE_URL}/landlords/property/register`;
 
@@ -915,7 +915,7 @@ interface PropertyFormData {
   property_address: string;
   state: string;
   area: string;
-  topology: string;
+  typology: string;
   no_of_units: number;
   rent: number;
   ownership_doc: string;
@@ -1106,7 +1106,7 @@ export default function LandlordPartnerPage() {
       property_address: formData.propertyAddress,
       state: formData.state,
       area: formData.area,
-      topology: formData.typology,
+      typology: formData.typology,
       no_of_units: parseInt(formData.numberOfUnits) || 0,
       rent: parseFloat(formData.desiredAnnualRent) || 0,
       ownership_doc: paths.ownership_doc,

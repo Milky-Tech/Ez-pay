@@ -38,7 +38,7 @@ import PropertyReviewDialog from "./PropertyReviewDialog";
 interface Property {
   id: string;
   code_name: string;
-  topology: string;
+  typology: string;
   area: string;
   state: string;
   monthly_cost: number | null;
@@ -48,6 +48,10 @@ interface Property {
   property_address: string;
   noOfUnits: number;
   rent: number;
+  compound_road?: string;
+  power_system?: string;
+  interior_rooms?: string;
+  exterior_shot?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -64,7 +68,7 @@ interface PropertiesTabProps {
   getStatusBadge: (status: string) => JSX.Element;
   formatPrice: (price: number | null) => string;
   fetchProperties: () => void;
-  approveProperty: (property: Property) => Promise<boolean>;
+  openApprovalDialog: (property: Property) => void;
   rejectProperty: (propertyId: string) => void;
 }
 
@@ -78,7 +82,7 @@ export default function PropertiesTab({
   getStatusBadge,
   formatPrice,
   fetchProperties,
-  approveProperty,
+  openApprovalDialog,
   rejectProperty,
 }: PropertiesTabProps) {
   const filteredProperties = properties.filter((property) => {
@@ -190,7 +194,7 @@ export default function PropertiesTab({
                       {property.id?.toString() || "N/A"}
                     </TableCell>
                     <TableCell>
-                      <Badge variant="outline">{property.topology}</Badge>
+                      <Badge variant="outline">{property.typology}</Badge>
                     </TableCell>
                     <TableCell>
                       <div className="max-w-[200px] truncate">
@@ -243,7 +247,7 @@ export default function PropertiesTab({
                                 </DialogHeader>
                                 <PropertyReviewDialog
                                   property={property}
-                                  onApprove={() => approveProperty(property)}
+                                  onApprove={() => openApprovalDialog(property)}
                                   onReject={() => rejectProperty(property.id)}
                                 />
                               </DialogContent>
@@ -269,7 +273,7 @@ export default function PropertiesTab({
                                 </DialogHeader>
                                 <PropertyReviewDialog
                                   property={property}
-                                  onApprove={() => approveProperty(property)}
+                                  onApprove={() => openApprovalDialog(property)}
                                   onReject={() => rejectProperty(property.id)}
                                 />
                               </DialogContent>
@@ -277,7 +281,7 @@ export default function PropertiesTab({
                             <Button
                               variant="default"
                               size="sm"
-                              onClick={() => approveProperty(property)}
+                              onClick={() => openApprovalDialog(property)}
                               className="bg-green-600 hover:bg-green-700"
                             >
                               <CheckCircle className="h-4 w-4 mr-1" />
