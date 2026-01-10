@@ -25,32 +25,47 @@ export default function Header() {
         isScrolled ? "bg-primary shadow-lg" : "bg-transparent"
       }`}
     >
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="max-w-[92%] mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between max-w-[100%] items-center h-20">
           <Link href="/" className="flex items-center space-x-3">
             <div className="flex items-center">
-              <Home
+              {/* <Home
                 className={`h-8 w-8 ${
-                  isScrolled ? "text-white" : "text-primary"
+                  isScrolled ? "text-gray-800" : "text-primary"
                 }`}
-              />
+              /> */}
               <span
                 className={`ml-2 text-xl font-bold font-raleway ${
                   isScrolled ? "text-white" : "text-primary"
                 }`}
               >
-                <span className="text-accent">Bridgent</span> HomeStep EZ-Pay
+                <img
+                  src="/images/logo-ezpay.png"
+                  alt="Logo"
+                  className="h-8"
+                />
+                {/* <span className="text-accent">Bridgent</span> HomeStep EZ-Pay */}
               </span>
             </div>
           </Link>
 
-          <nav className="hidden md:flex items-center space-x-8">
+          <nav className="hidden md:flex items-center space-x-8 text-sm">
+            <Link
+              href="/about"
+              className={`font-montserrat transition-colors ${
+                isScrolled
+                  ? "text-white hover:text-accent"
+                  : "text-white hover:text-primary"
+              }`}
+            >
+              About Us
+            </Link>{" "}
             <Link
               href="/listings"
               className={`font-montserrat transition-colors ${
                 isScrolled
                   ? "text-white hover:text-accent"
-                  : "text-gray-800 hover:text-primary"
+                  : "text-white hover:text-primary"
               }`}
             >
               Listings
@@ -60,37 +75,31 @@ export default function Header() {
               className={`font-montserrat transition-colors ${
                 isScrolled
                   ? "text-white hover:text-accent"
-                  : "text-gray-800 hover:text-primary"
+                  : "text-white hover:text-primary"
               }`}
             >
               Landlord
-            </Link>
-            <Link
-              href="/about"
-              className={`font-montserrat transition-colors ${
-                isScrolled
-                  ? "text-white hover:text-accent"
-                  : "text-gray-800 hover:text-primary"
-              }`}
-            >
-              About
             </Link>
             <Link
               href="/faq"
               className={`font-montserrat transition-colors ${
                 isScrolled
                   ? "text-white hover:text-accent"
-                  : "text-gray-800 hover:text-primary"
+                  : "text-white hover:text-primary"
               }`}
             >
               FAQ
             </Link>
             {isAuthenticated ? (
-              <Link href={
-                user?.role === "admin" ? "/admin" :
-                user?.role === "landlord" ? "/landlord" :
-                "/profile"
-              }>
+              <Link
+                href={
+                  user?.role === "admin"
+                    ? "/admin"
+                    : user?.role === "landlord"
+                    ? "/landlord"
+                    : "/profile"
+                }
+              >
                 <Button
                   variant={isScrolled ? "secondary" : "default"}
                   size="sm"
@@ -152,11 +161,15 @@ export default function Header() {
                 FAQ
               </Link>
               {isAuthenticated ? (
-                <Link href={
-                  user?.role === "admin" ? "/admin" :
-                  user?.role === "landlord" ? "/landlord" :
-                  "/profile"
-                }>
+                <Link
+                  href={
+                    user?.role === "admin"
+                      ? "/admin"
+                      : user?.role === "landlord"
+                      ? "/landlord"
+                      : "/profile"
+                  }
+                >
                   <Button
                     variant="default"
                     size="sm"

@@ -43,7 +43,7 @@ interface Application {
   created_at: string;
   properties?: {
     code_name: string;
-    topology: string;
+    typology: string;
   };
   fullName?: string;
   email?: string;
@@ -181,7 +181,7 @@ export default function ApplicationsTab({
                           {app.properties?.code_name || "N/A"}
                         </p>
                         <p className="text-xs text-gray-600">
-                          {app.properties?.topology}
+                          {app.properties?.typology}
                         </p>
                       </div>
                     </TableCell>

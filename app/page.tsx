@@ -19,45 +19,85 @@ export default function LandingPage() {
       <Header />
       <ChatWidget />
 
-      <section className="relative h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100">
+      <section className="relative h-screen flex pb-2 pt-auto justify-center bg-[#000000] bg-transparent-[60%]">
         <div
           className="absolute inset-0 bg-cover bg-center opacity-20"
           style={{
-            backgroundImage:
-              "url('https://images.pexels.com/photos/1115804/pexels-photo-1115804.jpeg?auto=compress&cs=tinysrgb&w=1920')",
+            backgroundImage: "url('/images/bg.jpg')",
           }}
         />
-        <div className="relative z-10 max-w-[96%] md:max-w-5xl mx-auto my-3 md:my-0 px-4 sm:px-6 lg:px-8 text-center">
-          <div className="bg-white/90 backdrop-blur-sm p-12 rounded-2xl border-2 border-accent shadow-2xl">
-            <h1 className="text-4xl md:text-6xl font-bold text-primary mb-6 font-raleway">
-              Your Path to Monthly Living
-            </h1>
-            <p className="text-2xl md:text-3xl font-semibold text-primary mb-4">
-              End the Stress of Upfront Yearly Rent
+        <div className="relative z-10 w-full max-w-[96%] md:max-w-[70%] lg:max-w-1/3 mx-auto md:ml-8 sm:pb-2 md:pb-4 sm:mb-0 sm:mt-auto my-auto pt-auto flex flex-col justify-end">
+          <div className="px-6 md:px-12 text-left">
+            <p className="flex gap-3 items-center mb-4 sm:mb-2">
+              <img
+                src="/images/group.png"
+                alt="group tenants"
+                className="h-4 md:h-5"
+              />
+              <span className="text-[#FFFFFF] text-[12px] font-[500]">
+                End the Stress of Upfront Payment
+              </span>
             </p>
-            <p className="text-lg md:text-xl text-gray-700 mb-8 max-w-3xl mx-auto">
+            <h1
+              className="text-3xl md:text-[40px] lg:text-[50px] font-bold text-white mb-6 md:mb-4 font-raleway leading-tight md:leading-[1.2]"
+            >
+              <b>YOUR PATH TO</b>
+              <br />
+              <b className="text-transparent bg-clip-text bg-gradient-to-r from-[#C9A227] via-[#f1d57c] to-[#C9A227] bg-[length:200%_auto] animate-shimmer">
+                MONTHLY LIVING.
+              </b>
+            </h1>
+
+            <p className="text-sm md:text-base text-white mb-8 md:mb-6 max-w-2xl">
               Access verified, high-end homes with guaranteed 15+ hours of power
               and a predictable monthly payment structure. Welcome to House
               Serenity.
             </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Link href="/listings">
+            <div className="flex flex-col sm:flex-row gap-4 mb-10 md:mb-12">
+              <Link href="/listings" className="w-full sm:w-auto">
                 <Button
                   size="lg"
-                  className="bg-primary hover:bg-primary/90 text-white font-montserrat text-lg px-7 md:px-6 py-8 md:py-8"
+                  className="w-full sm:w-auto bg-primary rounded-[18px] text-sm md:text-lg hover:bg-primary/90 text-white font-montserrat px-6 py-6 md:py-7"
                 >
-                  View Available Premium <br /> Homes
+                  Rent A Home
                 </Button>
               </Link>
-              <Link href="/landlord-partner">
+              <Link href="/landlord-partner" className="w-full sm:w-auto">
                 <Button
                   size="lg"
-                  variant="outline"
-                  className="border-2 border-secondary text-secondary hover:bg-secondary hover:text-white font-montserrat text-lg px-8 py-8"
+                  className="w-full sm:w-auto border-2 border-primary/50 bg-primary/20 backdrop-blur-sm text-white rounded-[18px] hover:bg-secondary hover:text-white font-montserrat text-sm md:text-lg px-6 py-6 md:py-7"
                 >
-                  Become an EZ-Partner
+                  Become EZ-Partner
                 </Button>
               </Link>
+            </div>
+            <div className="flex flex-wrap gap-x-6 gap-y-2 pt-4 md:pt-6 border-t border-white/20">
+              <div className="flex flex-col gap-1 text-white">
+                <h2 className="text-xl md:text-[35px] lg:text-[40px] font-bold">
+                  2500+
+                </h2>
+                <p className="text-[10px] md:text-xs text-[#888888] uppercase tracking-wider">
+                  Happy Home Owners
+                </p>
+              </div>
+              <div className="hidden md:block border-l border-white/20 h-10"></div>
+              <div className="flex flex-col gap-1 text-white">
+                <h2 className="text-xl md:text-[35px] lg:text-[40px] font-bold">
+                  4.8
+                </h2>
+                <p className="text-[10px] md:text-xs text-[#888888] uppercase tracking-wider">
+                  Avg Rating
+                </p>
+              </div>
+              <div className="hidden md:block border-l border-white/20 h-10"></div>
+              <div className="flex flex-col gap-1 text-white">
+                <h2 className="text-xl md:text-[35px] lg:text-[40px] font-bold">
+                  $10M+
+                </h2>
+                <p className="text-[10px] md:text-xs text-[#888888] uppercase tracking-wider">
+                  Homes Made Accessible
+                </p>
+              </div>
             </div>
           </div>
         </div>

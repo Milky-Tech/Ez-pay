@@ -28,6 +28,16 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogAction,
+  AlertDialogCancel,
+} from "@/components/ui/alert-dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -52,15 +62,13 @@ import {
   Mail,
   MapPin,
   Calendar,
+  Loader2,
 } from "lucide-react";
 import { useAuth } from "@/context/authcontext";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
 import PropertyReviewDialog from "./components/PropertyReviewDialog";
-import OverviewTab from "./components/OverviewTab";
-import PropertiesTab from "./components/PropertiesTab";
-import ApplicationsTab from "./components/ApplicationsTab";
 
 // API Base URL
 const API_BASE_URL =
@@ -70,7 +78,9 @@ const API_BASE_URL =
 interface Property {
   id: string;
   code_name: string;
-  topology: string;
+  typology: string;
+  email: string;
+  phone: string;
   area: string;
   state: string;
   monthly_cost: number | null;
@@ -80,6 +90,10 @@ interface Property {
   property_address: string;
   noOfUnits: number;
   rent: number;
+  compound_road?: string;
+  power_system?: string;
+  interior_rooms?: string;
+  exterior_shot?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -98,14 +112,27 @@ interface Application {
 
 interface Landlord {
   id: string;
-  fullName: string;
+  full_name: string;
+  fullName?: string; // For backward compatibility
   email: string;
   phone: string;
+  password?: string;
+  password_confirmation?: string;
+  designation?: string;
+  occupation?: string;
+  nationality?: string;
+  state_of_origin?: string;
+  lga_of_origin?: string;
+  residential_address?: string;
+  place_of_work?: string;
+  business_name?: string;
+  business_address?: string;
+  account_name?: string;
+  account_number?: string;
+  bank_name?: string;
   status: string;
   createdAt: string;
 }
-
-// Helper function for price formatting
 
 // Helper function for price formatting
 const formatPrice = (price: number | null) => {
@@ -113,6 +140,8 @@ const formatPrice = (price: number | null) => {
   return new Intl.NumberFormat("en-NG", {
     style: "currency",
     currency: "NGN",
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
   }).format(price);
 };
 
@@ -141,11 +170,20 @@ export default function AdminDashboard() {
   });
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [approvalDialog, setApprovalDialog] = useState({
+    open: false,
+    property: null as Property | null,
+  });
+  const [confirmationDialog, setConfirmationDialog] = useState({
+    open: false,
+    property: null as Property | null,
+    action: "" as "approve" | "reject",
+  });
+  const [isProcessing, setIsProcessing] = useState(false);
+
   const { user, isAuthenticated, logout, token } = useAuth();
   const router = useRouter();
   const { toast } = useToast();
-
-  // Fetch data based on active tab
 
   // Fetch all dashboard data for overview
   const fetchDashboardData = useCallback(async () => {
@@ -193,66 +231,30 @@ export default function AdminDashboard() {
       }
 
       const data = await response.json();
-      setProperties(data.data || data);
+      const propertiesData = data.data || data;
+      setProperties(propertiesData);
+
       // Update stats
-      const approvedCount = (data.data || data).filter(
+      const approvedCount = propertiesData.filter(
         (p: Property) => p.status === "approved"
       ).length;
 
       setStats((prev) => ({
         ...prev,
-        totalProperties: (data.data || data).length,
+        totalProperties: propertiesData.length,
         availableProperties: approvedCount,
       }));
     } catch (error) {
       console.error("Error fetching properties:", error);
-      // // For development, use mock data
-      // if (process.env.NODE_ENV === "development") {
-      //   const mockProperties: Property[] = [
-      //     {
-      //       id: "1",
-      //       code_name: "BG-001",
-      //       typology: "Flat",
-      //       area: "Lekki",
-      //       state: "Lagos",
-      //       monthly_cost: 1500000,
-      //       availability_status: "available",
-      //       fullName: "John Adewale Okafor",
-      //       property_address: "Plot 23, Lekki Phase 1, Lagos",
-      //       no_of_units: 12,
-      //       rent: 1800000,
-      //       created_at: new Date().toISOString(),
-      //       updated_at: new Date().toISOString(),
-      //     },
-      //     {
-      //       id: "2",
-      //       code_name: "BG-002",
-      //       typology: "Duplex",
-      //       area: "Victoria Island",
-      //       state: "Lagos",
-      //       monthly_cost: 2500000,
-      //       availability_status: "rented",
-      //       fullName: "Chinwe Okonkwo",
-      //       property_address: "45 Marina Road, Lagos Island",
-      //       no_of_units: 6,
-      //       rent: 3000000,
-      //       created_at: new Date().toISOString(),
-      //       updated_at: new Date().toISOString(),
-      //     },
-      //   ];
-      //   setProperties(mockProperties);
-      //   setStats((prev) => ({
-      //     ...prev,
-      //     totalProperties: mockProperties.length,
-      //     availableProperties: mockProperties.filter(
-      //       (p) => p.availability_status === "available"
-      //     ).length,
-      //   }));
-      // }
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to fetch properties",
+      });
     } finally {
       setLoading((prev) => ({ ...prev, properties: false }));
     }
-  }, [token]);
+  }, [token, toast]);
 
   // Fetch listings from API
   const fetchListings = useCallback(async () => {
@@ -272,30 +274,8 @@ export default function AdminDashboard() {
 
       const data = await response.json();
       setListings(data.data || data);
-      console.log(data);
     } catch (error) {
       console.error("Error fetching listings:", error);
-      // For development, use mock data
-      if (process.env.NODE_ENV === "development") {
-        const mockListings: Property[] = [
-          {
-            id: "1",
-            code_name: "BG-001",
-            topology: "Flat",
-            area: "Lekki",
-            state: "Lagos",
-            monthly_cost: 1500000,
-            availability_status: "available",
-            fullName: "John Adewale Okafor",
-            property_address: "Plot 23, Lekki Phase 1, Lagos",
-            noOfUnits: 12,
-            rent: 1800000,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-          },
-        ];
-        setListings(mockListings);
-      }
     } finally {
       setLoading((prev) => ({ ...prev, listings: false }));
     }
@@ -305,73 +285,35 @@ export default function AdminDashboard() {
   const fetchApplications = useCallback(async () => {
     try {
       setLoading((prev) => ({ ...prev, applications: true }));
-      // Assuming there's an endpoint for applications
       const response = await fetch(`${API_BASE_URL}/applications`, {
         method: "GET",
         headers: {
           Accept: "application/json",
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
+          Authorization: `Bearer ${token}`,
         },
       });
 
-      if (!response.ok) {
-        // If endpoint doesn't exist yet, use mock data
-        throw new Error("Applications endpoint not available");
-      }
+      if (response.ok) {
+        const data = await response.json();
+        setApplications(data.data || data);
 
-      const data = await response.json();
-      setApplications(data.data || data);
+        const pendingCount = (data.data || data).filter(
+          (app: Application) =>
+            app.status === "submitted" || app.status === "vetting_pending"
+        ).length;
 
-      const pendingCount = (data.data || data).filter(
-        (app: Application) =>
-          app.status === "submitted" || app.status === "vetting_pending"
-      ).length;
-
-      setStats((prev) => ({
-        ...prev,
-        totalApplications: (data.data || data).length,
-        pendingApplications: pendingCount,
-      }));
-    } catch (error) {
-      console.error("Error fetching applications:", error);
-      // Mock data for development
-      if (process.env.NODE_ENV === "development") {
-        const mockApplications: Application[] = [
-          {
-            id: "1",
-            property_id: "1",
-            status: "vetting_pending",
-            payment_plan_preference: "ez_anchor",
-            created_at: new Date().toISOString(),
-            fullName: "Adebayo Johnson",
-            email: "adebayo@example.com",
-            phone: "08012345678",
-          },
-          {
-            id: "2",
-            property_id: "2",
-            status: "approved",
-            payment_plan_preference: "ez_ascend",
-            created_at: new Date(Date.now() - 86400000).toISOString(), // 1 day ago
-            fullName: "Chioma Nwosu",
-            email: "chioma@example.com",
-            phone: "08087654321",
-          },
-        ];
-        setApplications(mockApplications);
         setStats((prev) => ({
           ...prev,
-          totalApplications: mockApplications.length,
-          pendingApplications: mockApplications.filter(
-            (app) =>
-              app.status === "vetting_pending" || app.status === "submitted"
-          ).length,
+          totalApplications: (data.data || data).length,
+          pendingApplications: pendingCount,
         }));
       }
+    } catch (error) {
+      console.error("Error fetching applications:", error);
     } finally {
       setLoading((prev) => ({ ...prev, applications: false }));
     }
-  }, []);
+  }, [token]);
 
   // Fetch all users from API
   const fetchUsers = useCallback(async () => {
@@ -381,7 +323,7 @@ export default function AdminDashboard() {
         method: "GET",
         headers: {
           Accept: "application/json",
-          Authorization: `Bearer ${token || localStorage.getItem("token")}`,
+          Authorization: `Bearer ${token}`,
         },
       });
 
@@ -390,7 +332,7 @@ export default function AdminDashboard() {
       }
 
       const data = await response.json();
-      setUsers(data.data || data); // Using users state for users tab
+      setUsers(data.data || data);
 
       const activeCount = (data.data || data).filter(
         (u: any) => u.status === "active"
@@ -408,102 +350,35 @@ export default function AdminDashboard() {
     }
   }, [token]);
 
-  // Fetch landlords from API (only those with approved properties)
+  // Fetch landlords from API
   const fetchLandlords = useCallback(async () => {
     try {
       setLoading((prev) => ({ ...prev, landlords: true }));
-
-      // First fetch all properties to identify landlords with approved properties
-      const propertiesResponse = await fetch(
-        `${API_BASE_URL}/landlords/property/properties`,
-        {
-          method: "GET",
-          headers: {
-            Accept: "application/json",
-            Authorization: `Bearer ${token || localStorage.getItem("token")}`,
-          },
-        }
-      );
-
-      if (!propertiesResponse.ok) {
-        throw new Error(
-          `Failed to fetch properties: ${propertiesResponse.statusText}`
-        );
-      }
-
-      const propertiesData = await propertiesResponse.json();
-      const allProperties = propertiesData.data || propertiesData;
-
-      // Get unique landlord names who have at least one approved property
-      const approvedLandlordNames = Array.from(
-        new Set(
-          allProperties
-            .filter(
-              (property: Property) =>
-                property.availability_status === "approved" ||
-                property.availability_status === "active"
-            )
-            .map((property: Property) => property.fullName)
-        )
-      );
-
-      // Now fetch all landlords
-      const landlordsResponse = await fetch(`${API_BASE_URL}/landlords`, {
+      const response = await fetch(`${API_BASE_URL}/landlords`, {
         method: "GET",
         headers: {
           Accept: "application/json",
-          Authorization: `Bearer ${token || localStorage.getItem("token")}`,
+          Authorization: `Bearer ${token}`,
         },
       });
 
-      if (!landlordsResponse.ok) {
-        throw new Error(
-          `Failed to fetch landlords: ${landlordsResponse.statusText}`
-        );
-      }
+      if (response.ok) {
+        const data = await response.json();
+        const allLandlords = data.data || data;
+        setLandlords(allLandlords);
 
-      const landlordsData = await landlordsResponse.json();
-      const allLandlords = landlordsData.data || landlordsData;
+        const activeCount = allLandlords.filter(
+          (landlord: Landlord) => landlord.status === "active"
+        ).length;
 
-      // Filter landlords who have approved properties
-      const verifiedLandlords = allLandlords.filter((landlord: Landlord) =>
-        approvedLandlordNames.includes(landlord.fullName)
-      );
-
-      setLandlords(verifiedLandlords);
-
-      const activeCount = verifiedLandlords.filter(
-        (landlord: Landlord) => landlord.status === "active"
-      ).length;
-
-      setStats((prev) => ({
-        ...prev,
-        totalLandlords: verifiedLandlords.length,
-        activeLandlords: activeCount,
-      }));
-    } catch (error) {
-      console.error("Error fetching verified landlords:", error);
-      // For development, use mock data
-      if (process.env.NODE_ENV === "development") {
-        const mockVerifiedLandlords: Landlord[] = [
-          {
-            id: "1",
-            fullName: "John Adewale Okafor",
-            email: "john.okafors@example.com",
-            phone: "+2348012345678",
-            status: "active",
-            createdAt: new Date().toISOString(),
-          },
-        ];
-        setLandlords(mockVerifiedLandlords);
         setStats((prev) => ({
           ...prev,
-          totalLandlords: mockVerifiedLandlords.length,
-          activeLandlords: mockVerifiedLandlords.filter(
-            (l) => l.status === "active"
-          ).length,
+          totalLandlords: allLandlords.length,
+          activeLandlords: activeCount,
         }));
       }
+    } catch (error) {
+      console.error("Error fetching landlords:", error);
     } finally {
       setLoading((prev) => ({ ...prev, landlords: false }));
     }
@@ -535,245 +410,101 @@ export default function AdminDashboard() {
     }
   }, [activeTab, isAuthenticated, router]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Update User
-  const updateUser = async (userId: string, data: any) => {
-    try {
-      const response = await fetch(`${API_BASE_URL}/users/${userId}`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json",
-          Authorization: `Bearer ${token || localStorage.getItem("token")}`,
-        },
-        body: JSON.stringify(data),
-      });
-
-      if (!response.ok) throw new Error("Failed to update user");
-
-      toast({
-        title: "User Updated",
-        description: "User details have been successfully updated.",
-      });
-
-      // Refresh data
-      if (activeTab === "users") fetchUsers();
-      else if (activeTab === "landlords") fetchLandlords();
-
-      return true;
-    } catch (error) {
-      console.error("Update user error:", error);
-      toast({
-        variant: "destructive",
-        title: "Update Failed",
-        description: "There was an error updating the user.",
-      });
-      return false;
-    }
+  // Open approval dialog
+  const openApprovalDialog = (property: Property) => {
+    setApprovalDialog({ open: true, property });
   };
 
-  // Delete User
-  const deleteUser = async (userId: string) => {
-    if (!confirm("Are you sure you want to delete this user?")) return;
-
-    try {
-      const response = await fetch(`${API_BASE_URL}/users/${userId}`, {
-        method: "DELETE",
-        headers: {
-          Accept: "application/json",
-          Authorization: `Bearer ${token || localStorage.getItem("token")}`,
-        },
-      });
-
-      if (!response.ok) throw new Error("Failed to delete user");
-
-      toast({
-        title: "User Deleted",
-        description: "The user has been successfully deleted.",
-      });
-
-      // Refresh data
-      if (activeTab === "users") fetchUsers();
-      else if (activeTab === "landlords") fetchLandlords();
-
-      return true;
-    } catch (error) {
-      console.error("Delete user error:", error);
-      toast({
-        variant: "destructive",
-        title: "Delete Failed",
-        description: "There was an error deleting the user.",
-      });
-      return false;
-    }
-  };
-
-  // Update Property Status
-  const updatePropertyStatus = async (propertyId: string, status: string) => {
-    try {
-      const response = await fetch(
-        `${API_BASE_URL}/landlords/property/${propertyId}/status`,
-        {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-            Accept: "application/json",
-            Authorization: `Bearer ${token || localStorage.getItem("token")}`,
-          },
-          body: JSON.stringify({ status }),
-        }
-      );
-
-      if (!response.ok) throw new Error("Failed to update status");
-
-      toast({
-        title: "Status Updated",
-        description: "Property status has been updated.",
-      });
-
-      fetchProperties();
-      return true;
-    } catch (error) {
-      console.error("Update status error:", error);
-      toast({
-        variant: "destructive",
-        title: "Update Failed",
-        description: "There was an error updating the property status.",
-      });
-      return false;
-    }
-  };
-
-  // Update Application Status
-  const updateApplicationStatus = async (
-    applicationId: string,
-    status: string
+  // Open confirmation dialog
+  const openConfirmationDialog = (
+    property: Property,
+    action: "approve" | "reject"
   ) => {
-    try {
-      const response = await fetch(
-        `${API_BASE_URL}/applications/${applicationId}/status`,
-        {
-          method: "PATCH",
-          headers: {
-            "Content-Type": "application/json",
-            Accept: "application/json",
-            Authorization: `Bearer ${token || localStorage.getItem("token")}`,
-          },
-          body: JSON.stringify({ status }),
-        }
-      );
-
-      if (!response.ok) throw new Error("Failed to update application status");
-
-      toast({
-        title: "Status Updated",
-        description: "Application status has been updated.",
-      });
-
-      fetchApplications();
-      return true;
-    } catch (error) {
-      console.error("Update application error:", error);
-      toast({
-        variant: "destructive",
-        title: "Update Failed",
-        description: "There was an error updating the application status.",
-      });
-      return false;
-    }
+    setConfirmationDialog({
+      open: true,
+      property,
+      action,
+    });
   };
 
   // Approve Property Submission
-  const approveProperty = async (property: Property) => {
+  const approveProperty = async () => {
+    const { property } = confirmationDialog;
+
+    if (!property) return;
+
+    setIsProcessing(true);
     try {
-      // First approve the property
       const response = await fetch(
-        `${API_BASE_URL}/landlords/property/${property.id}/status`,
+        `${API_BASE_URL}/landlords/property/approve`,
         {
-          method: "PUT",
+          method: "POST",
           headers: {
             "Content-Type": "application/json",
             Accept: "application/json",
-            Authorization: `Bearer ${token || localStorage.getItem("token")}`,
+            Authorization: `Bearer ${token}`,
           },
-          body: JSON.stringify({ status: "approved" }),
+          body: JSON.stringify({
+            property_registration_id: property.id,
+          }),
         }
       );
 
-      if (!response.ok) throw new Error("Failed to approve property");
+      const data = await response.json();
 
-      // Register the landlord
-      const landlordData = {
-        fullName: property.fullName,
-        email: `${property.fullName
-          .toLowerCase()
-          .replace(/\s+/g, ".")}@ezpay.com`,
-        phone: "09000000000",
-        password: "12345678",
-        password_confirmation: "12345678",
-        company_name: `${property.fullName} Housing`,
-        address: property.property_address,
-        nin: "12345678901",
-        account_name: property.fullName,
-        account_number: "2045678901",
-        bank_name: "First Bank",
-      };
-
-      const landlordResponse = await fetch(`${API_BASE_URL}/landlords`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json",
-          Authorization: `Bearer ${token || localStorage.getItem("token")}`,
-        },
-        body: JSON.stringify(landlordData),
-      });
-
-      if (!landlordResponse.ok) {
-        console.warn(
-          "Failed to register landlord, but property was approved:",
-          landlordResponse.statusText
-        );
-        // Don't throw error here, as the property approval succeeded
+      if (!response.ok) {
+        throw new Error(data.message || "Failed to approve property");
       }
 
       toast({
-        title: "Property Approved",
-        description:
-          "Property submission has been approved and landlord registered.",
+        title: "✅ Property Approved",
+        description: "Property has been successfully approved and listed.",
       });
 
+      // Refresh data
       fetchProperties();
       fetchListings();
-      fetchLandlords(); // Refresh landlords list
-      return true;
     } catch (error) {
       console.error("Approve property error:", error);
       toast({
         variant: "destructive",
         title: "Approval Failed",
-        description: "There was an error approving the property.",
+        description:
+          error instanceof Error
+            ? error.message
+            : "There was an error approving the property.",
       });
-      return false;
+    } finally {
+      setIsProcessing(false);
+      setConfirmationDialog({ open: false, property: null, action: "approve" });
+      setApprovalDialog({ open: false, property: null });
     }
   };
 
   // Reject Property Submission
-  const rejectProperty = async (propertyId: string) => {
+  const rejectProperty = async () => {
+    const { property } = confirmationDialog;
+
+    if (!property) return;
+
+    setIsProcessing(true);
     try {
       const response = await fetch(
-        `${API_BASE_URL}/landlords/property/${propertyId}/status`,
+        `${API_BASE_URL}/landlords/property/${property.id}/status`,
         {
           method: "PATCH",
           headers: {
             "Content-Type": "application/json",
             Accept: "application/json",
-            Authorization: `Bearer ${token || localStorage.getItem("token")}`,
+            Authorization: `Bearer ${token}`,
           },
           body: JSON.stringify({ status: "rejected" }),
         }
       );
 
-      if (!response.ok) throw new Error("Failed to reject property");
+      if (!response.ok) {
+        throw new Error("Failed to reject property");
+      }
 
       toast({
         title: "Property Rejected",
@@ -781,7 +512,6 @@ export default function AdminDashboard() {
       });
 
       fetchProperties();
-      return true;
     } catch (error) {
       console.error("Reject property error:", error);
       toast({
@@ -789,7 +519,10 @@ export default function AdminDashboard() {
         title: "Rejection Failed",
         description: "There was an error rejecting the property.",
       });
-      return false;
+    } finally {
+      setIsProcessing(false);
+      setConfirmationDialog({ open: false, property: null, action: "reject" });
+      setApprovalDialog({ open: false, property: null });
     }
   };
 
@@ -797,7 +530,7 @@ export default function AdminDashboard() {
   const filteredProperties = properties.filter((property) => {
     const matchesSearch =
       searchTerm === "" ||
-      property.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      property.id.toString().toLowerCase().includes(searchTerm.toLowerCase()) ||
       property.area.toLowerCase().includes(searchTerm.toLowerCase()) ||
       property.fullName.toLowerCase().includes(searchTerm.toLowerCase());
 
@@ -811,15 +544,8 @@ export default function AdminDashboard() {
   const filteredListings = listings.filter((listing) => {
     const matchesSearch =
       searchTerm === "" ||
-      (listing.id?.toString() || "")
-        .toLowerCase()
-        .includes(searchTerm.toLowerCase()) ||
-      (listing.area?.toString() || "")
-        .toLowerCase()
-        .includes(searchTerm.toLowerCase()) ||
-      (listing.fullName?.toString() || "")
-        .toLowerCase()
-        .includes(searchTerm.toLowerCase());
+      listing.code_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      listing.area?.toLowerCase().includes(searchTerm.toLowerCase());
 
     const matchesStatus =
       statusFilter === "all" || listing.availability_status === statusFilter;
@@ -831,12 +557,8 @@ export default function AdminDashboard() {
   const filteredApplications = applications.filter((application) => {
     const matchesSearch =
       searchTerm === "" ||
-      (application.properties?.id?.toString() || "")
-        .toLowerCase()
-        .includes(searchTerm.toLowerCase()) ||
-      (application.fullName?.toString() || "")
-        .toLowerCase()
-        .includes(searchTerm.toLowerCase());
+      application.id?.toString().includes(searchTerm) ||
+      application.fullName?.toLowerCase().includes(searchTerm.toLowerCase());
 
     const matchesStatus =
       statusFilter === "all" || application.status === statusFilter;
@@ -848,12 +570,8 @@ export default function AdminDashboard() {
   const filteredLandlords = landlords.filter((landlord) => {
     const matchesSearch =
       searchTerm === "" ||
-      (landlord.fullName?.toString() || "")
-        .toLowerCase()
-        .includes(searchTerm.toLowerCase()) ||
-      (landlord.email?.toString() || "")
-        .toLowerCase()
-        .includes(searchTerm.toLowerCase());
+      landlord.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      landlord.email?.toLowerCase().includes(searchTerm.toLowerCase());
 
     const matchesStatus =
       statusFilter === "all" || landlord.status === statusFilter;
@@ -865,12 +583,8 @@ export default function AdminDashboard() {
   const filteredUsers = users.filter((user) => {
     const matchesSearch =
       searchTerm === "" ||
-      (user.fullName?.toString() || "")
-        .toLowerCase()
-        .includes(searchTerm.toLowerCase()) ||
-      (user.email?.toString() || "")
-        .toLowerCase()
-        .includes(searchTerm.toLowerCase());
+      user.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      user.email?.toLowerCase().includes(searchTerm.toLowerCase());
 
     const matchesStatus =
       statusFilter === "all" || user.status === statusFilter;
@@ -962,15 +676,6 @@ export default function AdminDashboard() {
     );
   };
 
-  const formatPrice = (price: number | null) => {
-    if (!price) return "N/A";
-    return new Intl.NumberFormat("en-NG", {
-      style: "currency",
-      currency: "NGN",
-      minimumFractionDigits: 0,
-    }).format(price);
-  };
-
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString("en-NG", {
       day: "numeric",
@@ -999,6 +704,9 @@ export default function AdminDashboard() {
       case "users":
         fetchUsers();
         break;
+      case "landlords":
+        fetchLandlords();
+        break;
       default:
         fetchDashboardData();
         break;
@@ -1010,8 +718,8 @@ export default function AdminDashboard() {
     return null; // Will redirect via useEffect
   }
 
-  // Safely handle user.fullName
-  const userName = user?.fullName ? user.fullName.toUpperCase() : "ADMIN";
+  // Safely handle user.full_name
+  const userName = user?.full_name ? user.full_name.toUpperCase() : "ADMIN";
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -1114,33 +822,297 @@ export default function AdminDashboard() {
           </TabsList>
 
           <TabsContent value="overview">
-            <OverviewTab
-              stats={stats}
-              properties={properties}
-              applications={applications}
-              loading={loading}
-              getStatusBadge={getStatusBadge}
-              formatPrice={formatPrice}
-              formatDate={formatDate}
-              fetchProperties={fetchProperties}
-              fetchApplications={fetchApplications}
-            />
+            <Card>
+              <CardHeader>
+                <CardTitle className="font-raleway">
+                  Dashboard Overview
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+                  <Card>
+                    <CardContent className="pt-6">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm font-medium text-gray-600">
+                            Total Properties
+                          </p>
+                          <p className="text-2xl font-bold">
+                            {stats.totalProperties}
+                          </p>
+                        </div>
+                        <Home className="h-8 w-8 text-primary" />
+                      </div>
+                      <div className="mt-2">
+                        <Badge variant="success">
+                          {stats.availableProperties} Available
+                        </Badge>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  <Card>
+                    <CardContent className="pt-6">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm font-medium text-gray-600">
+                            Total Applications
+                          </p>
+                          <p className="text-2xl font-bold">
+                            {stats.totalApplications}
+                          </p>
+                        </div>
+                        <FileText className="h-8 w-8 text-primary" />
+                      </div>
+                      <div className="mt-2">
+                        <Badge variant="secondary">
+                          {stats.pendingApplications} Pending
+                        </Badge>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  <Card>
+                    <CardContent className="pt-6">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm font-medium text-gray-600">
+                            Active Landlords
+                          </p>
+                          <p className="text-2xl font-bold">
+                            {stats.activeLandlords}
+                          </p>
+                        </div>
+                        <UserCheck className="h-8 w-8 text-primary" />
+                      </div>
+                      <div className="mt-2">
+                        <Badge variant="outline">
+                          Total: {stats.totalLandlords}
+                        </Badge>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                {/* Recent Property Submissions */}
+                <div className="mt-8">
+                  <h3 className="text-lg font-semibold mb-4">
+                    Recent Property Submissions
+                  </h3>
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>ID</TableHead>
+                          <TableHead>Type</TableHead>
+                          <TableHead>Location</TableHead>
+                          <TableHead>Owner</TableHead>
+                          <TableHead>Status</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {properties.slice(0, 5).map((property) => (
+                          <TableRow key={property.id}>
+                            <TableCell className="font-medium">
+                              {property.id}
+                            </TableCell>
+                            <TableCell>{property.typology}</TableCell>
+                            <TableCell>
+                              {property.area}, {property.state}
+                            </TableCell>
+                            <TableCell>{property.fullName}</TableCell>
+                            <TableCell>
+                              {getStatusBadge(property.status || "pending")}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
           </TabsContent>
 
           <TabsContent value="properties">
-            <PropertiesTab
-              properties={properties}
-              loading={loading}
-              searchTerm={searchTerm}
-              setSearchTerm={setSearchTerm}
-              statusFilter={statusFilter}
-              setStatusFilter={setStatusFilter}
-              getStatusBadge={getStatusBadge}
-              formatPrice={formatPrice}
-              fetchProperties={fetchProperties}
-              approveProperty={approveProperty}
-              rejectProperty={rejectProperty}
-            />
+            <Card>
+              <CardHeader>
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                  <CardTitle className="font-raleway">
+                    Property Submissions
+                  </CardTitle>
+                  <div className="flex items-center gap-4">
+                    <Button
+                      onClick={fetchProperties}
+                      variant="outline"
+                      size="sm"
+                      disabled={loading.properties}
+                    >
+                      <RefreshCw
+                        className={`h-4 w-4 mr-2 ${
+                          loading.properties ? "animate-spin" : ""
+                        }`}
+                      />
+                      Refresh
+                    </Button>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="mb-4 flex flex-col md:flex-row gap-4">
+                  <div className="relative flex-1">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                    <Input
+                      placeholder="Search properties by name, code, or location..."
+                      className="pl-10"
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                    />
+                  </div>
+                  <Select value={statusFilter} onValueChange={setStatusFilter}>
+                    <SelectTrigger className="w-full md:w-[180px]">
+                      <Filter className="h-4 w-4 mr-2" />
+                      <SelectValue placeholder="Filter by status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Submissions</SelectItem>
+                      <SelectItem value="approved">Approved</SelectItem>
+                      <SelectItem value="pending">Pending</SelectItem>
+                      <SelectItem value="in_review">In Review</SelectItem>
+                      <SelectItem value="rejected">Rejected</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {loading.properties ? (
+                  <div className="text-center py-12">
+                    <RefreshCw className="h-12 w-12 animate-spin mx-auto text-gray-400" />
+                    <p className="text-gray-500 mt-4">Loading properties...</p>
+                  </div>
+                ) : filteredProperties.length === 0 ? (
+                  <div className="text-center py-12">
+                    <AlertCircle className="h-16 w-16 text-gray-300 mx-auto" />
+                    <p className="text-gray-500 mt-4">
+                      {searchTerm || statusFilter !== "all"
+                        ? "No submissions match your search criteria"
+                        : "No property submissions found."}
+                    </p>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Submission ID</TableHead>
+                          <TableHead>Type</TableHead>
+                          <TableHead>Location</TableHead>
+                          <TableHead>Owner</TableHead>
+                          <TableHead>Monthly Rent</TableHead>
+                          <TableHead>Units</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead>Actions</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {filteredProperties.map((property: Property) => (
+                          <TableRow key={property.id}>
+                            <TableCell className="font-medium">
+                              {property.id}
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant="outline">
+                                {property.typology}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>
+                              <div className="max-w-[200px] truncate">
+                                {property.area}, {property.state}
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <div className="max-w-[150px] truncate">
+                                {property.fullName}
+                              </div>
+                            </TableCell>
+                            <TableCell className="font-semibold">
+                              {formatPrice(property.monthly_cost)}
+                            </TableCell>
+                            <TableCell>{property.noOfUnits}</TableCell>
+                            <TableCell>
+                              {getStatusBadge(property.status || "pending")}
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex gap-2">
+                                <Dialog>
+                                  <DialogTrigger asChild>
+                                    <Button variant="outline" size="sm">
+                                      <Eye className="h-4 w-4 mr-1" />
+                                      Review
+                                    </Button>
+                                  </DialogTrigger>
+                                  <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+                                    <DialogHeader>
+                                      <DialogTitle>
+                                        Review Property Submission #
+                                        {property.id}
+                                      </DialogTitle>
+                                    </DialogHeader>
+                                    <PropertyReviewDialog
+                                      property={property}
+                                      onApprove={() =>
+                                        openApprovalDialog(property)
+                                      }
+                                      onReject={() =>
+                                        openConfirmationDialog(
+                                          property,
+                                          "reject"
+                                        )
+                                      }
+                                    />
+                                  </DialogContent>
+                                </Dialog>
+
+                                {property.status !== "approved" && (
+                                  <>
+                                    <Button
+                                      variant="default"
+                                      size="sm"
+                                      className="bg-green-600 hover:bg-green-700"
+                                      onClick={() =>
+                                        openConfirmationDialog(
+                                          property,
+                                          "approve"
+                                        )
+                                      }
+                                    >
+                                      <CheckCircle className="h-4 w-4 mr-1" />
+                                      Approve
+                                    </Button>
+                                    <Button
+                                      variant="destructive"
+                                      size="sm"
+                                      onClick={() =>
+                                        openConfirmationDialog(
+                                          property,
+                                          "reject"
+                                        )
+                                      }
+                                    >
+                                      <XCircle className="h-4 w-4 mr-1" />
+                                      Reject
+                                    </Button>
+                                  </>
+                                )}
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </TabsContent>
 
           <TabsContent value="listings">
@@ -1228,7 +1200,7 @@ export default function AdminDashboard() {
                             </TableCell>
                             <TableCell>
                               <Badge variant="outline">
-                                {listing.topology}
+                                {listing.typology}
                               </Badge>
                             </TableCell>
                             <TableCell>
@@ -1248,6 +1220,9 @@ export default function AdminDashboard() {
                                 <Button variant="outline" size="sm">
                                   <Eye className="h-4 w-4" />
                                 </Button>
+                                <Button variant="outline" size="sm">
+                                  <Edit className="h-4 w-4" />
+                                </Button>
                               </div>
                             </TableCell>
                           </TableRow>
@@ -1261,18 +1236,112 @@ export default function AdminDashboard() {
           </TabsContent>
 
           <TabsContent value="applications">
-            <ApplicationsTab
-              applications={applications}
-              loading={loading}
-              searchTerm={searchTerm}
-              setSearchTerm={setSearchTerm}
-              statusFilter={statusFilter}
-              setStatusFilter={setStatusFilter}
-              getStatusBadge={getStatusBadge}
-              formatDate={formatDate}
-              fetchApplications={fetchApplications}
-              updateApplicationStatus={updateApplicationStatus}
-            />
+            <Card>
+              <CardHeader>
+                <CardTitle className="font-raleway">
+                  Rental Applications
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="mb-4 flex flex-col md:flex-row gap-4">
+                  <div className="relative flex-1">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                    <Input
+                      placeholder="Search applications..."
+                      className="pl-10"
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                    />
+                  </div>
+                  <Select value={statusFilter} onValueChange={setStatusFilter}>
+                    <SelectTrigger className="w-full md:w-[180px]">
+                      <Filter className="h-4 w-4 mr-2" />
+                      <SelectValue placeholder="Filter by status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Status</SelectItem>
+                      <SelectItem value="pending">Pending</SelectItem>
+                      <SelectItem value="approved">Approved</SelectItem>
+                      <SelectItem value="rejected">Rejected</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {loading.applications ? (
+                  <div className="text-center py-12">
+                    <RefreshCw className="h-12 w-12 animate-spin mx-auto text-gray-400" />
+                    <p className="text-gray-500 mt-4">
+                      Loading applications...
+                    </p>
+                  </div>
+                ) : filteredApplications.length === 0 ? (
+                  <div className="text-center py-12">
+                    <AlertCircle className="h-16 w-16 text-gray-300 mx-auto" />
+                    <p className="text-gray-500 mt-4">No applications found.</p>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Application ID</TableHead>
+                          <TableHead>Applicant</TableHead>
+                          <TableHead>Property</TableHead>
+                          <TableHead>Payment Plan</TableHead>
+                          <TableHead>Date</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead>Actions</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {filteredApplications.map((application) => (
+                          <TableRow key={application.id}>
+                            <TableCell className="font-medium">
+                              {application.id}
+                            </TableCell>
+                            <TableCell>
+                              <div>
+                                <p className="font-medium">
+                                  {application.fullName}
+                                </p>
+                                <p className="text-sm text-gray-500">
+                                  {application.email}
+                                </p>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              {application.properties?.typology || "N/A"}
+                            </TableCell>
+                            <TableCell>
+                              {application.payment_plan_preference}
+                            </TableCell>
+                            <TableCell>
+                              {formatDate(application.created_at)}
+                            </TableCell>
+                            <TableCell>
+                              {getStatusBadge(application.status)}
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex gap-2">
+                                <Button variant="outline" size="sm">
+                                  <Eye className="h-4 w-4" />
+                                </Button>
+                                <Button variant="outline" size="sm">
+                                  <CheckCircle className="h-4 w-4" />
+                                </Button>
+                                <Button variant="outline" size="sm">
+                                  <XCircle className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </TabsContent>
 
           <TabsContent value="users">
@@ -1313,7 +1382,7 @@ export default function AdminDashboard() {
                         <TableHead>Name</TableHead>
                         <TableHead>Email</TableHead>
                         <TableHead>Phone</TableHead>
-                        <TableHead>Role</TableHead>
+                        <TableHead>Status</TableHead>
                         <TableHead>Joined</TableHead>
                         <TableHead>Actions</TableHead>
                       </TableRow>
@@ -1322,7 +1391,7 @@ export default function AdminDashboard() {
                       {filteredUsers.map((user) => (
                         <TableRow key={user.id}>
                           <TableCell className="font-medium">
-                            {user.fullName}
+                            {user.full_name}
                           </TableCell>
                           <TableCell>{user.email}</TableCell>
                           <TableCell>{user.phone}</TableCell>
@@ -1342,7 +1411,6 @@ export default function AdminDashboard() {
                                 size="icon"
                                 className="text-destructive hover:text-destructive"
                                 title="Delete User"
-                                onClick={() => deleteUser(user.id)}
                               >
                                 <XCircle className="h-4 w-4" />
                               </Button>
@@ -1361,11 +1429,9 @@ export default function AdminDashboard() {
             <Card>
               <CardHeader className="flex flex-row items-center justify-between">
                 <div>
-                  <CardTitle className="font-raleway">
-                    Landlord Submissions
-                  </CardTitle>
+                  <CardTitle className="font-raleway">Landlords</CardTitle>
                   <p className="text-sm text-gray-500">
-                    Manage property owners and their registrations
+                    Manage property owners
                   </p>
                 </div>
               </CardHeader>
@@ -1392,7 +1458,7 @@ export default function AdminDashboard() {
                       {filteredLandlords.map((landlord) => (
                         <TableRow key={landlord.id}>
                           <TableCell className="font-medium">
-                            {landlord.fullName}
+                            {landlord.full_name}
                           </TableCell>
                           <TableCell>
                             <div className="text-sm">
@@ -1407,9 +1473,16 @@ export default function AdminDashboard() {
                             {formatDate(landlord.createdAt)}
                           </TableCell>
                           <TableCell>
-                            <Button variant="outline" size="sm">
-                              View Submission
-                            </Button>
+                            <div className="flex gap-2">
+                              <Button variant="outline" size="sm">
+                                <Eye className="h-4 w-4 mr-1" />
+                                View
+                              </Button>
+                              <Button variant="outline" size="sm">
+                                <Edit className="h-4 w-4 mr-1" />
+                                Edit
+                              </Button>
+                            </div>
                           </TableCell>
                         </TableRow>
                       ))}
@@ -1421,6 +1494,142 @@ export default function AdminDashboard() {
           </TabsContent>
         </Tabs>
       </div>
+
+      {/* Confirmation Dialog for Approve/Reject */}
+      <AlertDialog
+        open={confirmationDialog.open}
+        onOpenChange={(open) => {
+          if (!open)
+            setConfirmationDialog({
+              open: false,
+              property: null,
+              action: "approve",
+            });
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {confirmationDialog.action === "approve"
+                ? "Approve Property Submission"
+                : "Reject Property Submission"}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {confirmationDialog.action === "approve" ? (
+                <div className="space-y-4">
+                  <p>
+                    Are you sure you want to approve this property submission?
+                  </p>
+                  <div className="bg-green-50 p-4 rounded-lg">
+                    <p className="text-sm font-medium text-green-800">
+                      This will:
+                    </p>
+                    <ul className="text-sm text-green-700 mt-2 list-disc pl-4 space-y-1">
+                      <li>Approve the property for listing</li>
+                      <li>Create landlord account if needed</li>
+                      <li>
+                        Make the property available for rental applications
+                      </li>
+                      <li>Send confirmation email to the property owner</li>
+                    </ul>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <p>
+                    Are you sure you want to reject this property submission?
+                  </p>
+                  <div className="bg-red-50 p-4 rounded-lg">
+                    <p className="text-sm font-medium text-red-800">
+                      This will:
+                    </p>
+                    <ul className="text-sm text-red-700 mt-2 list-disc pl-4 space-y-1">
+                      <li>Mark the property as rejected</li>
+                      <li>Notify the property owner via email</li>
+                      <li>Remove the property from pending submissions</li>
+                    </ul>
+                  </div>
+                </div>
+              )}
+              {confirmationDialog.property && (
+                <div className="mt-4 p-3 bg-gray-50 rounded-lg">
+                  <p className="font-medium">Property Details:</p>
+                  <p className="text-sm mt-1">
+                    {confirmationDialog.property.typology}
+                  </p>
+                  <p className="text-sm text-gray-600">
+                    {confirmationDialog.property.area},{" "}
+                    {confirmationDialog.property.state}
+                  </p>
+                  <p className="text-sm text-gray-600">
+                    Owner: {confirmationDialog.property.fullName}
+                  </p>
+                </div>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isProcessing}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={
+                confirmationDialog.action === "approve"
+                  ? approveProperty
+                  : rejectProperty
+              }
+              disabled={isProcessing}
+              className={
+                confirmationDialog.action === "approve"
+                  ? "bg-green-600 hover:bg-green-700"
+                  : "bg-red-600 hover:bg-red-700"
+              }
+            >
+              {isProcessing ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Processing...
+                </>
+              ) : confirmationDialog.action === "approve" ? (
+                "Approve Property"
+              ) : (
+                "Reject Property"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Review Dialog */}
+      <Dialog
+        open={approvalDialog.open}
+        onOpenChange={(open) => {
+          if (!open) setApprovalDialog({ open: false, property: null });
+        }}
+      >
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>
+              Review Property Submission #{approvalDialog.property?.id}
+            </DialogTitle>
+          </DialogHeader>
+          {approvalDialog.property && (
+            <PropertyReviewDialog
+              onApprove={() =>
+                openConfirmationDialog(approvalDialog.property!, "approve")
+              }
+              onReject={() =>
+                openConfirmationDialog(approvalDialog.property!, "reject")
+              }
+              property={approvalDialog.property}
+              refreshData={() => {
+                fetchProperties();
+                fetchListings();
+              }}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

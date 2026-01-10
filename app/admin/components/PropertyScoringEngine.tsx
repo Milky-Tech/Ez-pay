@@ -948,7 +948,7 @@ interface PropertyData {
   property_address: string;
   state: string;
   area: string;
-  topology: string;
+  typology: string;
   noOfUnits: number;
   rent: number;
   ownershipDoc?: string;
@@ -1061,7 +1061,9 @@ export default function PropertyScoringEngine({
     // Ensure full URL for realestway.com documents
     const fullDocUrl = docUrl.startsWith("http")
       ? docUrl
-      : `https://realestway.com${docUrl.startsWith("/") ? "" : "/"}${docUrl}`;
+      : `https://ez-pay.realestway.com${
+          docUrl.startsWith("/") ? "" : "/"
+        }${docUrl}`;
 
     try {
       const response = await fetch(fullDocUrl, { method: "HEAD" });
@@ -1139,7 +1141,7 @@ export default function PropertyScoringEngine({
     }
 
     // Topology and units logic
-    const topology = data.topology.toLowerCase();
+    const topology = data.typology.toLowerCase();
     const units = data.noOfUnits;
     if (topology.includes("single") && units > 1) {
       score.topologyUnitsMatch = false;
