@@ -26,9 +26,9 @@ export default function LandingPage() {
             backgroundImage: "url('/images/bg.jpg')",
           }}
         />
-        <div className="relative z-10 w-full max-w-[96%] md:max-w-[70%] lg:max-w-1/3 mx-auto pt-auto md:ml-8 sm:pb-2 md:pb-4 mb-0 mt-auto flex flex-col justify-end">
+        <div className="relative z-10 w-full max-w-[96%] md:max-w-[70%] lg:max-w-1/3 mx-auto md:ml-8 sm:pb-2 md:pb-4 sm:mb-0 sm:mt-auto my-auto pt-auto flex flex-col justify-end">
           <div className="px-6 md:px-12 text-left">
-            <p className="flex gap-3 items-center mb-2">
+            <p className="flex gap-3 items-center mb-4 sm:mb-2">
               <img
                 src="/images/group.png"
                 alt="group tenants"
@@ -39,7 +39,7 @@ export default function LandingPage() {
               </span>
             </p>
             <h1
-              className="text-3xl md:text-[40px] lg:text-[50px] font-bold text-white mb-4 font-raleway leading-tight md:leading-[1.2]"
+              className="text-3xl md:text-[40px] lg:text-[50px] font-bold text-white mb-6 md:mb-4 font-raleway leading-tight md:leading-[1.2]"
             >
               <b>YOUR PATH TO</b>
               <br />
@@ -48,7 +48,7 @@ export default function LandingPage() {
               </b>
             </h1>
 
-            <p className="text-sm md:text-base text-white mb-6 max-w-2xl">
+            <p className="text-sm md:text-base text-white mb-8 md:mb-6 max-w-2xl">
               Access verified, high-end homes with guaranteed 15+ hours of power
               and a predictable monthly payment structure. Welcome to House
               Serenity.
