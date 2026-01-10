@@ -15,6 +15,14 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+} from "@/components/ui/alert-dialog";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
@@ -34,6 +42,11 @@ import {
   Users,
   Car,
   Wifi,
+  Copy,
+  Loader2,
+  Mail,
+  Phone,
+  FileText,
 } from "lucide-react";
 import { type Property } from "@/lib/types";
 
@@ -223,7 +236,7 @@ const DEMO_PROPERTIES: Property[] = [
       "Ultra-luxury mansion with premium amenities, perfect for luxury living and entertainment.",
   },
 ];
-
+const BASEURL = "ez-pay.realestway.com";
 export default function PropertyDetailsPage() {
   const params = useParams();
   const [property, setProperty] = useState<Property | null>(null);
@@ -234,6 +247,10 @@ export default function PropertyDetailsPage() {
   const [inspectionDate, setInspectionDate] = useState("");
   const [inspectionEmail, setInspectionEmail] = useState("");
   const [inspectionPhone, setInspectionPhone] = useState("");
+  const [isBooking, setIsBooking] = useState(false);
+  const [showConfirmation, setShowConfirmation] = useState(false);
+  const [bookingDetails, setBookingDetails] = useState<any>(null);
+  const [formErrors, setFormErrors] = useState<string[]>([]);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -250,15 +267,162 @@ export default function PropertyDetailsPage() {
     return () => clearTimeout(timer);
   }, [params.codename]);
 
+  const validateForm = (): string[] => {
+    const errors: string[] = [];
+
+    // Required fields validation
+    if (!inspectionDate) errors.push("Preferred date is required");
+    if (!inspectionEmail) errors.push("Email address is required");
+    if (!inspectionPhone) errors.push("Phone number is required");
+
+    // Validate date
+    if (inspectionDate) {
+      const selectedDate = new Date(inspectionDate);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      if (selectedDate < today) {
+        errors.push("Selected date must be in the future");
+      }
+    }
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (inspectionEmail && !emailRegex.test(inspectionEmail)) {
+      errors.push("Please enter a valid email address");
+    }
+
+    // Validate phone number (Nigerian format)
+    const phoneRegex = /^(?:\+234|0)[789][01]\d{8}$/;
+    if (inspectionPhone) {
+      const cleanedPhone = inspectionPhone.startsWith("0")
+        ? "+234" + inspectionPhone.substring(1)
+        : inspectionPhone;
+
+      if (!phoneRegex.test(cleanedPhone)) {
+        errors.push(
+          "Please enter a valid Nigerian phone number (e.g., 08012345678 or +2348012345678)"
+        );
+      }
+    }
+
+    return errors;
+  };
+
   const handleInspectionBooking = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Clear previous errors
+    setFormErrors([]);
+
+    // Validate form
+    const errors = validateForm();
+    if (errors.length > 0) {
+      setFormErrors(errors);
+      errors.forEach((error) => {
+        toast({
+          title: "Validation Error",
+          description: error,
+          variant: "destructive",
+        });
+      });
+      return;
+    }
+
+    setIsBooking(true);
+
+    try {
+      // Create payload matching the API endpoint requirements
+      const payload = {
+        inspection_type: inspectionType,
+        preferred_date: inspectionDate,
+        email: inspectionEmail,
+        phone_number: inspectionPhone,
+        // Additional context for better tracking
+        property_id: property?.id || params.codename,
+        property_name: property?.typology,
+        property_address: `${property?.property_address}, ${property?.area}, ${property?.state}`,
+      };
+
+      // Call the API endpoint
+      const response = await fetch(`${BASEURL}/api/inspections/book`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        // Success - show confirmation modal
+        setBookingDetails({
+          ...data.data,
+          inspection_type: inspectionType,
+          preferred_date: inspectionDate,
+          email: inspectionEmail,
+          property_name: property?.typology,
+        });
+        setShowConfirmation(true);
+
+        // Reset form
+        setInspectionDate("");
+        setInspectionEmail("");
+        setInspectionPhone("");
+
+        // Show success toast
+        toast({
+          title: "✅ Inspection Booked!",
+          description: `Booking confirmed. Check your email for details.`,
+          duration: 3000,
+        });
+      } else {
+        // API returned an error
+        toast({
+          title: "Booking Failed",
+          description:
+            data.error || "Failed to book inspection. Please try again.",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error("Error booking inspection:", error);
+      toast({
+        title: "Network Error",
+        description:
+          "Failed to connect to server. Please check your connection.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsBooking(false);
+    }
+  };
+
+  const formatPrice = (price: number | null) => {
+    if (!price) return "Contact for Price";
+    return new Intl.NumberFormat("en-NG", {
+      style: "currency",
+      currency: "NGN",
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(price);
+  };
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
     toast({
-      title: "Inspection Booked",
-      description: `${
-        inspectionType === "physical" ? "Physical" : "Virtual"
-      } inspection booked successfully for ${inspectionDate}! Confirmation email sent to ${inspectionEmail}`,
+      title: "Copied!",
+      description: "Booking ID copied to clipboard",
+      duration: 2000,
     });
   };
+
+  // Calculate price breakdown
+  const monthlyCost = property?.monthly_cost || 0;
+  const annualCost = property?.desired_annual_rent || monthlyCost * 12;
+  const securityDeposit = monthlyCost * 2;
+  const agencyFee = monthlyCost * 0.1;
 
   if (loading) {
     return (
@@ -288,22 +452,6 @@ export default function PropertyDetailsPage() {
       </div>
     );
   }
-
-  const formatPrice = (price: number | null) => {
-    if (!price) return "Contact for Price";
-    return new Intl.NumberFormat("en-NG", {
-      style: "currency",
-      currency: "NGN",
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(price);
-  };
-
-  // Calculate price breakdown
-  const monthlyCost = property.monthly_cost || 0;
-  const annualCost = property.desired_annual_rent || monthlyCost * 12;
-  const securityDeposit = monthlyCost * 2; // Typically 2 months deposit
-  const agencyFee = monthlyCost * 0.1; // Typically 10% agency fee
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -448,16 +596,16 @@ export default function PropertyDetailsPage() {
                         <CheckCircle className="h-5 w-5 text-secondary mr-2 mt-0.5 flex-shrink-0" />
                         <span>Guaranteed 15+ hours of power daily</span>
                       </div>
-                      <div className="flex items-start">
-                        <CheckCircle className="h-5 w-5 text-secondary mr-2 mt-0.5 flex-shrink-0" />
+                      <div className="flex items-center">
+                        <CheckCircle className="h-5 w-5 text-secondary mr-2" />
                         <span>Dedicated Facility Manager</span>
                       </div>
-                      <div className="flex items-start">
-                        <CheckCircle className="h-5 w-5 text-secondary mr-2 mt-0.5 flex-shrink-0" />
+                      <div className="flex items-center">
+                        <CheckCircle className="h-5 w-5 text-secondary mr-2" />
                         <span>Water Treatment System</span>
                       </div>
-                      <div className="flex items-start">
-                        <CheckCircle className="h-5 w-5 text-secondary mr-2 mt-0.5 flex-shrink-0" />
+                      <div className="flex items-center">
+                        <CheckCircle className="h-5 w-5 text-secondary mr-2" />
                         <span>24/7 Gated Security</span>
                       </div>
                     </div>
@@ -499,7 +647,7 @@ export default function PropertyDetailsPage() {
                       </div>
                       <div className="flex justify-between">
                         <span className="text-gray-600">
-                          Security Deposit (3 months):
+                          Security Deposit (2 months):
                         </span>
                         <span className="font-semibold">
                           {formatPrice(securityDeposit)}
@@ -563,60 +711,69 @@ export default function PropertyDetailsPage() {
                         >
                           <div>
                             <Label className="mb-3 block">
-                              Inspection Type
+                              Inspection Type *
                             </Label>
                             <RadioGroup
                               value={inspectionType}
                               onValueChange={(value: any) =>
                                 setInspectionType(value)
                               }
+                              className="space-y-2"
                             >
                               <div className="flex items-center space-x-2 border rounded-lg p-3 hover:bg-gray-50 cursor-pointer">
                                 <RadioGroupItem
                                   value="physical"
                                   id="physical"
+                                  className="mt-0"
                                 />
                                 <Label
                                   htmlFor="physical"
-                                  className="flex-1 cursor-pointer"
+                                  className="flex-1 cursor-pointer flex flex-col"
                                 >
-                                  <div>
-                                    <div className="flex items-center">
-                                      <Users className="h-4 w-4 mr-2" />
-                                      <p className="font-semibold">
-                                        Physical Inspection
-                                      </p>
-                                    </div>
-                                    <p className="text-sm text-gray-600 mt-1">
-                                      In-person visit (₦50,000 - refundable upon
-                                      signing)
+                                  <div className="flex items-center">
+                                    <Users className="h-4 w-4 mr-2" />
+                                    <p className="font-semibold">
+                                      Physical Inspection
                                     </p>
+                                    <Badge className="ml-2 bg-amber-100 text-amber-800">
+                                      ₦50,000
+                                    </Badge>
                                   </div>
+                                  <p className="text-sm text-gray-600 mt-1">
+                                    In-person visit (fee refundable upon
+                                    signing)
+                                  </p>
                                 </Label>
                               </div>
-                              <div className="flex items-center space-x-2 border rounded-lg p-3 hover:bg-gray-50 cursor-pointer mt-2">
-                                <RadioGroupItem value="virtual" id="virtual" />
+                              <div className="flex items-center space-x-2 border rounded-lg p-3 hover:bg-gray-50 cursor-pointer">
+                                <RadioGroupItem
+                                  value="virtual"
+                                  id="virtual"
+                                  className="mt-0"
+                                />
                                 <Label
                                   htmlFor="virtual"
-                                  className="flex-1 cursor-pointer"
+                                  className="flex-1 cursor-pointer flex flex-col"
                                 >
-                                  <div>
-                                    <div className="flex items-center">
-                                      <Video className="h-4 w-4 mr-2" />
-                                      <p className="font-semibold">
-                                        Virtual Inspection
-                                      </p>
-                                    </div>
-                                    <p className="text-sm text-gray-600 mt-1">
-                                      Live video tour (Free)
+                                  <div className="flex items-center">
+                                    <Video className="h-4 w-4 mr-2" />
+                                    <p className="font-semibold">
+                                      Virtual Inspection
                                     </p>
+                                    <Badge className="ml-2 bg-green-100 text-green-800">
+                                      Free
+                                    </Badge>
                                   </div>
+                                  <p className="text-sm text-gray-600 mt-1">
+                                    Live video tour with our agent
+                                  </p>
                                 </Label>
                               </div>
                             </RadioGroup>
                           </div>
+
                           <div>
-                            <Label htmlFor="date">Preferred Date</Label>
+                            <Label htmlFor="date">Preferred Date *</Label>
                             <Input
                               id="date"
                               type="date"
@@ -626,10 +783,15 @@ export default function PropertyDetailsPage() {
                               }
                               required
                               min={new Date().toISOString().split("T")[0]}
+                              className="mt-1"
                             />
+                            <p className="text-xs text-gray-500 mt-1">
+                              Inspections available Monday-Friday, 9AM-5PM
+                            </p>
                           </div>
+
                           <div>
-                            <Label htmlFor="email">Email Address</Label>
+                            <Label htmlFor="email">Email Address *</Label>
                             <Input
                               id="email"
                               type="email"
@@ -639,26 +801,54 @@ export default function PropertyDetailsPage() {
                               }
                               placeholder="your@email.com"
                               required
+                              className="mt-1"
                             />
                           </div>
+
                           <div>
-                            <Label htmlFor="phone">Phone Number</Label>
+                            <Label htmlFor="phone">Phone Number *</Label>
                             <Input
                               id="phone"
-                              type="phone"
+                              type="tel"
                               value={inspectionPhone}
                               onChange={(e) =>
                                 setInspectionPhone(e.target.value)
                               }
-                              placeholder="+234"
+                              placeholder="08012345678"
                               required
+                              className="mt-1"
                             />
+                            <p className="text-xs text-gray-500 mt-1">
+                              Nigerian format: 08012345678 or +2348012345678
+                            </p>
                           </div>
+
+                          {formErrors.length > 0 && (
+                            <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+                              <p className="text-sm font-medium text-red-800 mb-1">
+                                Please fix the following errors:
+                              </p>
+                              <ul className="text-sm text-red-700 list-disc pl-4">
+                                {formErrors.map((error, index) => (
+                                  <li key={index}>{error}</li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+
                           <Button
                             type="submit"
                             className="w-full bg-primary font-montserrat"
+                            disabled={isBooking}
                           >
-                            Confirm Booking
+                            {isBooking ? (
+                              <>
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                Processing...
+                              </>
+                            ) : (
+                              "Confirm Booking"
+                            )}
                           </Button>
                         </form>
                       </DialogContent>
@@ -713,6 +903,177 @@ export default function PropertyDetailsPage() {
           </div>
         </div>
       </div>
+
+      {/* Confirmation Modal */}
+      <AlertDialog open={showConfirmation} onOpenChange={setShowConfirmation}>
+        <AlertDialogContent className="max-w-lg">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2 text-2xl">
+              <CheckCircle className="h-8 w-8 text-green-500" />
+              Inspection Booked Successfully! 🎉
+            </AlertDialogTitle>
+            <AlertDialogDescription className="space-y-6 pt-4">
+              {bookingDetails && (
+                <>
+                  <div className="bg-green-50 border border-green-200 rounded-xl p-5">
+                    <div className="flex items-center justify-between mb-3">
+                      <div>
+                        <p className="text-sm font-medium text-green-800">
+                          Booking Reference
+                        </p>
+                        <div className="flex items-center gap-2 mt-1">
+                          <p className="text-lg font-bold text-green-900">
+                            {bookingDetails.booking_id}
+                          </p>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() =>
+                              copyToClipboard(bookingDetails.booking_id)
+                            }
+                            className="h-8 w-8 p-0"
+                          >
+                            <Copy className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                      <Badge className="bg-green-100 text-green-800 hover:bg-green-100">
+                        {bookingDetails.inspection_type === "physical"
+                          ? "Physical"
+                          : "Virtual"}
+                      </Badge>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4 mt-4">
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2 text-sm">
+                          <Calendar className="h-4 w-4 text-gray-500" />
+                          <span className="font-medium">Date:</span>
+                        </div>
+                        <p className="text-lg font-semibold">
+                          {new Date(
+                            bookingDetails.preferred_date
+                          ).toLocaleDateString("en-NG", {
+                            weekday: "long",
+                            year: "numeric",
+                            month: "long",
+                            day: "numeric",
+                          })}
+                        </p>
+                      </div>
+
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2 text-sm">
+                          {bookingDetails.inspection_type === "physical" ? (
+                            <>
+                              <Users className="h-4 w-4 text-gray-500" />
+                              <span className="font-medium">Fee:</span>
+                            </>
+                          ) : (
+                            <>
+                              <Video className="h-4 w-4 text-gray-500" />
+                              <span className="font-medium">Fee:</span>
+                            </>
+                          )}
+                        </div>
+                        <p className="text-lg font-semibold">
+                          {bookingDetails.inspection_type === "physical"
+                            ? "₦50,000"
+                            : "Free"}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="bg-blue-50 border border-blue-200 rounded-xl p-5">
+                    <h4 className="font-semibold text-blue-800 mb-3 flex items-center gap-2">
+                      <FileText className="h-5 w-5" />
+                      Next Steps & Important Information
+                    </h4>
+                    <div className="space-y-3">
+                      <p className="text-sm text-blue-700">
+                        {bookingDetails.inspection_type === "physical"
+                          ? "📞 Our agent will contact you within 24 hours to confirm the inspection time and provide location details."
+                          : "📧 A Zoom/Google Meet link will be sent to your email 1 hour before the scheduled tour time."}
+                      </p>
+
+                      <div className="flex items-start gap-3 text-sm text-blue-700">
+                        <Mail className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                        <div>
+                          <p className="font-medium">Confirmation Email</p>
+                          <p>
+                            Sent to <strong>{bookingDetails.email}</strong>.
+                            Please check your inbox and spam folder.
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-start gap-3 text-sm text-blue-700">
+                        <Phone className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                        <div>
+                          <p className="font-medium">Contact Information</p>
+                          <p>
+                            For inquiries, call +234 700 123 4567 or email
+                            support@bridgent.co
+                          </p>
+                        </div>
+                      </div>
+
+                      {bookingDetails.inspection_type === "physical" && (
+                        <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mt-2">
+                          <p className="text-sm text-amber-800">
+                            <strong>Note:</strong> ₦50,000 inspection fee will
+                            be fully refunded if you proceed to sign the lease
+                            agreement within 30 days.
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="bg-gray-50 border border-gray-200 rounded-xl p-5">
+                    <h4 className="font-semibold text-gray-800 mb-3">
+                      Property Details
+                    </h4>
+                    <div className="space-y-2">
+                      <p className="text-sm text-gray-700">
+                        <strong>Property:</strong> {property.typology}
+                      </p>
+                      <p className="text-sm text-gray-700">
+                        <strong>Location:</strong> {property.property_address},{" "}
+                        {property.area}, {property.state}
+                      </p>
+                      <p className="text-sm text-gray-700">
+                        <strong>Monthly Rent:</strong>{" "}
+                        {formatPrice(property.monthly_cost)}
+                      </p>
+                    </div>
+                  </div>
+                </>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex gap-3">
+            <Button
+              variant="outline"
+              onClick={() => setShowConfirmation(false)}
+              className="flex-1"
+            >
+              Close
+            </Button>
+            <Button
+              onClick={() => {
+                copyToClipboard(bookingDetails?.booking_id || "");
+                setShowConfirmation(false);
+              }}
+              className="flex-1"
+            >
+              <Copy className="mr-2 h-4 w-4" />
+              Copy Booking ID
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

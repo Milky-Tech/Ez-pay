@@ -157,7 +157,7 @@ export default function OverviewTab({
                         {property.area}, {property.state}
                       </p>
                       <p className="text-xs text-gray-500 mt-1">
-                        Owner: {property.fullName}
+                        Owner: {property.full_name}
                       </p>
                     </div>
                     <div className="flex flex-col items-end gap-1">

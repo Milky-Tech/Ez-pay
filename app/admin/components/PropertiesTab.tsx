@@ -38,6 +38,8 @@ import PropertyReviewDialog from "./PropertyReviewDialog";
 interface Property {
   id: string;
   code_name: string;
+  email: string;
+  phone: string;
   typology: string;
   area: string;
   state: string;
