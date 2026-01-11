@@ -3,7 +3,15 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { Home, Building2, HelpCircle, Menu, X, User } from "lucide-react";
+import {
+  Home,
+  Building2,
+  HelpCircle,
+  Menu,
+  X,
+  User,
+  ArrowRight,
+} from "lucide-react";
 import { useAuth } from "@/context/authcontext";
 
 export default function Header() {
@@ -39,11 +47,7 @@ export default function Header() {
                   isScrolled ? "text-white" : "text-primary"
                 }`}
               >
-                <img
-                  src="/images/logo-ezpay.png"
-                  alt="Logo"
-                  className="h-8"
-                />
+                <img src="/images/logo-ezpay.png" alt="Logo" className="h-8" />
                 {/* <span className="text-accent">Bridgent</span> HomeStep EZ-Pay */}
               </span>
             </div>
@@ -185,7 +189,7 @@ export default function Header() {
                     size="sm"
                     className="font-montserrat w-full"
                   >
-                    Sign In
+                    Sign In <ArrowRight className="ml-2" />
                   </Button>
                 </Link>
               )}

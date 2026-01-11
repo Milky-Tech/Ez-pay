@@ -38,9 +38,7 @@ export default function LandingPage() {
                 End the Stress of Upfront Payment
               </span>
             </p>
-            <h1
-              className="text-3xl md:text-[40px] lg:text-[50px] font-bold text-white mb-6 md:mb-4 font-raleway leading-tight md:leading-[1.2]"
-            >
+            <h1 className="text-4xl md:text-[42px] lg:text-[53px] font-bold text-white mb-6 md:mb-4 font-raleway leading-tight md:leading-[1.2]">
               <b>YOUR PATH TO</b>
               <br />
               <b className="text-transparent bg-clip-text bg-gradient-to-r from-[#C9A227] via-[#f1d57c] to-[#C9A227] bg-[length:200%_auto] animate-shimmer">
