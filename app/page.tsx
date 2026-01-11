@@ -188,16 +188,16 @@ export default function LandingPage() {
       </section>
 
       <section className="py-20 sm:mx-20 flex flex-col gap-12">
-        <div className="flex flex-col gap-3 mb-5">
-          <div className="flex flex-col gap-0">
-            <div className="max-w-3xl ml-20 sm:ml-0 w-32 px-2 sm:px-4 lg:px-6 bg-white shadow-lg shadow-primary/50 text-primary rounded-md py-2 text-center mb-4">
+        <div className="flex flex-col gap-3 mb-5 items-center text-center">
+          <div className="flex flex-col gap-0 items-center text-center">
+            <div className="max-w-4xl sm:ml-0 w-40 px-2 sm:px-4 lg:px-6 bg-white shadow-lg shadow-primary/50 text-primary rounded-md py-2 text-center mb-4">
               EZ-LANDLORD
             </div>
-            <p className="text-4xl ml-8 sm:ml-0">
+            <p className="text-4xl">
               Predictable Income Zero Management Burden
             </p>
           </div>{" "}
-          <p className="text-gray-500 sm:w-1/2 text-base sm:text-center text-left mx-8 sm:mx-0">
+          <p className="text-gray-500 sm:w-1/2 text-base text-center mx-8 sm:mx-0">
             Stop chasing rent and maintenance calls. We guarantee consistent
             monthly income and elevate your asset value.
           </p>
