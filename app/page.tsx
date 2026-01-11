@@ -63,7 +63,7 @@ export default function LandingPage() {
               <Link href="/landlord-partner" className="w-full sm:w-auto">
                 <Button
                   size="lg"
-                  className="w-full sm:w-auto border-2 border-primary/50 bg-primary/20 backdrop-blur-sm text-white rounded-[18px] hover:bg-secondary hover:text-white font-montserrat text-sm md:text-lg px-6 py-6 md:py-7"
+                  className="w-full sm:w-auto border-2 border-primary/50 bg-primary/20 backdrop-blur-sm text-white rounded-[18px] hover:bg-secondary hover:text-white font-montserrat text-sm md:text-lg px-6 py-5 md:py-7"
                 >
                   Become EZ-Partner
                 </Button>
@@ -100,11 +100,11 @@ export default function LandingPage() {
           </div>
         </div>
       </section>
-      <section className="py-20 mx-20">
-        <div className="max-w-3xl w-32 px-2 sm:px-4 lg:px-6 bg-white shadow-lg shadow-primary/50 text-primary rounded-md py-2 text-center mb-12">
+      <section className="py-20 sm:mx-20 flex flex-col">
+        <div className="max-w-3xl ml-20 sm:ml-0 w-32 px-2 sm:px-4 lg:px-6 bg-white shadow-lg shadow-primary/50 text-primary rounded-md py-2 text-center mb-12">
           ABOUT US
         </div>
-        <p className="text-center text-gray-700 max-w-3xl mx-auto text-lg sm:text-xl md:text-2xl">
+        <p className="text-left sm:text-center ml-8 sm:mx-auto text-gray-700 max-w-3xl mx-auto text-lg sm:text-xl md:text-2xl">
           EZ-Pay{" "}
           <span className="text-gray-500">
             makes premium living more accessible by replacing yearly rent with
@@ -115,26 +115,30 @@ export default function LandingPage() {
           <span className="text-gray-500">to deliver stress-free living.</span>
         </p>
         <div
-          style={{ backgroundImage: "url('/images/about-keys.png')" }}
+          style={{
+            backgroundImage: "url('/images/about-keys.png')",
+            backgroundSize: "cover",
+            backgroundPosition: "center",
+          }}
           className="mx-auto mt-8 w-full bg-cover h-[600px]"
         />
       </section>
-      <section className="py-20 mx-20 flex flex-col gap-12">
+      <section className="py-20 sm:mx-20 flex flex-col gap-12">
         <div className="flex flex-col sm:flex-row justify-between mb-5">
           <div className="flex flex-col gap-0">
-            <div className="max-w-3xl w-32 px-2 sm:px-4 lg:px-6 bg-white shadow-lg shadow-primary/50 text-primary rounded-md py-2 text-center mb-4">
+            <div className="max-w-3xl ml-20 sm:ml-0 w-32 px-2 sm:px-4 lg:px-6 bg-white shadow-lg shadow-primary/50 text-primary rounded-md py-2 text-center mb-4">
               EZ-CLIENT
             </div>
-            <p className="text-4xl">
+            <p className="text-4xl ml-8 sm:ml-0">
               Stability Meets <span className="text-primary">Luxury.</span>
             </p>
           </div>{" "}
-          <p className="text-gray-500 w-1/2 text-xl">
+          <p className="text-gray-500 sm:w-1/2 text-xl sm:text-center text-left mx-8 sm:mx-0">
             Eliminate the annual liquidity trap. Our all-inclusive monthly fee
             covers rent, facility management, and guaranteed power.
           </p>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 px-8 sm:px-0">
           <Card className="bg-primary/10 border-primary/20 hover:shadow-xl transition-shadow shadow-black/10">
             <CardContent className="p-6 text-left">
               <div className="bg-white rounded-[15%] w-14 h-14 flex items-center justify-center ml-0 mx-auto mb-4 shadow-lg shadow-primary/30">
@@ -158,7 +162,7 @@ export default function LandingPage() {
                 Guaranteed Power
               </h3>
               <p className="text-gray-700">
-                Every property guarantees 15+ hours of power daily with
+                Every property guarantees 20+ hours of power daily with
                 solar/inverter systems.
               </p>
             </CardContent>
@@ -183,6 +187,22 @@ export default function LandingPage() {
         </Button>
       </section>
 
+      <section className="py-20 sm:mx-20 flex flex-col gap-12">
+        <div className="flex flex-col gap-3 mb-5">
+          <div className="flex flex-col gap-0">
+            <div className="max-w-3xl ml-20 sm:ml-0 w-32 px-2 sm:px-4 lg:px-6 bg-white shadow-lg shadow-primary/50 text-primary rounded-md py-2 text-center mb-4">
+              EZ-LANDLORD
+            </div>
+            <p className="text-4xl ml-8 sm:ml-0">
+              Predictable Income Zero Management Burden
+            </p>
+          </div>{" "}
+          <p className="text-gray-500 sm:w-1/2 text-base sm:text-center text-left mx-8 sm:mx-0">
+            Stop chasing rent and maintenance calls. We guarantee consistent
+            monthly income and elevate your asset value.
+          </p>
+        </div>
+      </section>
       <section className="py-20 bg-gradient-to-br from-primary to-primary/90 text-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
