@@ -20,7 +20,7 @@ export type Property = {
     | "rented"
     | "maintenance";
   partnership_tier: "ez_prime" | "ez_vantage" | null;
-  interior_rooms: string;
+  interior_rooms: string | string[];
   exterior_shot: string;
   compound_road: string;
   created_at: string;

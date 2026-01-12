@@ -304,7 +304,7 @@ export default function LandlordPartnerPage() {
       exterior_shot: paths.exterior_shot,
       compound_road: paths.compound_road,
       power_system: paths.power_system,
-      interior_rooms: JSON.stringify(paths.interior_rooms),
+      interior_rooms: paths.interior_rooms,
     };
 
     const response = await fetch(REGISTER_ENDPOINT, {

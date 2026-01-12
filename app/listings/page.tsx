@@ -151,11 +151,16 @@ export default function ListingsPage() {
                 >
                   <div className="relative h-48 overflow-hidden">
                     {(() => {
-                      const leadImagePath = JSON.parse(property.interior_rooms);
+                      const rooms = property.interior_rooms;
+                      const roomsArray = Array.isArray(rooms)
+                        ? rooms
+                        : typeof rooms === "string"
+                        ? JSON.parse(rooms)
+                        : [];
 
-                      return leadImagePath ? (
+                      return roomsArray && roomsArray.length > 0 ? (
                         <img
-                          src={`https://ez-pay.realestway.com/${leadImagePath[0]?.toString()}`}
+                          src={`https://ez-pay.realestway.com/${roomsArray[0]?.toString()}`}
                           alt={property.typology}
                           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                         />
