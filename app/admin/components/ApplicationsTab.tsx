@@ -45,7 +45,7 @@ interface Application {
     code_name: string;
     typology: string;
   };
-  fullName?: string;
+  full_name?: string;
   email?: string;
   phone?: string;
 }
@@ -83,7 +83,7 @@ export default function ApplicationsTab({
       (app.properties?.code_name?.toString() || "")
         .toLowerCase()
         .includes(searchTerm.toLowerCase()) ||
-      (app.fullName?.toString() || "")
+      (app.full_name?.toString() || "")
         .toLowerCase()
         .includes(searchTerm.toLowerCase()) ||
       (app.email?.toString() || "")
@@ -187,7 +187,7 @@ export default function ApplicationsTab({
                     </TableCell>
                     <TableCell>
                       <div>
-                        <p className="font-medium">{app.fullName || "N/A"}</p>
+                        <p className="font-medium">{app.full_name || "N/A"}</p>
                         <p className="text-xs text-gray-600">
                           ID: {(app.id?.toString() || "").substring(0, 8)}
                         </p>
@@ -232,7 +232,7 @@ export default function ApplicationsTab({
                                   <Label className="text-sm font-semibold">
                                     Applicant
                                   </Label>
-                                  <p>{app.fullName}</p>
+                                  <p>{app.full_name}</p>
                                 </div>
                                 <div>
                                   <Label className="text-sm font-semibold">

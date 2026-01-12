@@ -46,16 +46,17 @@ interface Property {
   monthly_cost: number | null;
   availability_status: string;
   status?: string;
-  fullName: string;
+  full_name: string;
   property_address: string;
-  noOfUnits: number;
+  no_of_units: number;
   rent: number;
   compound_road?: string;
   power_system?: string;
   interior_rooms?: string;
   exterior_shot?: string;
-  createdAt: string;
-  updatedAt: string;
+  created_at: string;
+  updated_at: string;
+  landlord_package: string;
 }
 
 interface PropertiesTabProps {
@@ -92,7 +93,7 @@ export default function PropertiesTab({
       (property.id?.toString() || "")
         .toLowerCase()
         .includes(searchTerm.toLowerCase()) ||
-      (property.fullName?.toString() || "")
+      (property.full_name?.toString() || "")
         .toLowerCase()
         .includes(searchTerm.toLowerCase()) ||
       (property.area?.toString() || "")
@@ -184,7 +185,7 @@ export default function PropertiesTab({
                   <TableHead>Monthly Rent</TableHead>
                   <TableHead>Units</TableHead>
                   <TableHead>Quality Score</TableHead>
-                  <TableHead>Recommendation</TableHead>
+                  <TableHead>Landlord Package</TableHead>
                   <TableHead>Submission Status</TableHead>
                   <TableHead>Actions</TableHead>
                 </TableRow>
@@ -205,7 +206,7 @@ export default function PropertiesTab({
                     </TableCell>
                     <TableCell>
                       <div className="max-w-[150px] truncate">
-                        {property.fullName}
+                        {property.full_name}
                       </div>
                     </TableCell>
                     <TableCell className="font-semibold">
@@ -216,7 +217,7 @@ export default function PropertiesTab({
                           ).toLocaleString()
                         : formatPrice(property.monthly_cost)}
                     </TableCell>
-                    <TableCell>{property.noOfUnits}</TableCell>
+                    <TableCell>{property.no_of_units}</TableCell>
                     <TableCell>
                       <Badge variant="outline" className="text-xs">
                         Pending Review
@@ -224,7 +225,7 @@ export default function PropertiesTab({
                     </TableCell>
                     <TableCell>
                       <Badge variant="secondary" className="text-xs">
-                        Calculate on Review
+                        {property.landlord_package}
                       </Badge>
                     </TableCell>
                     <TableCell>

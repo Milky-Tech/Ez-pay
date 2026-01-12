@@ -1,3 +1,5 @@
+"use client";
+
 import Link from "next/link";
 import Header from "@/components/header";
 import ChatWidget from "@/components/ui/chat-widget";
@@ -12,8 +14,36 @@ import {
   Wallet,
   CheckCircle,
 } from "lucide-react";
+import { useEffect, useState } from "react";
 
+const slides = [
+  {
+    img: "/images/slide1.png",
+    title: "Zero Management",
+    desc: "We handle all property management, maintenance, and tenant relations.",
+  },
+  {
+    img: "/images/slide2.jpg",
+    title: "Consistent Income",
+    desc: "Guaranteed monthly payments directly to your account. No more chasing tenants.",
+  },
+  {
+    img: "/images/slide3.png",
+    title: "Asset Evaluation",
+    desc: "We upgrade your property to premium standards, increasing its long-term value.",
+  },
+];
 export default function LandingPage() {
+  const [active, setActive] = useState(1);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setActive((prev) => (prev + 1) % slides.length);
+    }, 4000); // 4 seconds
+
+    return () => clearInterval(interval);
+  }, []);
+
   return (
     <div className="min-h-screen w-[100%]">
       <Header />
@@ -187,87 +217,71 @@ export default function LandingPage() {
         </Button>
       </section>
 
-      <section className="py-20 sm:mx-20 flex flex-col gap-12">
-        <div className="flex flex-col gap-3 mb-5 items-center text-center">
-          <div className="flex flex-col gap-0 items-center text-center">
-            <div className="max-w-4xl sm:ml-0 w-40 px-2 sm:px-4 lg:px-6 bg-white shadow-lg shadow-primary/50 text-primary rounded-md py-2 text-center mb-4">
-              EZ-LANDLORD
-            </div>
-            <p className="text-4xl">
-              Predictable Income Zero Management Burden
-            </p>
-          </div>{" "}
-          <p className="text-gray-500 sm:w-1/2 text-base text-center mx-8 sm:mx-0">
+      <section className="py-10 sm:px-20 flex flex-col gap-12">
+        <div className="flex flex-col gap-3 items-center text-center">
+          <div className="bg-white shadow-lg shadow-primary/50 text-primary rounded-md py-2 px-6 mb-4">
+            EZ-LANDLORD
+          </div>
+
+          <h2 className="text-4xl font-semibold">
+            Predictable Income Zero Management Burden
+          </h2>
+
+          <p className="text-gray-500 max-w-xl">
             Stop chasing rent and maintenance calls. We guarantee consistent
             monthly income and elevate your asset value.
           </p>
         </div>
-      </section>
-      <section className="py-20 bg-gradient-to-br from-primary to-primary/90 text-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold mb-4 font-raleway">
-              EZ-Partner: Predictable Income. Zero Management Burden
-            </h2>
-            <p className="text-lg opacity-90 max-w-3xl mx-auto">
-              Stop chasing rent and maintenance calls. We guarantee consistent
-              monthly income and elevate your asset value.
-            </p>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <Card className="bg-white/10 backdrop-blur-sm border-white/20 hover:bg-white/20 transition-colors">
-              <CardContent className="p-8 text-center">
-                <div className="bg-accent rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4">
-                  <TrendingUp className="h-8 w-8 text-primary" />
-                </div>
-                <h3 className="text-xl font-semibold mb-3 font-raleway text-white">
-                  Consistent Income
-                </h3>
-                <p className="opacity-90 text-white">
-                  Guaranteed monthly payments directly to your account. No more
-                  chasing tenants.
-                </p>
-              </CardContent>
-            </Card>
-            <Card className="bg-white/10 backdrop-blur-sm border-white/20 hover:bg-white/20 transition-colors">
-              <CardContent className="p-8 text-center">
-                <div className="bg-accent rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4">
-                  <Clock className="h-8 w-8 text-primary" />
-                </div>
-                <h3 className="text-xl text-white font-semibold mb-3 font-raleway">
-                  Zero Management
-                </h3>
-                <p className="opacity-90 text-white">
-                  We handle all property management, maintenance, and tenant
-                  relations.
-                </p>
-              </CardContent>
-            </Card>
-            <Card className="bg-white/10 backdrop-blur-sm border-white/20 hover:bg-white/20 transition-colors">
-              <CardContent className="p-8 text-center">
-                <div className="bg-accent rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4">
-                  <CheckCircle className="h-8 w-8 text-primary" />
-                </div>
-                <h3 className="text-xl font-semibold mb-3 font-raleway text-white">
-                  Asset Elevation
-                </h3>
-                <p className="opacity-90 text-white">
-                  We upgrade your property to premium standards, increasing its
-                  long-term value.
-                </p>
-              </CardContent>
-            </Card>
-          </div>
-          <div className="text-center mt-12">
-            <Link href="/landlord-partner">
-              <Button
-                size="lg"
-                className="bg-accent hover:bg-accent/90 text-primary font-montserrat text-lg px-8 py-6"
+
+        {/* //slider */}
+        <div className="flex items-center justify-center gap-8 overflow-hidden">
+          {slides.map((slide, index) => {
+            const isActive = index === active;
+
+            return (
+              <div
+                key={index}
+                className={`
+          relative transition-all duration-700 ease-in-out sm:rounded-lg overflow-hidden
+          
+          /* MOBILE */
+          ${isActive ? "block w-full" : "hidden"}
+          sm:block
+
+          /* DESKTOP */
+          ${
+            isActive
+              ? "sm:scale-105 sm:z-20 sm:w-[420px]"
+              : "sm:scale-90 sm:opacity-90 sm:w-[320px]"
+          }
+        `}
               >
-                Learn More About Partnership
-              </Button>
-            </Link>
-          </div>
+                <img
+                  src={slide.img}
+                  alt={slide.title}
+                  className="object-cover w-full h-[260px]"
+                />
+
+                {/* CONTENT OVERLAY */}
+                {isActive && (
+                  <div className="absolute inset-0 bg-black/60 flex flex-col justify-end p-6 text-white">
+                    <h3 className="text-xl font-semibold mb-2">
+                      {slide.title}
+                    </h3>
+                    <p className="text-sm opacity-90">{slide.desc}</p>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+
+        <div className="flex justify-center">
+          <Link href={"/landlord-partner"}>
+            <button className="bg-primary text-white px-8 py-3 rounded-full">
+              Learn More
+            </button>
+          </Link>
         </div>
       </section>
 

@@ -18,165 +18,8 @@ import {
 import { MapPin, Bed, Home, Zap, Bath, Square } from "lucide-react";
 import { type Property } from "@/lib/types";
 
-// Demo data
-const DEMO_PROPERTIES: Property[] = [
-  {
-    id: "1",
-    landlord_id: "info@bridgent.co",
-    created_at: "2024-01-15T10:30:00Z",
-    updated_at: "2024-01-15T10:30:00Z",
-    code_name: "PREMIUM-001",
-    property_address: "24A Banana Island",
-    area: "Ikoyi",
-    state: "Lagos",
-    typology: "4-Bedroom Luxury Villa",
-    property_type: "house",
-    number_of_units: 1,
-    bedrooms: 4, // Note: This field is NOT in Property type but seemingly used in code?
-    bathrooms: 5, // NOT in Property type
-    square_feet: 4500, // NOT in Property type
-    lead_image_url:
-      "https://images.unsplash.com/photo-1613490493576-7fde63acd811?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
-    monthly_cost: 8500000,
-    desired_annual_rent: 102000000,
-    availability_status: "available",
-    onboarding_stage: "completed",
-    partnership_tier: "ez_prime",
-    power_supply: true, // NOT in Property type
-    amenities: ["Swimming Pool", "Gym", "Security", "Parking"],
-    description: "Luxury villa with panoramic views", // NOT in Property type
-  },
-  {
-    id: "2",
-    landlord_id: "info@bridgent.co",
-    created_at: "2024-01-14T14:20:00Z",
-    updated_at: "2024-01-14T14:20:00Z",
-    code_name: "PREMIUM-002",
-    property_address: "15A Bishop Oluwole Street",
-    area: "Victoria Island",
-    state: "Lagos",
-    typology: "3-Bedroom Penthouse",
-    property_type: "apartment",
-    number_of_units: 2,
-    bedrooms: 3,
-    bathrooms: 3,
-    square_feet: 2800,
-    lead_image_url:
-      "https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
-    monthly_cost: 5200000,
-    desired_annual_rent: 62400000,
-    availability_status: "available",
-    onboarding_stage: "completed",
-    partnership_tier: "ez_prime",
-    power_supply: true,
-    amenities: ["Concierge", "Rooftop Terrace", "Smart Home"],
-    description: "Modern penthouse in prime location",
-  },
-  {
-    id: "3",
-    landlord_id: "info@bridgent.co",
-    created_at: "2024-01-13T09:15:00Z",
-    updated_at: "2024-01-13T09:15:00Z",
-    code_name: "PREMIUM-003",
-    property_address: "42 Maitama Avenue",
-    area: "Maitama",
-    state: "Abuja",
-    typology: "5-Bedroom Duplex",
-    property_type: "house",
-    number_of_units: 1,
-    bedrooms: 5,
-    bathrooms: 6,
-    square_feet: 5200,
-    lead_image_url:
-      "https://images.unsplash.com/photo-1518780664697-55e3ad937233?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
-    monthly_cost: 9500000,
-    desired_annual_rent: 114000000,
-    availability_status: "available",
-    onboarding_stage: "completed",
-    partnership_tier: "ez_prime",
-    power_supply: true,
-    amenities: ["Garden", "Pool", "Security Quarters"],
-    description: "Spacious duplex with premium finishes",
-  },
-  {
-    id: "4",
-    landlord_id: "info@bridgent.co",
-    created_at: "2024-01-12T11:45:00Z",
-    updated_at: "2024-01-12T11:45:00Z",
-    code_name: "PREMIUM-004",
-    property_address: "8A GRA Phase 2",
-    area: "Port Harcourt",
-    state: "Port Harcourt",
-    typology: "4-Bedroom Detached House",
-    property_type: "house",
-    number_of_units: 3,
-    bedrooms: 4,
-    bathrooms: 4,
-    square_feet: 3800,
-    lead_image_url:
-      "https://images.unsplash.com/photo-1570129477492-45c003edd2be?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
-    monthly_cost: 6800000,
-    desired_annual_rent: 81600000,
-    availability_status: "available",
-    onboarding_stage: "completed",
-    partnership_tier: "ez_prime",
-    power_supply: true,
-    amenities: ["Borehole", "Generator", "CCTV"],
-    description: "Secure family home with ample space",
-  },
-  {
-    id: "5",
-    landlord_id: "info@bridgent.co",
-    created_at: "2024-01-11T16:10:00Z",
-    updated_at: "2024-01-11T16:10:00Z",
-    code_name: "PREMIUM-005",
-    property_address: "32 Lekki Phase 1",
-    area: "Lekki",
-    state: "Lagos",
-    typology: "3-Bedroom Apartment",
-    property_type: "apartment",
-    number_of_units: 4,
-    bedrooms: 3,
-    bathrooms: 3,
-    square_feet: 2200,
-    lead_image_url:
-      "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
-    monthly_cost: 4200000,
-    desired_annual_rent: 50400000,
-    availability_status: "available",
-    onboarding_stage: "completed",
-    partnership_tier: "ez_prime",
-    power_supply: true,
-    amenities: ["Pool", "Gym", "24/7 Security"],
-    description: "Modern apartment in gated community",
-  },
-  {
-    id: "6",
-    landlord_id: "info@bridgent.co",
-    created_at: "2024-01-10T13:25:00Z",
-    updated_at: "2024-01-10T13:25:00Z",
-    code_name: "PREMIUM-006",
-    property_address: "15 Asokoro District",
-    area: "Asokoro",
-    state: "Abuja",
-    typology: "6-Bedroom Mansion",
-    property_type: "house",
-    number_of_units: 1,
-    bedrooms: 6,
-    bathrooms: 7,
-    square_feet: 6500,
-    lead_image_url:
-      "https://images.unsplash.com/photo-1613977257363-707ba9348227?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
-    monthly_cost: 12500000,
-    desired_annual_rent: 150000000,
-    availability_status: "available",
-    onboarding_stage: "completed",
-    partnership_tier: "ez_prime",
-    power_supply: true,
-    amenities: ["Helipad", "Cinema", "Wine Cellar", "Staff Quarters"],
-    description: "Ultra-luxury mansion with premium amenities",
-  },
-];
+const API_BASE_URL =
+  process.env.NEXT_PUBLIC_API_URL || "https://ez-pay.realestway.com/api";
 
 export default function ListingsPage() {
   const [properties, setProperties] = useState<Property[]>([]);
@@ -186,14 +29,22 @@ export default function ListingsPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Simulate API call with setTimeout
-    const timer = setTimeout(() => {
-      setProperties(DEMO_PROPERTIES);
-      setFilteredProperties(DEMO_PROPERTIES);
-      setLoading(false);
-    }, 800); // Simulate network delay
+    const fetchListings = async () => {
+      try {
+        const response = await fetch(`${API_BASE_URL}/listings`);
+        if (!response.ok) throw new Error("Failed to fetch listings");
+        const data = await response.json();
+        const listings = data.data || data;
+        setProperties(listings);
+        setFilteredProperties(listings);
+      } catch (error) {
+        console.error("Error fetching listings:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-    return () => clearTimeout(timer);
+    fetchListings();
   }, []);
 
   useEffect(() => {
@@ -299,30 +150,21 @@ export default function ListingsPage() {
                   className="overflow-hidden border-2 border-accent/20 hover:border-accent hover:shadow-2xl transition-all duration-300 group"
                 >
                   <div className="relative h-48 overflow-hidden">
-                    {property.lead_image_url ? (
-                      <img
-                        src={property.lead_image_url}
-                        alt={property.typology}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-200 to-gray-300">
-                        <Home className="h-16 w-16 text-gray-400" />
-                      </div>
-                    )}
-                    <Badge className="absolute top-2 right-2 bg-secondary text-white font-montserrat">
-                      Available Now
-                    </Badge>
-                    <div className="absolute bottom-2 left-2 flex gap-2">
-                      {property.power_supply && (
-                        <Badge
-                          variant="outline"
-                          className="bg-white/90 backdrop-blur-sm"
-                        >
-                          <Zap className="h-3 w-3 mr-1" /> Power
-                        </Badge>
-                      )}
-                    </div>
+                    {(() => {
+                      const leadImagePath = JSON.parse(property.interior_rooms);
+
+                      return leadImagePath ? (
+                        <img
+                          src={`https://ez-pay.realestway.com/${leadImagePath[0]?.toString()}`}
+                          alt={property.typology}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-200 to-gray-300">
+                          <Home className="h-16 w-16 text-gray-400" />
+                        </div>
+                      );
+                    })()}
                   </div>
                   <CardContent className="p-6">
                     {property.code_name && (
@@ -365,38 +207,18 @@ export default function ListingsPage() {
                       </div>
                     </div>
 
-                    {property.amenities && property.amenities.length > 0 && (
-                      <div className="mb-4">
-                        <div className="flex flex-wrap gap-1">
-                          {property.amenities
-                            .slice(0, 3)
-                            .map((amenity: string, index: number) => (
-                              <Badge
-                                key={index}
-                                variant="secondary"
-                                className="text-xs"
-                              >
-                                {amenity}
-                              </Badge>
-                            ))}
-                          {property.amenities.length > 3 && (
-                            <Badge variant="outline" className="text-xs">
-                              +{property.amenities.length - 3} more
-                            </Badge>
-                          )}
-                        </div>
-                      </div>
-                    )}
-
-                    <div className="border-t pt-4">
+                    <div className="border-t pt-4 flex flex-col">
                       <p className="text-2xl font-bold text-primary mb-4 font-raleway">
-                        {formatPrice(property.monthly_cost)}
+                        {formatPrice(
+                          property.monthly_cost ||
+                            (property.rent * 1.1) / 12 / property.no_of_units
+                        )}
                         <span className="text-sm text-gray-600">/month</span>
                       </p>
                       <Link
                         href={`/listings/${property.code_name || property.id}`}
                       >
-                        <Button className="w-full bg-primary hover:bg-primary/90 font-montserrat">
+                        <Button className="w-full bg-white border-2 border-primary rounded-xl py-6 text-primary text-xl hover:bg-primary/90 font-montserrat">
                           View Property Details
                         </Button>
                       </Link>

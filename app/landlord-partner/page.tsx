@@ -37,11 +37,11 @@ const API_BASE_URL = "https://ez-pay.realestway.com/api";
 
 // File upload endpoint
 const UPLOAD_ENDPOINT = `${API_BASE_URL}/upload/single`;
+const BULK_UPLOAD_ENDPOINT = `${API_BASE_URL}/upload/bulk`;
 // Property registration endpoint
-const REGISTER_ENDPOINT = `${API_BASE_URL}/landlords/property/register`;
+const REGISTER_ENDPOINT = `${API_BASE_URL}/property/register`;
 
 // Nigerian states and LGAs removed - now imported from @/lib/nigerian-states.ts
-
 
 // File type mapping
 type FileType = "image" | "document";
@@ -72,7 +72,8 @@ interface PropertyFormData {
   exterior_shot: string;
   compound_road: string;
   power_system: string;
-  interior_rooms: string;
+  interior_rooms: string[];
+  landlord_package: string;
 }
 
 export default function LandlordPartnerPage() {
@@ -108,6 +109,7 @@ export default function LandlordPartnerPage() {
     numberOfUnits: "",
     typology: "",
     desiredAnnualRent: "",
+    landlord_package: "",
   });
 
   // File states
@@ -118,7 +120,7 @@ export default function LandlordPartnerPage() {
     exteriorPhoto: File | null;
     roadPhoto: File | null;
     powerPhoto: File | null;
-    interiorPhoto: File | null;
+    interiorPhotos: File[];
   }>({
     ownershipDoc: null,
     govtId: null,
@@ -126,7 +128,7 @@ export default function LandlordPartnerPage() {
     exteriorPhoto: null,
     roadPhoto: null,
     powerPhoto: null,
-    interiorPhoto: null,
+    interiorPhotos: [],
   });
 
   const [uploadedPaths, setUploadedPaths] = useState<{
@@ -136,7 +138,7 @@ export default function LandlordPartnerPage() {
     exterior_shot: string;
     compound_road: string;
     power_system: string;
-    interior_rooms: string;
+    interior_rooms: string[];
   }>({
     ownership_doc: "",
     gov_id: "",
@@ -144,7 +146,7 @@ export default function LandlordPartnerPage() {
     exterior_shot: "",
     compound_road: "",
     power_system: "",
-    interior_rooms: "",
+    interior_rooms: [],
   });
 
   const [uploading, setUploading] = useState<{
@@ -154,7 +156,7 @@ export default function LandlordPartnerPage() {
     exteriorPhoto: boolean;
     roadPhoto: boolean;
     powerPhoto: boolean;
-    interiorPhoto: boolean;
+    interiorPhotos: boolean;
   }>({
     ownershipDoc: false,
     govtId: false,
@@ -162,7 +164,7 @@ export default function LandlordPartnerPage() {
     exteriorPhoto: false,
     roadPhoto: false,
     powerPhoto: false,
-    interiorPhoto: false,
+    interiorPhotos: false,
   });
 
   const [toastMessage, setToastMessage] = useState<{
@@ -240,9 +242,43 @@ export default function LandlordPartnerPage() {
     }
   };
 
+  // Bulk file upload function
+  const uploadBulkFiles = async (files: File[], type: FileType): Promise<string[]> => {
+    const formData = new FormData();
+    files.forEach((file) => {
+      formData.append("files[]", file);
+    });
+    formData.append("type", type);
+
+    try {
+      const response = await fetch(BULK_UPLOAD_ENDPOINT, {
+        method: "POST",
+        headers: {
+          Accept: "application/json",
+        },
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(
+          errorData.message || `Bulk upload failed: ${response.statusText}`
+        );
+      }
+
+      const data = await response.json();
+      
+      // Expected response: { urls: ["url1", "url2", ...] } or { paths: [...] }
+      return data.urls || data.paths || data.filePaths || [];
+    } catch (error) {
+      console.error("Bulk upload error:", error);
+      throw error;
+    }
+  };
+
   // Submit form data to backend
   const submitFormData = async (paths: typeof uploadedPaths) => {
-    const payload: PropertyFormData = {
+    const payload: any = {
       full_name: formData.fullName,
       email: formData.email,
       phone: formData.phone,
@@ -259,6 +295,7 @@ export default function LandlordPartnerPage() {
       state: formData.state,
       area: formData.area,
       typology: formData.typology,
+      landlord_package: formData.landlord_package,
       no_of_units: parseInt(formData.numberOfUnits) || 0,
       rent: parseFloat(formData.desiredAnnualRent) || 0,
       ownership_doc: paths.ownership_doc,
@@ -267,7 +304,7 @@ export default function LandlordPartnerPage() {
       exterior_shot: paths.exterior_shot,
       compound_road: paths.compound_road,
       power_system: paths.power_system,
-      interior_rooms: paths.interior_rooms,
+      interior_rooms: JSON.stringify(paths.interior_rooms),
     };
 
     const response = await fetch(REGISTER_ENDPOINT, {
@@ -307,6 +344,7 @@ export default function LandlordPartnerPage() {
         !formData.area ||
         !formData.typology ||
         !formData.numberOfUnits ||
+        !formData.landlord_package ||
         !formData.desiredAnnualRent
       ) {
         throw new Error("Please fill in all required fields marked with *");
@@ -319,7 +357,7 @@ export default function LandlordPartnerPage() {
         !uploadedPaths.exterior_shot ||
         !uploadedPaths.compound_road ||
         !uploadedPaths.power_system ||
-        !uploadedPaths.interior_rooms
+        uploadedPaths.interior_rooms.length === 0
       ) {
         throw new Error("Please upload all required files marked with *");
       }
@@ -359,6 +397,7 @@ export default function LandlordPartnerPage() {
         area: "",
         numberOfUnits: "",
         typology: "",
+        landlord_package: "",
         desiredAnnualRent: "",
       });
 
@@ -369,7 +408,7 @@ export default function LandlordPartnerPage() {
         exteriorPhoto: null,
         roadPhoto: null,
         powerPhoto: null,
-        interiorPhoto: null,
+        interiorPhotos: [],
       });
 
       setUploadedPaths({
@@ -379,7 +418,7 @@ export default function LandlordPartnerPage() {
         exterior_shot: "",
         compound_road: "",
         power_system: "",
-        interior_rooms: "",
+        interior_rooms: [],
       });
 
       setUploading({
@@ -389,7 +428,7 @@ export default function LandlordPartnerPage() {
         exteriorPhoto: false,
         roadPhoto: false,
         powerPhoto: false,
-        interiorPhoto: false,
+        interiorPhotos: false,
       });
 
       setCurrentStep(0);
@@ -410,96 +449,124 @@ export default function LandlordPartnerPage() {
   // Handle file input changes
   const handleFileChange = async (
     field: keyof typeof files,
-    file: File | File[] | null
+    fileOrFiles: File | File[] | null
   ) => {
-    let actualFile: File | null = null;
-    if (field === "interiorPhoto" && Array.isArray(file)) {
-      actualFile = file[0] || null;
-    } else if (!Array.isArray(file)) {
-      actualFile = file;
-    }
+    if (field === "interiorPhotos") {
+      const actualFiles = Array.isArray(fileOrFiles) ? fileOrFiles : (fileOrFiles ? [fileOrFiles] : []);
+      
+      setFiles((prev) => ({
+        ...prev,
+        [field]: actualFiles,
+      }));
 
-    setFiles((prev) => ({
-      ...prev,
-      [field]: actualFile,
-    }));
-
-    if (actualFile) {
-      try {
-        setUploading((prev) => ({ ...prev, [field]: true }));
-        const fileType: FileType =
-          field === "exteriorPhoto" ||
-          field === "roadPhoto" ||
-          field === "powerPhoto" ||
-          field === "interiorPhoto"
-            ? "image"
-            : "document";
-        const pathKey =
-          field === "ownershipDoc"
-            ? "ownership_doc"
-            : field === "govtId"
-            ? "gov_id"
-            : field === "cacCert"
-            ? "cac_cert"
-            : field === "exteriorPhoto"
-            ? "exterior_shot"
-            : field === "roadPhoto"
-            ? "compound_road"
-            : field === "powerPhoto"
-            ? "power_system"
-            : field === "interiorPhoto"
-            ? "interior_rooms"
-            : "";
-
-        const uploadedPath = await uploadFile(actualFile, fileType);
+      if (actualFiles.length > 0) {
+        try {
+          setUploading((prev) => ({ ...prev, [field]: true }));
+          const uploadedPaths = await uploadBulkFiles(actualFiles, "image");
+          setUploadedPaths((prev) => ({
+            ...prev,
+            interior_rooms: uploadedPaths,
+          }));
+          showToast(
+            "Files uploaded successfully",
+            `${actualFiles.length} interior room photos have been uploaded.`,
+            "success"
+          );
+        } catch (error) {
+          console.error("Upload error:", error);
+          showToast(
+            "Upload failed",
+            error instanceof Error
+              ? error.message
+              : "Failed to upload interior photos. Please try again.",
+            "error"
+          );
+          setFiles((prev) => ({
+            ...prev,
+            [field]: [],
+          }));
+        } finally {
+          setUploading((prev) => ({ ...prev, [field]: false }));
+        }
+      } else {
         setUploadedPaths((prev) => ({
           ...prev,
-          [pathKey]: uploadedPath,
+          interior_rooms: [],
         }));
-        showToast(
-          "File uploaded successfully",
-          `${actualFile.name} has been uploaded.`,
-          "success"
-        );
-      } catch (error) {
-        console.error("Upload error:", error);
-        showToast(
-          "Upload failed",
-          error instanceof Error
-            ? error.message
-            : "Failed to upload file. Please try again.",
-          "error"
-        );
-        // Clear the file if upload failed
-        setFiles((prev) => ({
-          ...prev,
-          [field]: null,
-        }));
-      } finally {
-        setUploading((prev) => ({ ...prev, [field]: false }));
       }
     } else {
-      // If file is cleared, clear the path
-      const pathKey =
-        field === "ownershipDoc"
-          ? "ownership_doc"
-          : field === "govtId"
-          ? "gov_id"
-          : field === "cacCert"
-          ? "cac_cert"
-          : field === "exteriorPhoto"
-          ? "exterior_shot"
-          : field === "roadPhoto"
-          ? "compound_road"
-          : field === "powerPhoto"
-          ? "power_system"
-          : field === "interiorPhoto"
-          ? "interior_rooms"
-          : "";
-      setUploadedPaths((prev) => ({
+      const actualFile = Array.isArray(fileOrFiles) ? fileOrFiles[0] : fileOrFiles;
+      
+      setFiles((prev) => ({
         ...prev,
-        [pathKey]: "",
+        [field]: actualFile,
       }));
+
+      if (actualFile) {
+        try {
+          setUploading((prev) => ({ ...prev, [field]: true }));
+          const fileType: FileType =
+            field === "exteriorPhoto" ||
+            field === "roadPhoto" ||
+            field === "powerPhoto"
+              ? "image"
+              : "document";
+          
+          const pathKeys: Record<string, keyof typeof uploadedPaths> = {
+            ownershipDoc: "ownership_doc",
+            govtId: "gov_id",
+            cacCert: "cac_cert",
+            exteriorPhoto: "exterior_shot",
+            roadPhoto: "compound_road",
+            powerPhoto: "power_system",
+          };
+
+          const pathKey = pathKeys[field];
+          if (!pathKey) return;
+
+          const uploadedPath = await uploadFile(actualFile, fileType);
+          setUploadedPaths((prev) => ({
+            ...prev,
+            [pathKey]: uploadedPath,
+          }));
+          showToast(
+            "File uploaded successfully",
+            `${actualFile.name} has been uploaded.`,
+            "success"
+          );
+        } catch (error) {
+          console.error("Upload error:", error);
+          showToast(
+            "Upload failed",
+            error instanceof Error
+              ? error.message
+              : "Failed to upload file. Please try again.",
+            "error"
+          );
+          setFiles((prev) => ({
+            ...prev,
+            [field]: null,
+          }));
+        } finally {
+          setUploading((prev) => ({ ...prev, [field]: false }));
+        }
+      } else {
+        const pathKeys: Record<string, keyof typeof uploadedPaths> = {
+          ownershipDoc: "ownership_doc",
+          govtId: "gov_id",
+          cacCert: "cac_cert",
+          exteriorPhoto: "exterior_shot",
+          roadPhoto: "compound_road",
+          powerPhoto: "power_system",
+        };
+        const pathKey = pathKeys[field];
+        if (pathKey) {
+          setUploadedPaths((prev) => ({
+            ...prev,
+            [pathKey]: "",
+          }));
+        }
+      }
     }
   };
 
@@ -1188,6 +1255,29 @@ export default function LandlordPartnerPage() {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="md:col-span-2">
                         <Label htmlFor="propertyAddress">
+                          Choose Package *
+                        </Label>
+                        <Select
+                          value={formData.landlord_package}
+                          onValueChange={(value) =>
+                            setFormData({
+                              ...formData,
+                              landlord_package: value,
+                            })
+                          }
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select package" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="prime">Ez-Prime</SelectItem>
+                            <SelectItem value="vantage">Ez-Vantage</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="md:col-span-2">
+                        <Label htmlFor="propertyAddress">
                           Property Address *
                         </Label>
                         <Textarea
@@ -1558,23 +1648,24 @@ export default function LandlordPartnerPage() {
                           type="file"
                           accept="image/*"
                           className="mt-2"
+                          multiple
                           onChange={(e) =>
                             handleFileChange(
-                              "interiorPhoto",
-                              e.target.files?.[0] || null
+                              "interiorPhotos",
+                              e.target.files ? Array.from(e.target.files) : []
                             )
                           }
                           required
                         />
-                        {uploading.interiorPhoto && (
+                        {uploading.interiorPhotos && (
                           <p className="text-sm text-blue-600 mt-2 flex items-center justify-center">
                             <Loader2 className="h-4 w-4 animate-spin mr-2" />
                             Uploading...
                           </p>
                         )}
-                        {files.interiorPhoto && !uploading.interiorPhoto && (
+                        {files.interiorPhotos.length > 0 && !uploading.interiorPhotos && (
                           <p className="text-sm text-green-600 mt-2">
-                            ✓ {files.interiorPhoto.name} uploaded
+                            ✓ {files.interiorPhotos.length} photos uploaded
                           </p>
                         )}
                       </div>

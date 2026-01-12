@@ -942,20 +942,20 @@ const AVERAGE_RENTS: Record<string, { min: number; max: number }> = {
 
 interface PropertyData {
   id: string;
-  fullName: string;
+  full_name: string;
   designation?: string;
-  businessName?: string;
+  business_name?: string;
   property_address: string;
   state: string;
   area: string;
   typology: string;
-  noOfUnits: number;
+  no_of_units: number;
   rent: number;
-  ownershipDoc?: string;
-  govId?: string;
-  cacCert?: string;
-  exteriorShot?: string;
-  interiorRooms?: string[];
+  ownership_doc?: string;
+  gov_id?: string;
+  cac_cert?: string;
+  exterior_shot?: string;
+  interior_rooms?: string[];
   [key: string]: any;
 }
 
