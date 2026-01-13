@@ -1,13 +1,18 @@
 "use client";
 
 import { useState } from "react";
-import Header from "@/components/header";
-import ChatWidget from "@/components/ui/chat-widget";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+import Header from "@/app/components/header";
+import ChatWidget from "@/app/components/ui/chat-widget";
+import { Button } from "@/app/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/app/components/ui/card";
+import { Input } from "@/app/components/ui/input";
+import { Label } from "@/app/components/ui/label";
+import { Textarea } from "@/app/components/ui/textarea";
 import {
   CheckCircle,
   Upload,
@@ -29,7 +34,7 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
+} from "@/app/components/ui/select";
 import { NIGERIAN_STATES_LGAS } from "@/lib/nigerian-states";
 
 // API Base URL
@@ -243,7 +248,10 @@ export default function LandlordPartnerPage() {
   };
 
   // Bulk file upload function
-  const uploadBulkFiles = async (files: File[], type: FileType): Promise<string[]> => {
+  const uploadBulkFiles = async (
+    files: File[],
+    type: FileType
+  ): Promise<string[]> => {
     const formData = new FormData();
     files.forEach((file) => {
       formData.append("files[]", file);
@@ -267,7 +275,7 @@ export default function LandlordPartnerPage() {
       }
 
       const data = await response.json();
-      
+
       // Expected response: { urls: ["url1", "url2", ...] } or { paths: [...] }
       return data.urls || data.paths || data.filePaths || [];
     } catch (error) {
@@ -452,8 +460,12 @@ export default function LandlordPartnerPage() {
     fileOrFiles: File | File[] | null
   ) => {
     if (field === "interiorPhotos") {
-      const actualFiles = Array.isArray(fileOrFiles) ? fileOrFiles : (fileOrFiles ? [fileOrFiles] : []);
-      
+      const actualFiles = Array.isArray(fileOrFiles)
+        ? fileOrFiles
+        : fileOrFiles
+        ? [fileOrFiles]
+        : [];
+
       setFiles((prev) => ({
         ...prev,
         [field]: actualFiles,
@@ -495,8 +507,10 @@ export default function LandlordPartnerPage() {
         }));
       }
     } else {
-      const actualFile = Array.isArray(fileOrFiles) ? fileOrFiles[0] : fileOrFiles;
-      
+      const actualFile = Array.isArray(fileOrFiles)
+        ? fileOrFiles[0]
+        : fileOrFiles;
+
       setFiles((prev) => ({
         ...prev,
         [field]: actualFile,
@@ -511,7 +525,7 @@ export default function LandlordPartnerPage() {
             field === "powerPhoto"
               ? "image"
               : "document";
-          
+
           const pathKeys: Record<string, keyof typeof uploadedPaths> = {
             ownershipDoc: "ownership_doc",
             govtId: "gov_id",
@@ -1663,11 +1677,12 @@ export default function LandlordPartnerPage() {
                             Uploading...
                           </p>
                         )}
-                        {files.interiorPhotos.length > 0 && !uploading.interiorPhotos && (
-                          <p className="text-sm text-green-600 mt-2">
-                            ✓ {files.interiorPhotos.length} photos uploaded
-                          </p>
-                        )}
+                        {files.interiorPhotos.length > 0 &&
+                          !uploading.interiorPhotos && (
+                            <p className="text-sm text-green-600 mt-2">
+                              ✓ {files.interiorPhotos.length} photos uploaded
+                            </p>
+                          )}
                       </div>
                     </div>
                   </div>

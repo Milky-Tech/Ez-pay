@@ -20,25 +20,29 @@ import {
   ClipboardCheck,
 } from "lucide-react";
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+import { Button } from "@/app/components/ui/button";
+import { Input } from "@/app/components/ui/input";
+import { Label } from "@/app/components/ui/label";
+import { Textarea } from "@/app/components/ui/textarea";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogFooter,
-} from "@/components/ui/dialog";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent } from "@/components/ui/card";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+} from "@/app/components/ui/dialog";
+import { Badge } from "@/app/components/ui/badge";
+import { Card, CardContent } from "@/app/components/ui/card";
+import {
+  Avatar,
+  AvatarFallback,
+  AvatarImage,
+} from "@/app/components/ui/avatar";
 import { useToast } from "@/hooks/use-toast";
 import { useLandlordData } from "@/hooks/useLandlordData";
-import { PropertyCard } from "@/components/landlord/PropertyCard";
-import { ApplicationItem } from "@/components/landlord/ApplicationItem";
-import { AddPropertyDialog } from "@/components/landlord/AddPropertyDialog";
+import { PropertyCard } from "@/app/components/landlord/PropertyCard";
+import { ApplicationItem } from "@/app/components/landlord/ApplicationItem";
+import { AddPropertyDialog } from "@/app/components/landlord/AddPropertyDialog";
 
 export default function LandlordDashboard() {
   const {

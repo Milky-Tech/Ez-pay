@@ -1,16 +1,19 @@
 "use client";
 
 import { Building, ChevronRight } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { Badge } from "@/app/components/ui/badge";
+import { Card, CardContent } from "@/app/components/ui/card";
+import { Button } from "@/app/components/ui/button";
 
 interface PropertyCardProps {
   property: any;
   onViewDetails: (id: string) => void;
 }
 
-export const PropertyCard = ({ property, onViewDetails }: PropertyCardProps) => {
+export const PropertyCard = ({
+  property,
+  onViewDetails,
+}: PropertyCardProps) => {
   return (
     <Card
       className="border-none shadow-sm hover:shadow-md transition-all cursor-pointer group"

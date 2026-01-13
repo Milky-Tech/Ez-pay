@@ -3,18 +3,18 @@
 import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import Header from "@/components/header";
-import ChatWidget from "@/components/ui/chat-widget";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import Header from "@/app/components/header";
+import ChatWidget from "@/app/components/ui/chat-widget";
+import { Button } from "@/app/components/ui/button";
+import { Card, CardContent } from "@/app/components/ui/card";
+import { Badge } from "@/app/components/ui/badge";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "@/components/ui/dialog";
+} from "@/app/components/ui/dialog";
 import {
   AlertDialog,
   AlertDialogContent,
@@ -22,10 +22,10 @@ import {
   AlertDialogTitle,
   AlertDialogDescription,
   AlertDialogFooter,
-} from "@/components/ui/alert-dialog";
-import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+} from "@/app/components/ui/alert-dialog";
+import { Label } from "@/app/components/ui/label";
+import { Input } from "@/app/components/ui/input";
+import { RadioGroup, RadioGroupItem } from "@/app/components/ui/radio-group";
 import { useToast } from "@/hooks/use-toast";
 import {
   MapPin,
@@ -369,7 +369,7 @@ export default function PropertyDetailsPage() {
                   Property Gallery
                 </h2>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                                    {/* Exterior Shot */}
+                  {/* Exterior Shot */}
                   {property.exterior_shot && (
                     <div className="aspect-square rounded-xl overflow-hidden cursor-pointer hover:ring-2 ring-primary transition-all">
                       <img

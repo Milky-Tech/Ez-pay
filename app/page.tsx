@@ -1,10 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import Header from "@/components/header";
-import ChatWidget from "@/components/ui/chat-widget";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import Header from "@/app/components/header";
+import ChatWidget from "@/app/components/ui/chat-widget";
+import { Button } from "@/app/components/ui/button";
+import { Card, CardContent } from "@/app/components/ui/card";
 import {
   Home,
   Shield,
@@ -15,6 +15,8 @@ import {
   CheckCircle,
 } from "lucide-react";
 import { useEffect, useState } from "react";
+import FAQSection from "./components/ui/faq";
+import Footer from "./components/footer";
 
 const slides = [
   {
@@ -48,7 +50,6 @@ export default function LandingPage() {
     <div className="min-h-screen w-[100%]">
       <Header />
       <ChatWidget />
-
       <section className="relative h-screen flex pb-2 pt-auto justify-center bg-[#000000] bg-transparent-[60%]">
         <div
           className="absolute inset-0 bg-cover bg-center opacity-20"
@@ -216,7 +217,6 @@ export default function LandingPage() {
           <Link href="/listings">View Listings</Link>
         </Button>
       </section>
-
       <section className="py-10 sm:px-20 flex flex-col gap-12">
         <div className="flex flex-col gap-3 items-center text-center">
           <div className="bg-white shadow-lg shadow-primary/50 text-primary rounded-md py-2 px-6 mb-4">
@@ -284,86 +284,8 @@ export default function LandingPage() {
           </Link>
         </div>
       </section>
-
-      <footer className="bg-gray-900 text-white py-12">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-            <div>
-              <h3 className="text-xl font-bold mb-4 font-raleway">
-                Bridgent HomeStep EZ-Pay
-              </h3>
-              <p className="text-gray-400 text-sm">
-                Legacy. Exclusivity. Stability. Premium Financial Empowerment.
-              </p>
-            </div>
-            <div>
-              <h4 className="font-semibold mb-4 font-montserrat">
-                For Renters
-              </h4>
-              <ul className="space-y-2 text-sm text-gray-400">
-                <li>
-                  <Link href="/listings" className="hover:text-accent">
-                    View Properties
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/how-it-works" className="hover:text-accent">
-                    How It Works
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/faq" className="hover:text-accent">
-                    FAQ
-                  </Link>
-                </li>
-              </ul>
-            </div>
-            <div>
-              <h4 className="font-semibold mb-4 font-montserrat">
-                For Landlords
-              </h4>
-              <ul className="space-y-2 text-sm text-gray-400">
-                <li>
-                  <Link href="/landlord-partner" className="hover:text-accent">
-                    Become a Partner
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/partnership-tiers" className="hover:text-accent">
-                    Partnership Tiers
-                  </Link>
-                </li>
-              </ul>
-            </div>
-            <div>
-              <h4 className="font-semibold mb-4 font-montserrat">Company</h4>
-              <ul className="space-y-2 text-sm text-gray-400">
-                <li>
-                  <Link href="/about" className="hover:text-accent">
-                    About Us
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/contact" className="hover:text-accent">
-                    Contact
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/admin" className="hover:text-accent">
-                    Admin Portal
-                  </Link>
-                </li>
-              </ul>
-            </div>
-          </div>
-          <div className="border-t border-gray-800 mt-8 pt-8 text-center text-sm text-gray-400">
-            <p>
-              &copy; {new Date().getFullYear()} Bridgent HomeStep EZ-Pay. All
-              rights reserved.
-            </p>
-          </div>
-        </div>
-      </footer>
+      <FAQSection />
+      <Footer />{" "}
     </div>
   );
 }

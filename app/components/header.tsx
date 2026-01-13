@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/app/components/ui/button";
 import {
   Home,
   Building2,
@@ -85,7 +85,7 @@ export default function Header() {
               Landlord
             </Link>
             <Link
-              href="/faq"
+              href="#faq"
               className={`font-montserrat transition-colors ${
                 isScrolled
                   ? "text-white hover:text-accent"
@@ -159,7 +159,7 @@ export default function Header() {
                 About
               </Link>
               <Link
-                href="/faq"
+                href="#faq"
                 className="font-montserrat text-gray-800 hover:text-primary"
               >
                 FAQ

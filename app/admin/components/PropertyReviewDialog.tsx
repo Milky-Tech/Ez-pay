@@ -1,9 +1,9 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Label } from "@/components/ui/label";
+import { Button } from "@/app/components/ui/button";
+import { Badge } from "@/app/components/ui/badge";
+import { Label } from "@/app/components/ui/label";
 import {
   Building2,
   User,
@@ -27,7 +27,7 @@ import {
   AlertDialogFooter,
   AlertDialogAction,
   AlertDialogCancel,
-} from "@/components/ui/alert-dialog";
+} from "@/app/components/ui/alert-dialog";
 import PropertyScoringEngine from "./PropertyScoringEngine";
 import { useAuth } from "@/context/authcontext";
 
@@ -203,7 +203,8 @@ const PropertyReviewDialog = ({
     const images: { url: string; label: string }[] = [];
 
     // Exterior Photo (Handle both casings)
-    const exteriorShot = propertyDetails?.exteriorShot || propertyDetails?.exterior_shot;
+    const exteriorShot =
+      propertyDetails?.exteriorShot || propertyDetails?.exterior_shot;
     if (exteriorShot) {
       images.push({
         url: getFullImageUrl(exteriorShot),
@@ -212,7 +213,8 @@ const PropertyReviewDialog = ({
     }
 
     // Compound/Road photo
-    const compoundRoad = propertyDetails?.compoundRoad || propertyDetails?.compound_road;
+    const compoundRoad =
+      propertyDetails?.compoundRoad || propertyDetails?.compound_road;
     if (compoundRoad) {
       images.push({
         url: getFullImageUrl(compoundRoad),
@@ -221,12 +223,15 @@ const PropertyReviewDialog = ({
     }
 
     // Interior Rooms
-    const interiorRoomsRaw = propertyDetails?.interior_rooms || propertyDetails?.interiorRooms;
+    const interiorRoomsRaw =
+      propertyDetails?.interior_rooms || propertyDetails?.interiorRooms;
     if (interiorRoomsRaw) {
       try {
         if (typeof interiorRoomsRaw === "string" && interiorRoomsRaw) {
-          const rooms = interiorRoomsRaw.includes("[") ? JSON.parse(interiorRoomsRaw) : interiorRoomsRaw.split(",");
-          
+          const rooms = interiorRoomsRaw.includes("[")
+            ? JSON.parse(interiorRoomsRaw)
+            : interiorRoomsRaw.split(",");
+
           if (Array.isArray(rooms)) {
             rooms.forEach((room: string, index: number) => {
               if (room && room.trim()) {
@@ -450,8 +455,16 @@ const PropertyReviewDialog = ({
               <div>
                 <Label className="text-sm font-medium">Landlord Package</Label>
                 <div className="mt-1">
-                  <Badge variant={propertyDetails?.landlord_package === "prime" ? "default" : "secondary"}>
-                    {propertyDetails?.landlord_package === "prime" ? "EZ-PRIME" : "EZ-VANTAGE"}
+                  <Badge
+                    variant={
+                      propertyDetails?.landlord_package === "prime"
+                        ? "default"
+                        : "secondary"
+                    }
+                  >
+                    {propertyDetails?.landlord_package === "prime"
+                      ? "EZ-PRIME"
+                      : "EZ-VANTAGE"}
                   </Badge>
                 </div>
               </div>

@@ -1,14 +1,17 @@
 "use client";
 
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback } from "@/app/components/ui/avatar";
+import { Badge } from "@/app/components/ui/badge";
 
 interface ApplicationItemProps {
   application: any;
   onClick: (id: string) => void;
 }
 
-export const ApplicationItem = ({ application, onClick }: ApplicationItemProps) => {
+export const ApplicationItem = ({
+  application,
+  onClick,
+}: ApplicationItemProps) => {
   return (
     <div
       className="flex items-center gap-3 p-3 bg-white rounded-xl shadow-sm border border-slate-100 hover:border-primary/20 transition-colors cursor-pointer"

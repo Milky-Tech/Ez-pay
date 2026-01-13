@@ -1,11 +1,21 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/app/components/ui/card";
+import { Button } from "@/app/components/ui/button";
+import { Input } from "@/app/components/ui/input";
+import { Badge } from "@/app/components/ui/badge";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/app/components/ui/tabs";
 import {
   Table,
   TableBody,
@@ -13,14 +23,14 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table";
+} from "@/app/components/ui/table";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
+} from "@/app/components/ui/select";
 import {
   Dialog,
   DialogContent,
@@ -28,7 +38,7 @@ import {
   DialogTitle,
   DialogDescription,
   DialogTrigger,
-} from "@/components/ui/dialog";
+} from "@/app/components/ui/dialog";
 import {
   AlertDialog,
   AlertDialogContent,
@@ -38,9 +48,9 @@ import {
   AlertDialogFooter,
   AlertDialogAction,
   AlertDialogCancel,
-} from "@/components/ui/alert-dialog";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+} from "@/app/components/ui/alert-dialog";
+import { Label } from "@/app/components/ui/label";
+import { Textarea } from "@/app/components/ui/textarea";
 import {
   Home,
   Users,
@@ -99,7 +109,7 @@ interface Property {
   compound_road?: string;
   interior_rooms?: string;
   exterior_shot?: string;
-  landlord_package:string;
+  landlord_package: string;
   created_at: string;
   updated_at: string;
 }
@@ -411,12 +421,15 @@ export default function AdminDashboard() {
     if (!deleteDialog.id) return;
     setIsProcessing(true);
     try {
-      const response = await fetch(`${API_BASE_URL}/listings/${deleteDialog.id}`, {
-        method: "DELETE",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      const response = await fetch(
+        `${API_BASE_URL}/listings/${deleteDialog.id}`,
+        {
+          method: "DELETE",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
 
       if (!response.ok) throw new Error("Failed to delete listing");
 
@@ -474,20 +487,23 @@ export default function AdminDashboard() {
   const handleUpdateListing = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!editListingDialog.property) return;
-    
+
     setIsProcessing(true);
     const formData = new FormData(e.currentTarget);
     const data = Object.fromEntries(formData.entries());
-    
+
     try {
-      const response = await fetch(`${API_BASE_URL}/listings/${editListingDialog.property.id}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(data),
-      });
+      const response = await fetch(
+        `${API_BASE_URL}/listings/${editListingDialog.property.id}`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(data),
+        }
+      );
 
       if (!response.ok) throw new Error("Failed to update listing");
 
@@ -1036,19 +1052,29 @@ export default function AdminDashboard() {
                         {properties.slice(0, 5).map((property) => (
                           <TableRow key={property.id}>
                             <TableCell>
-                              <div className="text-xs font-medium">#{property.id}</div>
-                              <div className="text-[10px] text-gray-500">{formatDate(property.created_at)}</div>
+                              <div className="text-xs font-medium">
+                                #{property.id}
+                              </div>
+                              <div className="text-[10px] text-gray-500">
+                                {formatDate(property.created_at)}
+                              </div>
                             </TableCell>
                             <TableCell>
-                              <div className="text-xs font-medium">{property.typology}</div>
+                              <div className="text-xs font-medium">
+                                {property.typology}
+                              </div>
                               <div className="text-[10px] uppercase font-bold text-primary">
-                                {property.landlord_package === "prime" ? "EZ-PRIME" : "EZ-VANTAGE"}
+                                {property.landlord_package === "prime"
+                                  ? "EZ-PRIME"
+                                  : "EZ-VANTAGE"}
                               </div>
                             </TableCell>
                             <TableCell className="text-sm">
                               {property.area}, {property.state}
                             </TableCell>
-                            <TableCell className="text-sm">{property.full_name}</TableCell>
+                            <TableCell className="text-sm">
+                              {property.full_name}
+                            </TableCell>
                             <TableCell>
                               {getStatusBadge(property.status || "pending")}
                             </TableCell>
@@ -1145,14 +1171,24 @@ export default function AdminDashboard() {
                         {filteredProperties.map((property: Property) => (
                           <TableRow key={property.id}>
                             <TableCell>
-                              <div className="text-xs font-medium">#{property.id}</div>
-                              <div className="text-xs text-gray-500">{formatDate(property.created_at)}</div>
+                              <div className="text-xs font-medium">
+                                #{property.id}
+                              </div>
+                              <div className="text-xs text-gray-500">
+                                {formatDate(property.created_at)}
+                              </div>
                             </TableCell>
                             <TableCell>
                               <div className="max-w-[200px]">
-                                <p className="font-medium truncate">{property.full_name}</p>
-                                <p className="text-xs text-gray-500 truncate">{property.email}</p>
-                                <p className="text-xs text-gray-500">{property.phone}</p>
+                                <p className="font-medium truncate">
+                                  {property.full_name}
+                                </p>
+                                <p className="text-xs text-gray-500 truncate">
+                                  {property.email}
+                                </p>
+                                <p className="text-xs text-gray-500">
+                                  {property.phone}
+                                </p>
                               </div>
                             </TableCell>
                             <TableCell>
@@ -1162,7 +1198,9 @@ export default function AdminDashboard() {
                                 </Badge>
                                 {property.landlord_package && (
                                   <div className="text-[10px] uppercase font-bold text-primary">
-                                    {property.landlord_package === "prime" ? "EZ-PRIME" : "EZ-VANTAGE"}
+                                    {property.landlord_package === "prime"
+                                      ? "EZ-PRIME"
+                                      : "EZ-VANTAGE"}
                                   </div>
                                 )}
                               </div>
@@ -1173,13 +1211,17 @@ export default function AdminDashboard() {
                               </div>
                             </TableCell>
                             <TableCell className="font-semibold text-sm">
-                              {property.monthly_cost 
+                              {property.monthly_cost
                                 ? formatPrice(property.monthly_cost)
-                                : property.rent 
-                                  ? formatPrice(Math.round((property.rent * 1.1) / 12)) 
-                                  : "N/A"}
+                                : property.rent
+                                ? formatPrice(
+                                    Math.round((property.rent * 1.1) / 12)
+                                  )
+                                : "N/A"}
                             </TableCell>
-                            <TableCell className="text-center">{property.no_of_units}</TableCell>
+                            <TableCell className="text-center">
+                              {property.no_of_units}
+                            </TableCell>
                             <TableCell>
                               {getStatusBadge(property.status || "pending")}
                             </TableCell>
@@ -1187,7 +1229,11 @@ export default function AdminDashboard() {
                               <div className="flex gap-2">
                                 <Dialog>
                                   <DialogTrigger asChild>
-                                    <Button variant="outline" size="sm" title="Review Submission">
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      title="Review Submission"
+                                    >
                                       <Eye className="h-4 w-4 mr-1" />
                                       Review
                                     </Button>
@@ -1195,7 +1241,8 @@ export default function AdminDashboard() {
                                   <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
                                     <DialogHeader>
                                       <DialogTitle>
-                                        Review Property Submission #{property.id}
+                                        Review Property Submission #
+                                        {property.id}
                                       </DialogTitle>
                                     </DialogHeader>
                                     <PropertyReviewDialog
@@ -1358,29 +1405,45 @@ export default function AdminDashboard() {
                             </TableCell>
                             <TableCell>
                               <div className="flex gap-2">
-                                <Link href={`/listings/${listing.code_name || listing.id}`} target="_blank">
-                                  <Button variant="outline" size="sm" title="View publicly">
+                                <Link
+                                  href={`/listings/${
+                                    listing.code_name || listing.id
+                                  }`}
+                                  target="_blank"
+                                >
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    title="View publicly"
+                                  >
                                     <Eye className="h-4 w-4" />
                                   </Button>
                                 </Link>
-                                <Button 
-                                  variant="outline" 
-                                  size="sm" 
+                                <Button
+                                  variant="outline"
+                                  size="sm"
                                   title="Edit listing details"
-                                  onClick={() => setEditListingDialog({ open: true, property: listing })}
+                                  onClick={() =>
+                                    setEditListingDialog({
+                                      open: true,
+                                      property: listing,
+                                    })
+                                  }
                                 >
                                   <Edit className="h-4 w-4" />
                                 </Button>
-                                <Button 
-                                  variant="outline" 
-                                  size="sm" 
+                                <Button
+                                  variant="outline"
+                                  size="sm"
                                   className="text-destructive hover:bg-destructive/10"
-                                  onClick={() => setDeleteDialog({ 
-                                    open: true, 
-                                    type: "listing", 
-                                    id: listing.id, 
-                                    name: listing.code_name 
-                                  })}
+                                  onClick={() =>
+                                    setDeleteDialog({
+                                      open: true,
+                                      type: "listing",
+                                      id: listing.id,
+                                      name: listing.code_name,
+                                    })
+                                  }
                                 >
                                   <Trash2 className="h-4 w-4" />
                                 </Button>
@@ -1572,12 +1635,14 @@ export default function AdminDashboard() {
                                 size="icon"
                                 className="text-destructive hover:text-destructive hover:bg-destructive/10"
                                 title="Delete User"
-                                onClick={() => setDeleteDialog({ 
-                                  open: true, 
-                                  type: "user", 
-                                  id: user.id, 
-                                  name: user.full_name 
-                                })}
+                                onClick={() =>
+                                  setDeleteDialog({
+                                    open: true,
+                                    type: "user",
+                                    id: user.id,
+                                    name: user.full_name,
+                                  })
+                                }
                               >
                                 <Trash2 className="h-4 w-4" />
                               </Button>
@@ -1802,7 +1867,8 @@ export default function AdminDashboard() {
       <AlertDialog
         open={deleteDialog.open}
         onOpenChange={(open) => {
-          if (!open) setDeleteDialog({ open: false, type: null, id: null, name: null });
+          if (!open)
+            setDeleteDialog({ open: false, type: null, id: null, name: null });
         }}
       >
         <AlertDialogContent>
@@ -1812,18 +1878,22 @@ export default function AdminDashboard() {
             </AlertDialogTitle>
             <AlertDialogDescription>
               This action cannot be undone. This will permanently delete the{" "}
-              <strong>{deleteDialog.type}</strong>: {deleteDialog.name} and remove it
-              from our servers.
+              <strong>{deleteDialog.type}</strong>: {deleteDialog.name} and
+              remove it from our servers.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={isProcessing}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel disabled={isProcessing}>
+              Cancel
+            </AlertDialogCancel>
             <AlertDialogAction
               className="bg-destructive hover:bg-destructive/90"
               disabled={isProcessing}
               onClick={(e) => {
                 e.preventDefault();
-                deleteDialog.type === "listing" ? handleDeleteListing() : handleDeleteUser();
+                deleteDialog.type === "listing"
+                  ? handleDeleteListing()
+                  : handleDeleteUser();
               }}
             >
               {isProcessing ? (
@@ -1850,129 +1920,139 @@ export default function AdminDashboard() {
           <DialogHeader>
             <DialogTitle>Edit Listing Details</DialogTitle>
             <DialogDescription>
-              Update property information for {editListingDialog.property?.code_name}
+              Update property information for{" "}
+              {editListingDialog.property?.code_name}
             </DialogDescription>
           </DialogHeader>
-          
+
           {editListingDialog.property && (
             <form onSubmit={handleUpdateListing} className="space-y-4 py-4">
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="code_name">Code Name</Label>
-                  <Input 
-                    id="code_name" 
-                    name="code_name" 
-                    defaultValue={editListingDialog.property.code_name} 
-                    required 
+                  <Input
+                    id="code_name"
+                    name="code_name"
+                    defaultValue={editListingDialog.property.code_name}
+                    required
                   />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="typology">Typology</Label>
-                  <Input 
-                    id="typology" 
-                    name="typology" 
-                    defaultValue={editListingDialog.property.typology} 
-                    required 
+                  <Input
+                    id="typology"
+                    name="typology"
+                    defaultValue={editListingDialog.property.typology}
+                    required
                   />
                 </div>
                 <div className="space-y-2 col-span-2">
                   <Label htmlFor="property_address">Property Address</Label>
-                  <Input 
-                    id="property_address" 
-                    name="property_address" 
-                    defaultValue={editListingDialog.property.property_address} 
-                    required 
+                  <Input
+                    id="property_address"
+                    name="property_address"
+                    defaultValue={editListingDialog.property.property_address}
+                    required
                   />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="area">Area</Label>
-                  <Input 
-                    id="area" 
-                    name="area" 
-                    defaultValue={editListingDialog.property.area} 
-                    required 
+                  <Input
+                    id="area"
+                    name="area"
+                    defaultValue={editListingDialog.property.area}
+                    required
                   />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="state">State</Label>
-                  <Input 
-                    id="state" 
-                    name="state" 
-                    defaultValue={editListingDialog.property.state} 
-                    required 
+                  <Input
+                    id="state"
+                    name="state"
+                    defaultValue={editListingDialog.property.state}
+                    required
                   />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="rent">Annual Rent (Base)</Label>
-                  <Input 
-                    id="rent" 
-                    name="rent" 
+                  <Input
+                    id="rent"
+                    name="rent"
                     type="number"
-                    defaultValue={editListingDialog.property.rent} 
-                    required 
+                    defaultValue={editListingDialog.property.rent}
+                    required
                   />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="no_of_units">Number of Units</Label>
-                  <Input 
-                    id="no_of_units" 
-                    name="no_of_units" 
+                  <Input
+                    id="no_of_units"
+                    name="no_of_units"
                     type="number"
-                    defaultValue={editListingDialog.property.no_of_units} 
-                    required 
+                    defaultValue={editListingDialog.property.no_of_units}
+                    required
                   />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="bedrooms">Bedrooms</Label>
-                  <Input 
-                    id="bedrooms" 
-                    name="bedrooms" 
+                  <Input
+                    id="bedrooms"
+                    name="bedrooms"
                     type="number"
-                    defaultValue={editListingDialog.property?.bedrooms} 
-                    required 
+                    defaultValue={editListingDialog.property?.bedrooms}
+                    required
                   />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="bathrooms">Bathrooms</Label>
-                  <Input 
-                    id="bathrooms" 
-                    name="bathrooms" 
+                  <Input
+                    id="bathrooms"
+                    name="bathrooms"
                     type="number"
-                    defaultValue={editListingDialog.property?.bathrooms} 
-                    required 
+                    defaultValue={editListingDialog.property?.bathrooms}
+                    required
                   />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="square_feet">Square Feet</Label>
-                  <Input 
-                    id="square_feet" 
-                    name="square_feet" 
+                  <Input
+                    id="square_feet"
+                    name="square_feet"
                     type="number"
-                    defaultValue={editListingDialog.property?.square_feet} 
-                    required 
+                    defaultValue={editListingDialog.property?.square_feet}
+                    required
                   />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="availability_status">Status</Label>
-                  <Select name="availability_status" defaultValue={editListingDialog.property.availability_status}>
+                  <Select
+                    name="availability_status"
+                    defaultValue={
+                      editListingDialog.property.availability_status
+                    }
+                  >
                     <SelectTrigger>
                       <SelectValue placeholder="Select status" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="available">Available</SelectItem>
-                      <SelectItem value="inspection_pending">Inspection Pending</SelectItem>
+                      <SelectItem value="inspection_pending">
+                        Inspection Pending
+                      </SelectItem>
                       <SelectItem value="rented">Rented</SelectItem>
                       <SelectItem value="maintenance">Maintenance</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
               </div>
-              
+
               <div className="flex justify-end gap-3 pt-4">
-                <Button 
-                  type="button" 
-                  variant="outline" 
-                  onClick={() => setEditListingDialog({ open: false, property: null })}
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() =>
+                    setEditListingDialog({ open: false, property: null })
+                  }
                   disabled={isProcessing}
                 >
                   Cancel

@@ -2,19 +2,19 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import Header from "@/components/header";
-import ChatWidget from "@/components/ui/chat-widget";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
+import Header from "@/app/components/header";
+import ChatWidget from "@/app/components/ui/chat-widget";
+import { Button } from "@/app/components/ui/button";
+import { Card, CardContent } from "@/app/components/ui/card";
+import { Input } from "@/app/components/ui/input";
+import { Badge } from "@/app/components/ui/badge";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
+} from "@/app/components/ui/select";
 import { MapPin, Bed, Home, Zap, Bath, Square } from "lucide-react";
 import { type Property } from "@/lib/types";
 
