@@ -53,18 +53,31 @@ export const useFileUpload = (token: string | null) => {
     );
   };
 
-  const uploadMultipleFiles = async (files: File[]): Promise<string[]> => {
-    const urls: string[] = [];
-    for (const file of files) {
-      try {
-        const url = await uploadFile(file, "interior_rooms");
-        urls.push(url);
-      } catch (error) {
-        console.error(`Failed to upload file ${file.name}:`, error);
-        // Continue with other files or handle as needed
-      }
+  const bulkUploadFiles = async (
+    files: File[],
+    type: string = "image"
+  ): Promise<string[]> => {
+    const formData = new FormData();
+    files.forEach((file) => {
+      formData.append("files[]", file);
+    });
+    formData.append("type", type);
+
+    const response = await fetch(`${API_BASE_URL}/upload/bulk`, {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+      },
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || "Failed to upload bulk files");
     }
-    return urls;
+
+    const data = await response.json();
+    return data.urls || data.paths || data.filePaths || data.data?.urls || data.data?.paths || [];
   };
 
   const handleFileUpload = async (
@@ -73,7 +86,9 @@ export const useFileUpload = (token: string | null) => {
     isMultiple: boolean = false,
     onSuccess?: (url: string) => void
   ) => {
-    const id = `${type}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const id = `${type}_${Date.now()}_${Math.random()
+      .toString(36)
+      .substr(2, 9)}`;
 
     const newFile: UploadedFile = {
       id,
@@ -91,13 +106,7 @@ export const useFileUpload = (token: string | null) => {
     setUploadedFiles((prev) => [...prev, newFile]);
 
     try {
-      let url: string;
-      if (isMultiple && type === "interior_rooms") {
-        const urls = await uploadMultipleFiles([file]);
-        url = urls[0];
-      } else {
-        url = await uploadFile(file, type);
-      }
+      const url = await uploadFile(file, type);
 
       setUploadedFiles((prev) =>
         prev.map((f) => (f.id === id ? { ...f, url, uploading: false } : f))
@@ -132,7 +141,9 @@ export const useFileUpload = (token: string | null) => {
     onSuccess?: (urls: string[]) => void
   ) => {
     const newFiles: UploadedFile[] = files.map((file) => ({
-      id: `interior_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      id: `interior_${Date.now()}_${Math.random()
+        .toString(36)
+        .substr(2, 9)}`,
       file,
       url: null,
       uploading: true,
@@ -143,7 +154,7 @@ export const useFileUpload = (token: string | null) => {
     setUploadedFiles((prev) => [...prev, ...newFiles]);
 
     try {
-      const urls = await uploadMultipleFiles(files);
+      const urls = await bulkUploadFiles(files, "image");
 
       const updatedFiles = newFiles.map((file, index) => ({
         ...file,
@@ -156,11 +167,12 @@ export const useFileUpload = (token: string | null) => {
         ...updatedFiles,
       ]);
 
-      if (onSuccess) onSuccess(urls.filter((url) => url));
+      const validUrls = urls.filter((url) => url);
+      if (onSuccess) onSuccess(validUrls);
 
       toast({
         title: "Upload Successful",
-        description: `${files.length} interior photos uploaded`,
+        description: `${validUrls.length} interior photos uploaded`,
       });
       return urls;
     } catch (error) {
@@ -176,7 +188,8 @@ export const useFileUpload = (token: string | null) => {
       toast({
         variant: "destructive",
         title: "Upload Failed",
-        description: "Failed to upload interior photos",
+        description:
+          error instanceof Error ? error.message : "Failed to upload interior photos",
       });
       return null;
     }

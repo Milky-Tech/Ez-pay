@@ -3,18 +3,18 @@
 import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import Header from "@/components/header";
-import ChatWidget from "@/components/ui/chat-widget";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import Header from "@/app/components/header";
+import ChatWidget from "@/app/components/ui/chat-widget";
+import { Button } from "@/app/components/ui/button";
+import { Card, CardContent } from "@/app/components/ui/card";
+import { Badge } from "@/app/components/ui/badge";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "@/components/ui/dialog";
+} from "@/app/components/ui/dialog";
 import {
   AlertDialog,
   AlertDialogContent,
@@ -22,10 +22,10 @@ import {
   AlertDialogTitle,
   AlertDialogDescription,
   AlertDialogFooter,
-} from "@/components/ui/alert-dialog";
-import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+} from "@/app/components/ui/alert-dialog";
+import { Label } from "@/app/components/ui/label";
+import { Input } from "@/app/components/ui/input";
+import { RadioGroup, RadioGroupItem } from "@/app/components/ui/radio-group";
 import { useToast } from "@/hooks/use-toast";
 import {
   MapPin,
@@ -47,195 +47,15 @@ import {
   Mail,
   Phone,
   FileText,
+  Edit,
 } from "lucide-react";
 import { type Property } from "@/lib/types";
+import { useAuth } from "@/context/authcontext";
 
 // Demo data (same as in listings page)
-const DEMO_PROPERTIES: Property[] = [
-  {
-    id: "1",
-    landlord_id: "info@bridgent.co",
-    created_at: "2024-01-15T10:30:00Z",
-    updated_at: "2024-01-15T10:30:00Z",
-    code_name: "PREMIUM-001",
-    property_address: "24A Banana Island",
-    area: "Ikoyi",
-    state: "Lagos",
-    typology: "4-Bedroom Luxury Villa",
-    property_type: "house",
-    number_of_units: 1,
-    bedrooms: 4,
-    bathrooms: 5,
-    square_feet: 4500,
-    lead_image_url:
-      "https://images.unsplash.com/photo-1613490493576-7fde63acd811?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
-    monthly_cost: 8500000,
-    desired_annual_rent: 102000000,
-    availability_status: "available",
-    onboarding_stage: "completed",
-    partnership_tier: "ez_prime",
-    power_supply: true,
-    amenities: [
-      "Swimming Pool",
-      "Gym",
-      "Security",
-      "Parking",
-      "Garden",
-      "Tennis Court",
-    ],
-    description:
-      "Luxury villa with panoramic views of the lagoon. Features modern architecture with premium finishes throughout.",
-  },
-  {
-    id: "2",
-    landlord_id: "info@bridgent.co",
-    created_at: "2024-01-14T14:20:00Z",
-    updated_at: "2024-01-14T14:20:00Z",
-    code_name: "PREMIUM-002",
-    property_address: "15A Bishop Oluwole Street",
-    area: "Victoria Island",
-    state: "Lagos",
-    typology: "3-Bedroom Penthouse",
-    property_type: "apartment",
-    number_of_units: 2,
-    bedrooms: 3,
-    bathrooms: 3,
-    square_feet: 2800,
-    lead_image_url:
-      "https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
-    monthly_cost: 5200000,
-    desired_annual_rent: 62400000,
-    availability_status: "available",
-    onboarding_stage: "completed",
-    partnership_tier: "ez_prime",
-    power_supply: true,
-    amenities: ["Concierge", "Rooftop Terrace", "Smart Home", "Pool", "Gym"],
-    description:
-      "Modern penthouse in prime location with stunning city views and smart home automation.",
-  },
-  {
-    id: "3",
-    landlord_id: "info@bridgent.co",
-    created_at: "2024-01-13T09:15:00Z",
-    updated_at: "2024-01-13T09:15:00Z",
-    code_name: "PREMIUM-003",
-    property_address: "42 Maitama Avenue",
-    area: "Maitama",
-    state: "Abuja",
-    typology: "5-Bedroom Duplex",
-    property_type: "house",
-    number_of_units: 1,
-    bedrooms: 5,
-    bathrooms: 6,
-    square_feet: 5200,
-    lead_image_url:
-      "https://images.unsplash.com/photo-1518780664697-55e3ad937233?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
-    monthly_cost: 9500000,
-    desired_annual_rent: 114000000,
-    availability_status: "available",
-    onboarding_stage: "completed",
-    partnership_tier: "ez_prime",
-    power_supply: true,
-    amenities: [
-      "Garden",
-      "Pool",
-      "Security Quarters",
-      "Home Theater",
-      "Wine Cellar",
-    ],
-    description:
-      "Spacious duplex with premium finishes, ideal for large families or entertaining.",
-  },
-  {
-    id: "4",
-    landlord_id: "info@bridgent.co",
-    created_at: "2024-01-12T11:45:00Z",
-    updated_at: "2024-01-12T11:45:00Z",
-    code_name: "PREMIUM-004",
-    property_address: "8A GRA Phase 2",
-    area: "Port Harcourt",
-    state: "Port Harcourt",
-    typology: "4-Bedroom Detached House",
-    property_type: "house",
-    number_of_units: 3,
-    bedrooms: 4,
-    bathrooms: 4,
-    square_feet: 3800,
-    lead_image_url:
-      "https://images.unsplash.com/photo-1570129477492-45c003edd2be?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
-    monthly_cost: 6800000,
-    desired_annual_rent: 81600000,
-    availability_status: "available",
-    onboarding_stage: "completed",
-    partnership_tier: "ez_prime",
-    power_supply: true,
-    amenities: ["Borehole", "Generator", "CCTV", "Garden", "Parking"],
-    description:
-      "Secure family home with ample space, perfect for comfortable living in a quiet neighborhood.",
-  },
-  {
-    id: "5",
-    landlord_id: "info@bridgent.co",
-    created_at: "2024-01-11T16:10:00Z",
-    updated_at: "2024-01-11T16:10:00Z",
-    code_name: "PREMIUM-005",
-    property_address: "32 Lekki Phase 1",
-    area: "Lekki",
-    state: "Lagos",
-    typology: "3-Bedroom Apartment",
-    property_type: "apartment",
-    number_of_units: 4,
-    bedrooms: 3,
-    bathrooms: 3,
-    square_feet: 2200,
-    lead_image_url:
-      "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
-    monthly_cost: 4200000,
-    desired_annual_rent: 50400000,
-    availability_status: "available",
-    onboarding_stage: "completed",
-    partnership_tier: "ez_prime",
-    power_supply: true,
-    amenities: ["Pool", "Gym", "24/7 Security", "Playground", "Barbecue Area"],
-    description:
-      "Modern apartment in gated community with excellent amenities and family-friendly environment.",
-  },
-  {
-    id: "6",
-    landlord_id: "info@bridgent.co",
-    created_at: "2024-01-10T13:25:00Z",
-    updated_at: "2024-01-10T13:25:00Z",
-    code_name: "PREMIUM-006",
-    property_address: "15 Asokoro District",
-    area: "Asokoro",
-    state: "Abuja",
-    typology: "6-Bedroom Mansion",
-    property_type: "house",
-    number_of_units: 1,
-    bedrooms: 6,
-    bathrooms: 7,
-    square_feet: 6500,
-    lead_image_url:
-      "https://images.unsplash.com/photo-1613977257363-707ba9348227?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
-    monthly_cost: 12500000,
-    desired_annual_rent: 150000000,
-    availability_status: "available",
-    onboarding_stage: "completed",
-    partnership_tier: "ez_prime",
-    power_supply: true,
-    amenities: [
-      "Helipad",
-      "Cinema",
-      "Wine Cellar",
-      "Staff Quarters",
-      "Pool",
-      "Tennis Court",
-      "Garden",
-    ],
-    description:
-      "Ultra-luxury mansion with premium amenities, perfect for luxury living and entertainment.",
-  },
-];
+const API_BASE_URL =
+  process.env.NEXT_PUBLIC_API_URL || "https://ez-pay.realestway.com/api";
+const BASEURL_SITE = "https://ezpay.bridgenthomes.com";
 const BASEURL = "ez-pay.realestway.com";
 export default function PropertyDetailsPage() {
   const params = useParams();
@@ -249,22 +69,31 @@ export default function PropertyDetailsPage() {
   const [inspectionPhone, setInspectionPhone] = useState("");
   const [isBooking, setIsBooking] = useState(false);
   const [showConfirmation, setShowConfirmation] = useState(false);
-  const [bookingDetails, setBookingDetails] = useState<any>(null);
+  const [bookingDetails, setBookingDetails] = useState<Record<
+    string,
+    any
+  > | null>(null);
   const [formErrors, setFormErrors] = useState<string[]>([]);
   const { toast } = useToast();
 
-  useEffect(() => {
-    // Simulate API call to fetch property
-    const timer = setTimeout(() => {
-      const codename = params.codename as string;
-      const foundProperty = DEMO_PROPERTIES.find(
-        (p) => p.code_name === codename || p.id === codename
-      );
-      setProperty(foundProperty || null);
-      setLoading(false);
-    }, 600); // Simulate network delay
+  const { isAuthenticated, user, token } = useAuth();
 
-    return () => clearTimeout(timer);
+  useEffect(() => {
+    const fetchListing = async () => {
+      try {
+        const codename = params.codename as string;
+        const response = await fetch(`${API_BASE_URL}/listings/${codename}`);
+        if (!response.ok) throw new Error("Listing not found");
+        const data = await response.json();
+        setProperty(data.data || data);
+      } catch (error) {
+        console.error("Error fetching listing:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchListing();
   }, [params.codename]);
 
   const validateForm = (): string[] => {
@@ -345,17 +174,22 @@ export default function PropertyDetailsPage() {
       };
 
       // Call the API endpoint
-      const response = await fetch(`${BASEURL}/api/inspections/book`, {
+      const response = await fetch(`${API_BASE_URL}/inspections/book`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify(payload),
       });
 
       const data = await response.json();
 
-      if (response.ok) {
+      if (response.ok && data.data?.authorization_url) {
+        // Success - redirect to Paystack
+        window.location.href = data.data.authorization_url;
+        return;
+      } else if (response.ok) {
         // Success - show confirmation modal
         setBookingDetails({
           ...data.data,
@@ -419,10 +253,10 @@ export default function PropertyDetailsPage() {
   };
 
   // Calculate price breakdown
-  const monthlyCost = property?.monthly_cost || 0;
-  const annualCost = property?.desired_annual_rent || monthlyCost * 12;
+  const monthlyCost = property ? (property.rent * 1.1) / 12 / (property.no_of_units || 1) : 0;
+  const annualCost = property ? (property.rent * 1.1) / (property.no_of_units || 1) : 0;
   const securityDeposit = monthlyCost * 2;
-  const agencyFee = monthlyCost * 0.1;
+  const agencyFee = 0; // Agency fee removed
 
   if (loading) {
     return (
@@ -473,27 +307,152 @@ export default function PropertyDetailsPage() {
             <div className="lg:col-span-2">
               <Card className="mb-6 overflow-hidden">
                 <div className="relative h-[500px] bg-gradient-to-br from-gray-200 to-gray-300">
-                  {property.lead_image_url ? (
-                    <img
-                      src={property.lead_image_url}
-                      alt={property.typology}
-                      className="w-full h-full object-cover hover:scale-105 transition-transform duration-500"
-                    />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center">
-                      <Home className="h-24 w-24 text-gray-400" />
-                    </div>
-                  )}
-                  <Badge className="absolute top-4 right-4 bg-secondary text-white font-montserrat text-lg px-4 py-2">
-                    Available Now
-                  </Badge>
-                  <div className="absolute bottom-4 left-4">
-                    <Badge className="bg-white/90 backdrop-blur-sm text-gray-800">
-                      <Zap className="h-4 w-4 mr-1" /> Guaranteed Power
-                    </Badge>
+                  <div className="absolute top-4 left-4 z-10 flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="bg-white/90 backdrop-blur-sm shadow-sm"
+                      onClick={() => {
+                        const shareUrl = `${BASEURL_SITE}/listings/${
+                          property.code_name || property.id
+                        }`;
+                        navigator.clipboard.writeText(shareUrl);
+                        toast({
+                          title: "Link Copied!",
+                          description: "Sharing link copied to clipboard",
+                        });
+                      }}
+                    >
+                      <Copy className="h-4 w-4 mr-2" /> Share
+                    </Button>
+                    {user?.role === "admin" && (
+                      <Link href={`/admin?tab=listings&edit=${property.id}`}>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="bg-white/90 backdrop-blur-sm shadow-sm"
+                        >
+                          <Edit className="h-4 w-4 mr-2" /> Update Listing
+                        </Button>
+                      </Link>
+                    )}
                   </div>
+                  {(() => {
+                    const rooms = property.interior_rooms;
+                    const roomsArray = Array.isArray(rooms)
+                      ? rooms
+                      : typeof rooms === "string"
+                      ? JSON.parse(rooms)
+                      : [];
+
+                    return roomsArray && roomsArray.length > 0 ? (
+                      <img
+                        src={`https://ez-pay.realestway.com/${roomsArray[0]?.toString()}`}
+                        alt={property.typology}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center">
+                        <Home className="h-24 w-24 text-gray-400" />
+                      </div>
+                    );
+                  })()}
+                  <Badge className="absolute top-4 right-4 bg-secondary text-white font-montserrat text-lg px-4 py-2 shadow-lg">
+                    {property.availability_status?.toUpperCase() || "AVAILABLE"}
+                  </Badge>
                 </div>
               </Card>
+
+              {/* Enhanced Photo Gallery */}
+              <div className="mb-8">
+                <h2 className="text-2xl font-semibold text-primary mb-4 font-raleway">
+                  Property Gallery
+                </h2>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  {/* Exterior Shot */}
+                  {property.exterior_shot && (
+                    <div className="aspect-square rounded-xl overflow-hidden cursor-pointer hover:ring-2 ring-primary transition-all">
+                      <img
+                        src={((url: string) =>
+                          url.startsWith("http")
+                            ? url
+                            : `https://ez-pay.realestway.com/${
+                                url.startsWith("/") ? url.slice(1) : url
+                              }`)(property.exterior_shot)}
+                        className="w-full h-full object-cover"
+                        alt="Exterior"
+                      />
+                    </div>
+                  )}
+
+                  {/* Compound Road */}
+                  {property.compound_road && (
+                    <div className="aspect-square rounded-xl overflow-hidden cursor-pointer hover:ring-2 ring-primary transition-all">
+                      <img
+                        src={((url: string) =>
+                          url.startsWith("http")
+                            ? url
+                            : `https://ez-pay.realestway.com/${
+                                url.startsWith("/") ? url.slice(1) : url
+                              }`)(property.compound_road)}
+                        className="w-full h-full object-cover"
+                        alt="Compound/Road"
+                      />
+                    </div>
+                  )}
+
+                  {/* Interior Rooms */}
+                  {(() => {
+                    const interiorRoomsRaw = property.interior_rooms;
+                    if (!interiorRoomsRaw) return null;
+
+                    const getImageUrl = (url: string | null) => {
+                      if (!url) return "";
+                      const cleanUrl = url.trim();
+                      return cleanUrl.startsWith("http")
+                        ? cleanUrl
+                        : `https://ez-pay.realestway.com/${
+                            cleanUrl.startsWith("/")
+                              ? cleanUrl.slice(1)
+                              : cleanUrl
+                          }`;
+                    };
+
+                    try {
+                      let rooms = [];
+                      if (typeof interiorRoomsRaw === "string") {
+                        if (
+                          interiorRoomsRaw.startsWith("[") ||
+                          interiorRoomsRaw.startsWith("{")
+                        ) {
+                          rooms = JSON.parse(interiorRoomsRaw);
+                        } else {
+                          rooms = interiorRoomsRaw.split(",");
+                        }
+                      } else {
+                        rooms = interiorRoomsRaw;
+                      }
+
+                      return Array.isArray(rooms)
+                        ? rooms.map((url: string, idx: number) => (
+                            <div
+                              key={idx}
+                              className="aspect-square rounded-xl overflow-hidden cursor-pointer hover:ring-2 ring-primary transition-all"
+                            >
+                              <img
+                                src={getImageUrl(url)}
+                                className="w-full h-full object-cover"
+                                alt={`Interior ${idx + 1}`}
+                              />
+                            </div>
+                          ))
+                        : null;
+                    } catch (e) {
+                      return null;
+                    }
+                  })()}
+                </div>
+              </div>
 
               <Card>
                 <CardContent className="p-8">
@@ -539,7 +498,7 @@ export default function PropertyDetailsPage() {
                     <div className="bg-primary/5 rounded-lg p-4 text-center">
                       <Home className="h-8 w-8 text-primary mx-auto mb-2" />
                       <p className="text-2xl font-bold text-primary">
-                        {property.number_of_units}
+                        {property.no_of_units}
                       </p>
                       <p className="text-sm text-gray-600">Units</p>
                     </div>
@@ -584,17 +543,9 @@ export default function PropertyDetailsPage() {
                       Amenities & Services
                     </h2>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                      {property.amenities?.map(
-                        (amenity: string, index: number) => (
-                          <div key={index} className="flex items-start">
-                            <CheckCircle className="h-5 w-5 text-secondary mr-2 mt-0.5 flex-shrink-0" />
-                            <span>{amenity}</span>
-                          </div>
-                        )
-                      )}
                       <div className="flex items-start">
                         <CheckCircle className="h-5 w-5 text-secondary mr-2 mt-0.5 flex-shrink-0" />
-                        <span>Guaranteed 15+ hours of power daily</span>
+                        <span>Guaranteed 20+ hours of power daily</span>
                       </div>
                       <div className="flex items-center">
                         <CheckCircle className="h-5 w-5 text-secondary mr-2" />
@@ -609,23 +560,6 @@ export default function PropertyDetailsPage() {
                         <span>24/7 Gated Security</span>
                       </div>
                     </div>
-                  </div>
-
-                  <div className="bg-secondary/10 rounded-lg p-6 mb-6">
-                    <h3 className="text-lg font-semibold text-primary mb-2 font-raleway">
-                      Property Description
-                    </h3>
-                    <p className="text-gray-700 mb-4">
-                      {property.description ||
-                        `This premium ${property.typology.toLowerCase()} is part of our verified collection that meets the ACCESSS Standard. Every aspect has been carefully evaluated to ensure you experience House Serenity. With guaranteed power, professional management, and premium amenities, this property offers unmatched comfort and reliability.`}
-                    </p>
-                    <p className="text-gray-700">
-                      Located in the prestigious {property.area} area of{" "}
-                      {property.state}, this property offers the perfect blend
-                      of luxury, comfort, and convenience. Ideal for families,
-                      professionals, or investors looking for premium real
-                      estate.
-                    </p>
                   </div>
 
                   <div className="bg-primary/5 rounded-lg p-6">
@@ -663,9 +597,7 @@ export default function PropertyDetailsPage() {
                         <div className="flex justify-between text-lg font-bold text-primary">
                           <span>Initial Payment:</span>
                           <span>
-                            {formatPrice(
-                              monthlyCost + securityDeposit + agencyFee
-                            )}
+                            {formatPrice(monthlyCost + securityDeposit)}
                           </span>
                         </div>
                       </div>
@@ -683,7 +615,7 @@ export default function PropertyDetailsPage() {
                       Monthly EZ-Pay Rate
                     </p>
                     <p className="text-4xl font-bold text-primary font-raleway">
-                      {formatPrice(property.monthly_cost)}
+                      {formatPrice(monthlyCost)}
                     </p>
                     <p className="text-sm text-gray-600 mt-1">per month</p>
                     <div className="mt-2 text-sm text-gray-500">
@@ -692,194 +624,192 @@ export default function PropertyDetailsPage() {
                   </div>
 
                   <div className="space-y-3 mb-6 flex flex-col gap-1">
-                    <Dialog>
-                      <DialogTrigger asChild>
-                        <Button className="w-full bg-primary hover:bg-primary/90 font-montserrat text-lg py-6">
-                          <Calendar className="mr-2 h-5 w-5" />
-                          Book Inspection
-                        </Button>
-                      </DialogTrigger>
-                      <DialogContent className="max-w-md">
-                        <DialogHeader>
-                          <DialogTitle className="font-raleway">
-                            Book an Inspection
-                          </DialogTitle>
-                        </DialogHeader>
-                        <form
-                          onSubmit={handleInspectionBooking}
-                          className="space-y-4"
-                        >
-                          <div>
-                            <Label className="mb-3 block">
-                              Inspection Type *
-                            </Label>
-                            <RadioGroup
-                              value={inspectionType}
-                              onValueChange={(value: any) =>
-                                setInspectionType(value)
-                              }
-                              className="space-y-2"
+                    {isAuthenticated ? (
+                      <>
+                        <Dialog>
+                          <DialogTrigger asChild>
+                            <Button className="w-full bg-primary hover:bg-primary/90 font-montserrat text-lg py-6">
+                              <Calendar className="mr-2 h-5 w-5" />
+                              Book Inspection
+                            </Button>
+                          </DialogTrigger>
+                          <DialogContent className="max-w-md">
+                            <DialogHeader>
+                              <DialogTitle className="font-raleway">
+                                Book an Inspection
+                              </DialogTitle>
+                            </DialogHeader>
+                            <form
+                              onSubmit={handleInspectionBooking}
+                              className="space-y-4"
                             >
-                              <div className="flex items-center space-x-2 border rounded-lg p-3 hover:bg-gray-50 cursor-pointer">
-                                <RadioGroupItem
-                                  value="physical"
-                                  id="physical"
-                                  className="mt-0"
-                                />
-                                <Label
-                                  htmlFor="physical"
-                                  className="flex-1 cursor-pointer flex flex-col"
-                                >
-                                  <div className="flex items-center">
-                                    <Users className="h-4 w-4 mr-2" />
-                                    <p className="font-semibold">
-                                      Physical Inspection
-                                    </p>
-                                    <Badge className="ml-2 bg-amber-100 text-amber-800">
-                                      ₦50,000
-                                    </Badge>
-                                  </div>
-                                  <p className="text-sm text-gray-600 mt-1">
-                                    In-person visit (fee refundable upon
-                                    signing)
-                                  </p>
+                              <div>
+                                <Label className="mb-3 block">
+                                  Inspection Type *
                                 </Label>
-                              </div>
-                              <div className="flex items-center space-x-2 border rounded-lg p-3 hover:bg-gray-50 cursor-pointer">
-                                <RadioGroupItem
-                                  value="virtual"
-                                  id="virtual"
-                                  className="mt-0"
-                                />
-                                <Label
-                                  htmlFor="virtual"
-                                  className="flex-1 cursor-pointer flex flex-col"
+                                <RadioGroup
+                                  value={inspectionType}
+                                  onValueChange={(
+                                    value: "physical" | "virtual"
+                                  ) => setInspectionType(value)}
+                                  className="space-y-2"
                                 >
-                                  <div className="flex items-center">
-                                    <Video className="h-4 w-4 mr-2" />
-                                    <p className="font-semibold">
-                                      Virtual Inspection
-                                    </p>
-                                    <Badge className="ml-2 bg-green-100 text-green-800">
-                                      Free
-                                    </Badge>
+                                  <div className="flex items-center space-x-2 border rounded-lg p-3 hover:bg-gray-50 cursor-pointer">
+                                    <RadioGroupItem
+                                      value="physical"
+                                      id="physical"
+                                      className="mt-0"
+                                    />
+                                    <Label
+                                      htmlFor="physical"
+                                      className="flex-1 cursor-pointer flex flex-col"
+                                    >
+                                      <div className="flex items-center">
+                                        <Users className="h-4 w-4 mr-2" />
+                                        <p className="font-semibold">
+                                          Physical Inspection
+                                        </p>
+                                        <Badge className="ml-2 bg-amber-100 text-amber-800">
+                                          ₦50,000
+                                        </Badge>
+                                      </div>
+                                      <p className="text-sm text-gray-600 mt-1">
+                                        In-person visit (fee refundable upon
+                                        signing)
+                                      </p>
+                                    </Label>
                                   </div>
-                                  <p className="text-sm text-gray-600 mt-1">
-                                    Live video tour with our agent
-                                  </p>
-                                </Label>
+                                  <div className="flex items-center space-x-2 border rounded-lg p-3 hover:bg-gray-50 cursor-pointer">
+                                    <RadioGroupItem
+                                      value="virtual"
+                                      id="virtual"
+                                      className="mt-0"
+                                    />
+                                    <Label
+                                      htmlFor="virtual"
+                                      className="flex-1 cursor-pointer flex flex-col"
+                                    >
+                                      <div className="flex items-center">
+                                        <Video className="h-4 w-4 mr-2" />
+                                        <p className="font-semibold">
+                                          Virtual Inspection
+                                        </p>
+                                        <Badge className="ml-2 bg-green-100 text-green-800">
+                                          Free
+                                        </Badge>
+                                      </div>
+                                      <p className="text-sm text-gray-600 mt-1">
+                                        Live video tour with our agent
+                                      </p>
+                                    </Label>
+                                  </div>
+                                </RadioGroup>
                               </div>
-                            </RadioGroup>
-                          </div>
 
-                          <div>
-                            <Label htmlFor="date">Preferred Date *</Label>
-                            <Input
-                              id="date"
-                              type="date"
-                              value={inspectionDate}
-                              onChange={(e) =>
-                                setInspectionDate(e.target.value)
-                              }
-                              required
-                              min={new Date().toISOString().split("T")[0]}
-                              className="mt-1"
-                            />
-                            <p className="text-xs text-gray-500 mt-1">
-                              Inspections available Monday-Friday, 9AM-5PM
-                            </p>
-                          </div>
+                              <div>
+                                <Label htmlFor="date">Preferred Date *</Label>
+                                <Input
+                                  id="date"
+                                  type="date"
+                                  value={inspectionDate}
+                                  onChange={(e) =>
+                                    setInspectionDate(e.target.value)
+                                  }
+                                  required
+                                  min={new Date().toISOString().split("T")[0]}
+                                  className="mt-1"
+                                />
+                                <p className="text-xs text-gray-500 mt-1">
+                                  Inspections available Monday-Friday, 9AM-5PM
+                                </p>
+                              </div>
 
-                          <div>
-                            <Label htmlFor="email">Email Address *</Label>
-                            <Input
-                              id="email"
-                              type="email"
-                              value={inspectionEmail}
-                              onChange={(e) =>
-                                setInspectionEmail(e.target.value)
-                              }
-                              placeholder="your@email.com"
-                              required
-                              className="mt-1"
-                            />
-                          </div>
+                              <div>
+                                <Label htmlFor="email">Email Address *</Label>
+                                <Input
+                                  id="email"
+                                  type="email"
+                                  value={inspectionEmail}
+                                  onChange={(e) =>
+                                    setInspectionEmail(e.target.value)
+                                  }
+                                  placeholder="your@email.com"
+                                  required
+                                  className="mt-1"
+                                />
+                              </div>
 
-                          <div>
-                            <Label htmlFor="phone">Phone Number *</Label>
-                            <Input
-                              id="phone"
-                              type="tel"
-                              value={inspectionPhone}
-                              onChange={(e) =>
-                                setInspectionPhone(e.target.value)
-                              }
-                              placeholder="08012345678"
-                              required
-                              className="mt-1"
-                            />
-                            <p className="text-xs text-gray-500 mt-1">
-                              Nigerian format: 08012345678 or +2348012345678
-                            </p>
-                          </div>
+                              <div>
+                                <Label htmlFor="phone">Phone Number *</Label>
+                                <Input
+                                  id="phone"
+                                  type="tel"
+                                  value={inspectionPhone}
+                                  onChange={(e) =>
+                                    setInspectionPhone(e.target.value)
+                                  }
+                                  placeholder="08012345678"
+                                  required
+                                  className="mt-1"
+                                />
+                                <p className="text-xs text-gray-500 mt-1">
+                                  Nigerian format: 08012345678 or +2348012345678
+                                </p>
+                              </div>
 
-                          {formErrors.length > 0 && (
-                            <div className="bg-red-50 border border-red-200 rounded-lg p-3">
-                              <p className="text-sm font-medium text-red-800 mb-1">
-                                Please fix the following errors:
-                              </p>
-                              <ul className="text-sm text-red-700 list-disc pl-4">
-                                {formErrors.map((error, index) => (
-                                  <li key={index}>{error}</li>
-                                ))}
-                              </ul>
-                            </div>
-                          )}
+                              {formErrors.length > 0 && (
+                                <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+                                  <p className="text-sm font-medium text-red-800 mb-1">
+                                    Please fix the following errors:
+                                  </p>
+                                  <ul className="text-sm text-red-700 list-disc pl-4">
+                                    {formErrors.map((error, index) => (
+                                      <li key={index}>{error}</li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              )}
 
-                          <Button
-                            type="submit"
-                            className="w-full bg-primary font-montserrat"
-                            disabled={isBooking}
-                          >
-                            {isBooking ? (
-                              <>
-                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                Processing...
-                              </>
-                            ) : (
-                              "Confirm Booking"
-                            )}
+                              <Button
+                                type="submit"
+                                className="w-full bg-primary font-montserrat"
+                                disabled={isBooking}
+                              >
+                                {isBooking ? (
+                                  <>
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                    Processing...
+                                  </>
+                                ) : (
+                                  "Confirm Booking"
+                                )}
+                              </Button>
+                            </form>
+                          </DialogContent>
+                        </Dialog>
+
+                        <Link
+                          href={`/apply/${property.code_name || property.id}`}
+                        >
+                          <Button className="w-full bg-secondary hover:bg-secondary/90 font-montserrat text-lg py-6">
+                            Start Application
                           </Button>
-                        </form>
-                      </DialogContent>
-                    </Dialog>
-
-                    <Link href={`/apply/${property.code_name || property.id}`}>
-                      <Button className="w-full bg-secondary hover:bg-secondary/90 font-montserrat text-lg py-6">
-                        Start Application
-                      </Button>
-                    </Link>
-                  </div>
-
-                  <div className="border-t pt-4 space-y-3">
-                    <div className="flex items-center text-secondary">
-                      <Zap className="h-5 w-5 mr-2" />
-                      <span className="font-semibold">
-                        15+ hours guaranteed power daily
-                      </span>
-                    </div>
-                    <div className="flex items-center text-gray-600">
-                      <Shield className="h-5 w-5 mr-2" />
-                      <span>24/7 Security & Professional Management</span>
-                    </div>
-                    <div className="flex items-center text-gray-600">
-                      <Droplet className="h-5 w-5 mr-2" />
-                      <span>Borehole & Water Treatment System</span>
-                    </div>
-                    <div className="flex items-center text-gray-600">
-                      <Wifi className="h-5 w-5 mr-2" />
-                      <span>High-speed Internet Ready</span>
-                    </div>
+                        </Link>
+                      </>
+                    ) : (
+                      <>
+                        <Link href="/signin">
+                          <Button className="w-full bg-primary hover:bg-primary/90 font-montserrat text-lg py-6 mb-2">
+                            Sign in to book inspection
+                          </Button>
+                        </Link>
+                        <Link href="/signin">
+                          <Button className="w-full bg-secondary hover:bg-secondary/90 font-montserrat text-lg py-6">
+                            Sign in to apply
+                          </Button>
+                        </Link>
+                      </>
+                    )}
                   </div>
 
                   <div className="mt-6 p-4 bg-gray-50 rounded-lg">

@@ -1,11 +1,21 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/app/components/ui/card";
+import { Button } from "@/app/components/ui/button";
+import { Input } from "@/app/components/ui/input";
+import { Badge } from "@/app/components/ui/badge";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/app/components/ui/tabs";
 import {
   Table,
   TableBody,
@@ -13,21 +23,22 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table";
+} from "@/app/components/ui/table";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
+} from "@/app/components/ui/select";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
   DialogTrigger,
-} from "@/components/ui/dialog";
+} from "@/app/components/ui/dialog";
 import {
   AlertDialog,
   AlertDialogContent,
@@ -37,9 +48,9 @@ import {
   AlertDialogFooter,
   AlertDialogAction,
   AlertDialogCancel,
-} from "@/components/ui/alert-dialog";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+} from "@/app/components/ui/alert-dialog";
+import { Label } from "@/app/components/ui/label";
+import { Textarea } from "@/app/components/ui/textarea";
 import {
   Home,
   Users,
@@ -63,6 +74,7 @@ import {
   MapPin,
   Calendar,
   Loader2,
+  Trash2,
 } from "lucide-react";
 import { useAuth } from "@/context/authcontext";
 import Link from "next/link";
@@ -85,17 +97,21 @@ interface Property {
   state: string;
   monthly_cost: number | null;
   availability_status: string;
-  status?: string; // Submission status: approved, pending, in_review, etc.
-  fullName: string;
+  status?: string;
+  full_name: string;
   property_address: string;
-  noOfUnits: number;
+  no_of_units: number;
   rent: number;
+  bedrooms: number;
+  bathrooms: number;
+  square_feet: number;
+  desired_annual_rent: number;
   compound_road?: string;
-  power_system?: string;
   interior_rooms?: string;
   exterior_shot?: string;
-  createdAt: string;
-  updatedAt: string;
+  landlord_package: string;
+  created_at: string;
+  updated_at: string;
 }
 
 interface Application {
@@ -105,7 +121,7 @@ interface Application {
   payment_plan_preference: string;
   created_at: string;
   properties?: Property;
-  fullName?: string;
+  full_name?: string;
   email?: string;
   phone?: string;
 }
@@ -131,7 +147,7 @@ interface Landlord {
   account_number?: string;
   bank_name?: string;
   status: string;
-  createdAt: string;
+  created_at: string;
 }
 
 // Helper function for price formatting
@@ -180,6 +196,25 @@ export default function AdminDashboard() {
     action: "" as "approve" | "reject",
   });
   const [isProcessing, setIsProcessing] = useState(false);
+  const [deleteDialog, setDeleteDialog] = useState<{
+    open: boolean;
+    type: "listing" | "user" | null;
+    id: string | null;
+    name: string | null;
+  }>({
+    open: false,
+    type: null,
+    id: null,
+    name: null,
+  });
+
+  const [editListingDialog, setEditListingDialog] = useState<{
+    open: boolean;
+    property: Property | null;
+  }>({
+    open: false,
+    property: null,
+  });
 
   const { user, isAuthenticated, logout, token } = useAuth();
   const router = useRouter();
@@ -215,16 +250,13 @@ export default function AdminDashboard() {
   const fetchProperties = useCallback(async () => {
     try {
       setLoading((prev) => ({ ...prev, properties: true }));
-      const response = await fetch(
-        `${API_BASE_URL}/landlords/property/properties`,
-        {
-          method: "GET",
-          headers: {
-            Accept: "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
+      const response = await fetch(`${API_BASE_URL}/property/properties`, {
+        method: "GET",
+        headers: {
+          Accept: "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+      });
 
       if (!response.ok) {
         throw new Error(`Failed to fetch properties: ${response.statusText}`);
@@ -384,6 +416,115 @@ export default function AdminDashboard() {
     }
   }, [token]);
 
+  // Delete listing handler
+  const handleDeleteListing = async () => {
+    if (!deleteDialog.id) return;
+    setIsProcessing(true);
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/listings/${deleteDialog.id}`,
+        {
+          method: "DELETE",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      if (!response.ok) throw new Error("Failed to delete listing");
+
+      toast({
+        title: "Listing Deleted",
+        description: "The property listing has been successfully removed.",
+      });
+      fetchListings();
+    } catch (error) {
+      console.error("Delete listing error:", error);
+      toast({
+        variant: "destructive",
+        title: "Delete Failed",
+        description: "There was an error deleting the listing.",
+      });
+    } finally {
+      setIsProcessing(false);
+      setDeleteDialog({ open: false, type: null, id: null, name: null });
+    }
+  };
+
+  // Delete user handler
+  const handleDeleteUser = async () => {
+    if (!deleteDialog.id) return;
+    setIsProcessing(true);
+    try {
+      const response = await fetch(`${API_BASE_URL}/users/${deleteDialog.id}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) throw new Error("Failed to delete user");
+
+      toast({
+        title: "User Deleted",
+        description: "The user account has been successfully removed.",
+      });
+      fetchUsers();
+    } catch (error) {
+      console.error("Delete user error:", error);
+      toast({
+        variant: "destructive",
+        title: "Delete Failed",
+        description: "There was an error deleting the user.",
+      });
+    } finally {
+      setIsProcessing(false);
+      setDeleteDialog({ open: false, type: null, id: null, name: null });
+    }
+  };
+
+  // Update listing handler
+  const handleUpdateListing = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!editListingDialog.property) return;
+
+    setIsProcessing(true);
+    const formData = new FormData(e.currentTarget);
+    const data = Object.fromEntries(formData.entries());
+
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/listings/${editListingDialog.property.id}`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(data),
+        }
+      );
+
+      if (!response.ok) throw new Error("Failed to update listing");
+
+      toast({
+        title: "Listing Updated",
+        description: "The property listing has been successfully updated.",
+      });
+      fetchListings();
+      setEditListingDialog({ open: false, property: null });
+    } catch (error) {
+      console.error("Update listing error:", error);
+      toast({
+        variant: "destructive",
+        title: "Update Failed",
+        description: "There was an error updating the listing.",
+      });
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
   // Handle tab changes and initial data loading
   useEffect(() => {
     if (!isAuthenticated) {
@@ -435,20 +576,17 @@ export default function AdminDashboard() {
 
     setIsProcessing(true);
     try {
-      const response = await fetch(
-        `${API_BASE_URL}/landlords/property/approve`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Accept: "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            property_registration_id: property.id,
-          }),
-        }
-      );
+      const response = await fetch(`${API_BASE_URL}/property/approve`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          property_registration_id: property.id,
+        }),
+      });
 
       const data = await response.json();
 
@@ -490,7 +628,7 @@ export default function AdminDashboard() {
     setIsProcessing(true);
     try {
       const response = await fetch(
-        `${API_BASE_URL}/landlords/property/${property.id}/status`,
+        `${API_BASE_URL}/property/${property.id}/status`,
         {
           method: "PATCH",
           headers: {
@@ -532,7 +670,7 @@ export default function AdminDashboard() {
       searchTerm === "" ||
       property.id.toString().toLowerCase().includes(searchTerm.toLowerCase()) ||
       property.area.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      property.fullName.toLowerCase().includes(searchTerm.toLowerCase());
+      property.full_name.toLowerCase().includes(searchTerm.toLowerCase());
 
     const matchesStatus =
       statusFilter === "all" || property.status === statusFilter;
@@ -558,7 +696,7 @@ export default function AdminDashboard() {
     const matchesSearch =
       searchTerm === "" ||
       application.id?.toString().includes(searchTerm) ||
-      application.fullName?.toLowerCase().includes(searchTerm.toLowerCase());
+      application.full_name?.toLowerCase().includes(searchTerm.toLowerCase());
 
     const matchesStatus =
       statusFilter === "all" || application.status === statusFilter;
@@ -903,8 +1041,8 @@ export default function AdminDashboard() {
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead>ID</TableHead>
-                          <TableHead>Type</TableHead>
+                          <TableHead>ID & Date</TableHead>
+                          <TableHead>Type & Package</TableHead>
                           <TableHead>Location</TableHead>
                           <TableHead>Owner</TableHead>
                           <TableHead>Status</TableHead>
@@ -913,14 +1051,30 @@ export default function AdminDashboard() {
                       <TableBody>
                         {properties.slice(0, 5).map((property) => (
                           <TableRow key={property.id}>
-                            <TableCell className="font-medium">
-                              {property.id}
-                            </TableCell>
-                            <TableCell>{property.typology}</TableCell>
                             <TableCell>
+                              <div className="text-xs font-medium">
+                                #{property.id}
+                              </div>
+                              <div className="text-[10px] text-gray-500">
+                                {formatDate(property.created_at)}
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <div className="text-xs font-medium">
+                                {property.typology}
+                              </div>
+                              <div className="text-[10px] uppercase font-bold text-primary">
+                                {property.landlord_package === "prime"
+                                  ? "EZ-PRIME"
+                                  : "EZ-VANTAGE"}
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-sm">
                               {property.area}, {property.state}
                             </TableCell>
-                            <TableCell>{property.fullName}</TableCell>
+                            <TableCell className="text-sm">
+                              {property.full_name}
+                            </TableCell>
                             <TableCell>
                               {getStatusBadge(property.status || "pending")}
                             </TableCell>
@@ -1003,10 +1157,10 @@ export default function AdminDashboard() {
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead>Submission ID</TableHead>
-                          <TableHead>Type</TableHead>
+                          <TableHead>ID & Date</TableHead>
+                          <TableHead>Owner & Contact</TableHead>
+                          <TableHead>Type & Package</TableHead>
                           <TableHead>Location</TableHead>
-                          <TableHead>Owner</TableHead>
                           <TableHead>Monthly Rent</TableHead>
                           <TableHead>Units</TableHead>
                           <TableHead>Status</TableHead>
@@ -1016,28 +1170,58 @@ export default function AdminDashboard() {
                       <TableBody>
                         {filteredProperties.map((property: Property) => (
                           <TableRow key={property.id}>
-                            <TableCell className="font-medium">
-                              {property.id}
+                            <TableCell>
+                              <div className="text-xs font-medium">
+                                #{property.id}
+                              </div>
+                              <div className="text-xs text-gray-500">
+                                {formatDate(property.created_at)}
+                              </div>
                             </TableCell>
                             <TableCell>
-                              <Badge variant="outline">
-                                {property.typology}
-                              </Badge>
+                              <div className="max-w-[200px]">
+                                <p className="font-medium truncate">
+                                  {property.full_name}
+                                </p>
+                                <p className="text-xs text-gray-500 truncate">
+                                  {property.email}
+                                </p>
+                                <p className="text-xs text-gray-500">
+                                  {property.phone}
+                                </p>
+                              </div>
                             </TableCell>
                             <TableCell>
-                              <div className="max-w-[200px] truncate">
+                              <div className="space-y-1">
+                                <Badge variant="outline" className="text-xs">
+                                  {property.typology}
+                                </Badge>
+                                {property.landlord_package && (
+                                  <div className="text-[10px] uppercase font-bold text-primary">
+                                    {property.landlord_package === "prime"
+                                      ? "EZ-PRIME"
+                                      : "EZ-VANTAGE"}
+                                  </div>
+                                )}
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <div className="max-w-[150px] truncate text-sm">
                                 {property.area}, {property.state}
                               </div>
                             </TableCell>
-                            <TableCell>
-                              <div className="max-w-[150px] truncate">
-                                {property.fullName}
-                              </div>
+                            <TableCell className="font-semibold text-sm">
+                              {property.monthly_cost
+                                ? formatPrice(property.monthly_cost)
+                                : property.rent
+                                ? formatPrice(
+                                    Math.round((property.rent * 1.1) / 12)
+                                  )
+                                : "N/A"}
                             </TableCell>
-                            <TableCell className="font-semibold">
-                              {formatPrice(property.monthly_cost)}
+                            <TableCell className="text-center">
+                              {property.no_of_units}
                             </TableCell>
-                            <TableCell>{property.noOfUnits}</TableCell>
                             <TableCell>
                               {getStatusBadge(property.status || "pending")}
                             </TableCell>
@@ -1045,7 +1229,11 @@ export default function AdminDashboard() {
                               <div className="flex gap-2">
                                 <Dialog>
                                   <DialogTrigger asChild>
-                                    <Button variant="outline" size="sm">
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      title="Review Submission"
+                                    >
                                       <Eye className="h-4 w-4 mr-1" />
                                       Review
                                     </Button>
@@ -1084,9 +1272,9 @@ export default function AdminDashboard() {
                                           "approve"
                                         )
                                       }
+                                      title="Approve"
                                     >
-                                      <CheckCircle className="h-4 w-4 mr-1" />
-                                      Approve
+                                      <CheckCircle className="h-4 w-4" />
                                     </Button>
                                     <Button
                                       variant="destructive"
@@ -1097,9 +1285,9 @@ export default function AdminDashboard() {
                                           "reject"
                                         )
                                       }
+                                      title="Reject"
                                     >
-                                      <XCircle className="h-4 w-4 mr-1" />
-                                      Reject
+                                      <XCircle className="h-4 w-4" />
                                     </Button>
                                   </>
                                 )}
@@ -1211,17 +1399,53 @@ export default function AdminDashboard() {
                             <TableCell className="font-semibold">
                               {formatPrice(listing.monthly_cost)}
                             </TableCell>
-                            <TableCell>{listing.noOfUnits}</TableCell>
+                            <TableCell>{listing.no_of_units}</TableCell>
                             <TableCell>
                               {getStatusBadge(listing.availability_status)}
                             </TableCell>
                             <TableCell>
                               <div className="flex gap-2">
-                                <Button variant="outline" size="sm">
-                                  <Eye className="h-4 w-4" />
-                                </Button>
-                                <Button variant="outline" size="sm">
+                                <Link
+                                  href={`/listings/${
+                                    listing.code_name || listing.id
+                                  }`}
+                                  target="_blank"
+                                >
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    title="View publicly"
+                                  >
+                                    <Eye className="h-4 w-4" />
+                                  </Button>
+                                </Link>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  title="Edit listing details"
+                                  onClick={() =>
+                                    setEditListingDialog({
+                                      open: true,
+                                      property: listing,
+                                    })
+                                  }
+                                >
                                   <Edit className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="text-destructive hover:bg-destructive/10"
+                                  onClick={() =>
+                                    setDeleteDialog({
+                                      open: true,
+                                      type: "listing",
+                                      id: listing.id,
+                                      name: listing.code_name,
+                                    })
+                                  }
+                                >
+                                  <Trash2 className="h-4 w-4" />
                                 </Button>
                               </div>
                             </TableCell>
@@ -1302,7 +1526,7 @@ export default function AdminDashboard() {
                             <TableCell>
                               <div>
                                 <p className="font-medium">
-                                  {application.fullName}
+                                  {application.full_name}
                                 </p>
                                 <p className="text-sm text-gray-500">
                                   {application.email}
@@ -1396,7 +1620,7 @@ export default function AdminDashboard() {
                           <TableCell>{user.email}</TableCell>
                           <TableCell>{user.phone}</TableCell>
                           <TableCell>{getStatusBadge(user.status)}</TableCell>
-                          <TableCell>{formatDate(user.createdAt)}</TableCell>
+                          <TableCell>{formatDate(user.created_at)}</TableCell>
                           <TableCell>
                             <div className="flex items-center gap-2">
                               <Button
@@ -1409,10 +1633,18 @@ export default function AdminDashboard() {
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                className="text-destructive hover:text-destructive"
+                                className="text-destructive hover:text-destructive hover:bg-destructive/10"
                                 title="Delete User"
+                                onClick={() =>
+                                  setDeleteDialog({
+                                    open: true,
+                                    type: "user",
+                                    id: user.id,
+                                    name: user.full_name,
+                                  })
+                                }
                               >
-                                <XCircle className="h-4 w-4" />
+                                <Trash2 className="h-4 w-4" />
                               </Button>
                             </div>
                           </TableCell>
@@ -1470,7 +1702,7 @@ export default function AdminDashboard() {
                             {getStatusBadge(landlord.status)}
                           </TableCell>
                           <TableCell>
-                            {formatDate(landlord.createdAt)}
+                            {formatDate(landlord.created_at)}
                           </TableCell>
                           <TableCell>
                             <div className="flex gap-2">
@@ -1562,7 +1794,7 @@ export default function AdminDashboard() {
                     {confirmationDialog.property.state}
                   </p>
                   <p className="text-sm text-gray-600">
-                    Owner: {confirmationDialog.property.fullName}
+                    Owner: {confirmationDialog.property.full_name}
                   </p>
                 </div>
               )}
@@ -1627,6 +1859,216 @@ export default function AdminDashboard() {
                 fetchListings();
               }}
             />
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Deletion Confirmation Dialog */}
+      <AlertDialog
+        open={deleteDialog.open}
+        onOpenChange={(open) => {
+          if (!open)
+            setDeleteDialog({ open: false, type: null, id: null, name: null });
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-destructive">
+              Are you absolutely sure?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete the{" "}
+              <strong>{deleteDialog.type}</strong>: {deleteDialog.name} and
+              remove it from our servers.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isProcessing}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive hover:bg-destructive/90"
+              disabled={isProcessing}
+              onClick={(e) => {
+                e.preventDefault();
+                deleteDialog.type === "listing"
+                  ? handleDeleteListing()
+                  : handleDeleteUser();
+              }}
+            >
+              {isProcessing ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                "Delete Permanently"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Edit Listing Dialog */}
+      <Dialog
+        open={editListingDialog.open}
+        onOpenChange={(open) => {
+          if (!open) setEditListingDialog({ open: false, property: null });
+        }}
+      >
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Edit Listing Details</DialogTitle>
+            <DialogDescription>
+              Update property information for{" "}
+              {editListingDialog.property?.code_name}
+            </DialogDescription>
+          </DialogHeader>
+
+          {editListingDialog.property && (
+            <form onSubmit={handleUpdateListing} className="space-y-4 py-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="code_name">Code Name</Label>
+                  <Input
+                    id="code_name"
+                    name="code_name"
+                    defaultValue={editListingDialog.property.code_name}
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="typology">Typology</Label>
+                  <Input
+                    id="typology"
+                    name="typology"
+                    defaultValue={editListingDialog.property.typology}
+                    required
+                  />
+                </div>
+                <div className="space-y-2 col-span-2">
+                  <Label htmlFor="property_address">Property Address</Label>
+                  <Input
+                    id="property_address"
+                    name="property_address"
+                    defaultValue={editListingDialog.property.property_address}
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="area">Area</Label>
+                  <Input
+                    id="area"
+                    name="area"
+                    defaultValue={editListingDialog.property.area}
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="state">State</Label>
+                  <Input
+                    id="state"
+                    name="state"
+                    defaultValue={editListingDialog.property.state}
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="rent">Annual Rent (Base)</Label>
+                  <Input
+                    id="rent"
+                    name="rent"
+                    type="number"
+                    defaultValue={editListingDialog.property.rent}
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="no_of_units">Number of Units</Label>
+                  <Input
+                    id="no_of_units"
+                    name="no_of_units"
+                    type="number"
+                    defaultValue={editListingDialog.property.no_of_units}
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="bedrooms">Bedrooms</Label>
+                  <Input
+                    id="bedrooms"
+                    name="bedrooms"
+                    type="number"
+                    defaultValue={editListingDialog.property?.bedrooms}
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="bathrooms">Bathrooms</Label>
+                  <Input
+                    id="bathrooms"
+                    name="bathrooms"
+                    type="number"
+                    defaultValue={editListingDialog.property?.bathrooms}
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="square_feet">Square Feet</Label>
+                  <Input
+                    id="square_feet"
+                    name="square_feet"
+                    type="number"
+                    defaultValue={editListingDialog.property?.square_feet}
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="availability_status">Status</Label>
+                  <Select
+                    name="availability_status"
+                    defaultValue={
+                      editListingDialog.property.availability_status
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="available">Available</SelectItem>
+                      <SelectItem value="inspection_pending">
+                        Inspection Pending
+                      </SelectItem>
+                      <SelectItem value="rented">Rented</SelectItem>
+                      <SelectItem value="maintenance">Maintenance</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-3 pt-4">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() =>
+                    setEditListingDialog({ open: false, property: null })
+                  }
+                  disabled={isProcessing}
+                >
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={isProcessing}>
+                  {isProcessing ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    "Save Changes"
+                  )}
+                </Button>
+              </div>
+            </form>
           )}
         </DialogContent>
       </Dialog>

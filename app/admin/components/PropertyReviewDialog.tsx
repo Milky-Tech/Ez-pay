@@ -1,9 +1,9 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Label } from "@/components/ui/label";
+import { Button } from "@/app/components/ui/button";
+import { Badge } from "@/app/components/ui/badge";
+import { Label } from "@/app/components/ui/label";
 import {
   Building2,
   User,
@@ -27,7 +27,7 @@ import {
   AlertDialogFooter,
   AlertDialogAction,
   AlertDialogCancel,
-} from "@/components/ui/alert-dialog";
+} from "@/app/components/ui/alert-dialog";
 import PropertyScoringEngine from "./PropertyScoringEngine";
 import { useAuth } from "@/context/authcontext";
 
@@ -46,17 +46,16 @@ interface Property {
   state: string;
   monthly_cost: number | null;
   availability_status: string;
-  status?: string; // Submission status: approved, pending, in_review, etc.
-  fullName: string;
+  status?: string;
+  full_name: string;
   property_address: string;
-  noOfUnits: number;
+  no_of_units: number;
   rent: number;
   compound_road?: string;
-  power_system?: string;
   interior_rooms?: string;
   exterior_shot?: string;
-  createdAt: string;
-  updatedAt: string;
+  created_at: string;
+  updated_at: string;
 }
 
 interface PropertyReviewDialogProps {
@@ -203,25 +202,76 @@ const PropertyReviewDialog = ({
   const getAllImages = (propertyDetails: any) => {
     const images: { url: string; label: string }[] = [];
 
-    if (propertyDetails?.exteriorShot) {
+    // Exterior Photo (Handle both casings)
+    const exteriorShot =
+      propertyDetails?.exteriorShot || propertyDetails?.exterior_shot;
+    if (exteriorShot) {
       images.push({
-        url: getFullImageUrl(propertyDetails.exteriorShot),
+        url: getFullImageUrl(exteriorShot),
         label: "Exterior Photo",
       });
     }
 
-    if (
-      propertyDetails?.interiorRooms &&
-      Array.isArray(propertyDetails.interiorRooms)
-    ) {
-      propertyDetails.interiorRooms.forEach((room: string, index: number) => {
-        images.push({
-          url: getFullImageUrl(room),
-          label: `Interior Room ${index + 1}`,
-        });
+    // Compound/Road photo
+    const compoundRoad =
+      propertyDetails?.compoundRoad || propertyDetails?.compound_road;
+    if (compoundRoad) {
+      images.push({
+        url: getFullImageUrl(compoundRoad),
+        label: "Compound/Road Photo",
       });
     }
 
+    // Interior Rooms
+    const interiorRoomsRaw =
+      propertyDetails?.interior_rooms || propertyDetails?.interiorRooms;
+    if (interiorRoomsRaw) {
+      try {
+        if (typeof interiorRoomsRaw === "string" && interiorRoomsRaw) {
+          const rooms = interiorRoomsRaw.includes("[")
+            ? JSON.parse(interiorRoomsRaw)
+            : interiorRoomsRaw.split(",");
+
+          if (Array.isArray(rooms)) {
+            rooms.forEach((room: string, index: number) => {
+              if (room && room.trim()) {
+                images.push({
+                  url: getFullImageUrl(room.trim()),
+                  label: `Interior Room ${index + 1}`,
+                });
+              }
+            });
+          } else if (typeof rooms === "string" && rooms) {
+            images.push({
+              url: getFullImageUrl(rooms),
+              label: "Interior Room",
+            });
+          }
+        } else if (Array.isArray(interiorRoomsRaw)) {
+          interiorRoomsRaw.forEach((room: string, index: number) => {
+            if (room) {
+              images.push({
+                url: getFullImageUrl(room),
+                label: `Interior Room ${index + 1}`,
+              });
+            }
+          });
+        }
+      } catch (e) {
+        console.error("Error parsing interior rooms:", e);
+        if (typeof interiorRoomsRaw === "string" && interiorRoomsRaw) {
+          const rooms = interiorRoomsRaw.split(",");
+          rooms.forEach((room: string, index: number) => {
+            if (room && room.trim()) {
+              images.push({
+                url: getFullImageUrl(room.trim()),
+                label: `Interior Room ${index + 1}`,
+              });
+            }
+          });
+        }
+      }
+    }
     return images;
   };
 
@@ -242,20 +292,17 @@ const PropertyReviewDialog = ({
   const handleApproveProperty = async () => {
     setIsProcessing(true);
     try {
-      const response = await fetch(
-        `${API_BASE_URL}/landlords/property/approve`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Accept: "application/json",
-            Authorization: `Bearer ${token || localStorage.getItem("token")}`,
-          },
-          body: JSON.stringify({
-            property_registration_id: property.id,
-          }),
-        }
-      );
+      const response = await fetch(`${API_BASE_URL}/property/approve`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+          Authorization: `Bearer ${token || localStorage.getItem("token")}`,
+        },
+        body: JSON.stringify({
+          property_registration_id: property.id,
+        }),
+      });
 
       const data = await response.json();
 
@@ -287,7 +334,7 @@ const PropertyReviewDialog = ({
     setIsProcessing(true);
     try {
       const response = await fetch(
-        `${API_BASE_URL}/landlords/property/${property.id}/status`,
+        `${API_BASE_URL}/property/${property.id}/status`,
         {
           method: "PATCH",
           headers: {
@@ -323,7 +370,7 @@ const PropertyReviewDialog = ({
     const fetchPropertyDetails = async () => {
       try {
         const response = await fetch(
-          `${API_BASE_URL}/landlords/property/${property.id}`,
+          `${API_BASE_URL}/property/${property.id}`,
           {
             headers: {
               Accept: "application/json",
@@ -389,7 +436,7 @@ const PropertyReviewDialog = ({
               <div>
                 <Label className="text-sm font-medium">Number of Units</Label>
                 <p className="text-sm text-gray-600">
-                  {propertyDetails?.noOfUnits || property.noOfUnits}
+                  {propertyDetails?.no_of_units || property.no_of_units}
                 </p>
               </div>
               <div>
@@ -398,12 +445,30 @@ const PropertyReviewDialog = ({
                   ₦
                   {propertyDetails?.rent
                     ? Math.round(
-                        (parseInt(propertyDetails.rent) * 1.1) / 12
+                        (parseInt(propertyDetails.rent) * 1.1) /
+                          12 /
+                          (propertyDetails.no_of_units || 1)
                       ).toLocaleString()
                     : property.monthly_cost
                     ? property.monthly_cost.toLocaleString()
                     : "N/A"}
                 </p>
+              </div>
+              <div>
+                <Label className="text-sm font-medium">Landlord Package</Label>
+                <div className="mt-1">
+                  <Badge
+                    variant={
+                      propertyDetails?.landlord_package === "prime"
+                        ? "default"
+                        : "secondary"
+                    }
+                  >
+                    {propertyDetails?.landlord_package === "prime"
+                      ? "EZ-PRIME"
+                      : "EZ-VANTAGE"}
+                  </Badge>
+                </div>
               </div>
             </div>
             <div className="space-y-3">
@@ -416,22 +481,20 @@ const PropertyReviewDialog = ({
                       : "secondary"
                   }
                 >
-                  {propertyDetails?.status || "Pending"}
+                  {propertyDetails?.status || property.status || "Pending"}
                 </Badge>
+              </div>
+              <div>
+                <Label className="text-sm font-medium">Compound & Road</Label>
+                <p className="text-sm text-gray-600">
+                  {propertyDetails?.compound_road || "N/A"}
+                </p>
               </div>
               <div>
                 <Label className="text-sm font-medium">Created</Label>
                 <p className="text-sm text-gray-600">
-                  {propertyDetails?.createdAt
-                    ? new Date(propertyDetails.createdAt).toLocaleDateString()
-                    : "N/A"}
-                </p>
-              </div>
-              <div>
-                <Label className="text-sm font-medium">Last Updated</Label>
-                <p className="text-sm text-gray-600">
-                  {propertyDetails?.updatedAt
-                    ? new Date(propertyDetails.updatedAt).toLocaleDateString()
+                  {propertyDetails?.created_at
+                    ? new Date(propertyDetails.created_at).toLocaleDateString()
                     : "N/A"}
                 </p>
               </div>
@@ -450,7 +513,7 @@ const PropertyReviewDialog = ({
               <div>
                 <Label className="text-sm font-medium">Full Name</Label>
                 <p className="text-sm text-gray-600">
-                  {propertyDetails?.fullName || property.fullName}
+                  {propertyDetails?.full_name || property.full_name}
                 </p>
               </div>
               <div>
@@ -480,7 +543,7 @@ const PropertyReviewDialog = ({
               <div>
                 <Label className="text-sm font-medium">Place of Work</Label>
                 <p className="text-sm text-gray-600">
-                  {propertyDetails?.placeOfWork || "N/A"}
+                  {propertyDetails?.place_of_work || "N/A"}
                 </p>
               </div>
             </div>
@@ -494,13 +557,13 @@ const PropertyReviewDialog = ({
               <div>
                 <Label className="text-sm font-medium">State of Origin</Label>
                 <p className="text-sm text-gray-600">
-                  {propertyDetails?.stateOfOrigin || "N/A"}
+                  {propertyDetails?.state_of_origin || "N/A"}
                 </p>
               </div>
               <div>
                 <Label className="text-sm font-medium">LGA of Origin</Label>
                 <p className="text-sm text-gray-600">
-                  {propertyDetails?.lgaOfOrigin || "N/A"}
+                  {propertyDetails?.lga_of_origin || "N/A"}
                 </p>
               </div>
               <div>
@@ -508,7 +571,7 @@ const PropertyReviewDialog = ({
                   Residential Address
                 </Label>
                 <p className="text-sm text-gray-600">
-                  {propertyDetails?.residentialAddress || "N/A"}
+                  {propertyDetails?.residential_address || "N/A"}
                 </p>
               </div>
             </div>
@@ -516,7 +579,7 @@ const PropertyReviewDialog = ({
         </div>
 
         {/* Business Information */}
-        {propertyDetails?.businessName && (
+        {propertyDetails?.business_name && (
           <div>
             <h3 className="text-lg font-semibold mb-4 flex items-center">
               <FileText className="h-5 w-5 mr-2" />
@@ -526,13 +589,13 @@ const PropertyReviewDialog = ({
               <div>
                 <Label className="text-sm font-medium">Business Name</Label>
                 <p className="text-sm text-gray-600">
-                  {propertyDetails.businessName}
+                  {propertyDetails.business_name}
                 </p>
               </div>
               <div>
                 <Label className="text-sm font-medium">Business Address</Label>
                 <p className="text-sm text-gray-600">
-                  {propertyDetails.businessAddress}
+                  {propertyDetails.business_address}
                 </p>
               </div>
             </div>
@@ -674,21 +737,39 @@ const PropertyReviewDialog = ({
             <PropertyScoringEngine
               propertyData={{
                 id: propertyDetails.id || property.id,
-                fullName: propertyDetails.fullName || property.fullName,
+                full_name: propertyDetails.full_name || property.full_name,
                 designation: propertyDetails.designation,
-                businessName: propertyDetails.businessName,
+                business_name: propertyDetails.business_name,
                 property_address:
                   propertyDetails.property_address || property.property_address,
                 state: propertyDetails.state || property.state,
                 area: propertyDetails.area || property.area,
                 typology: propertyDetails.typology || property.typology,
-                noOfUnits: propertyDetails.noOfUnits || property.noOfUnits,
+                no_of_units:
+                  propertyDetails.no_of_units || property.no_of_units,
                 rent: propertyDetails.rent || property.rent,
-                ownershipDoc: propertyDetails.ownershipDoc,
-                govId: propertyDetails.govId,
-                cacCert: propertyDetails.cacCert,
-                exteriorShot: propertyDetails.exteriorShot,
-                interiorRooms: propertyDetails.interiorRooms || [],
+                ownership_doc: propertyDetails.ownership_doc,
+                gov_id: propertyDetails.gov_id,
+                cac_cert: propertyDetails.cac_cert,
+                exterior_shot: propertyDetails.exterior_shot,
+                interior_rooms: (() => {
+                  if (!propertyDetails.interior_rooms) return [];
+                  if (Array.isArray(propertyDetails.interior_rooms))
+                    return propertyDetails.interior_rooms;
+                  try {
+                    if (typeof propertyDetails.interior_rooms === "string") {
+                      if (propertyDetails.interior_rooms.startsWith("[")) {
+                        return JSON.parse(propertyDetails.interior_rooms);
+                      }
+                      return propertyDetails.interior_rooms
+                        .split(",")
+                        .map((r: string) => r.trim());
+                    }
+                    return [propertyDetails.interior_rooms];
+                  } catch (e) {
+                    return [propertyDetails.interior_rooms];
+                  }
+                })(),
               }}
               onScoreUpdate={(scores) => {
                 // Handle score updates if needed
@@ -808,7 +889,7 @@ const PropertyReviewDialog = ({
                   {property.area}, {property.state}
                 </p>
                 <p className="text-sm text-gray-600">
-                  Owner: {property.fullName}
+                  Owner: {property.full_name}
                 </p>
                 <p className="text-sm text-gray-600">ID: {property.id}</p>
               </div>

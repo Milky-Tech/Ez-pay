@@ -1,7 +1,12 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/app/components/ui/card";
+import { Button } from "@/app/components/ui/button";
+import { Input } from "@/app/components/ui/input";
+import { Badge } from "@/app/components/ui/badge";
 import {
   Table,
   TableBody,
@@ -9,23 +14,23 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table";
+} from "@/app/components/ui/table";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
+} from "@/app/components/ui/select";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+} from "@/app/components/ui/dialog";
+import { Label } from "@/app/components/ui/label";
+import { Textarea } from "@/app/components/ui/textarea";
 import {
   Search,
   Filter,
@@ -45,7 +50,7 @@ interface Application {
     code_name: string;
     typology: string;
   };
-  fullName?: string;
+  full_name?: string;
   email?: string;
   phone?: string;
 }
@@ -83,7 +88,7 @@ export default function ApplicationsTab({
       (app.properties?.code_name?.toString() || "")
         .toLowerCase()
         .includes(searchTerm.toLowerCase()) ||
-      (app.fullName?.toString() || "")
+      (app.full_name?.toString() || "")
         .toLowerCase()
         .includes(searchTerm.toLowerCase()) ||
       (app.email?.toString() || "")
@@ -187,7 +192,7 @@ export default function ApplicationsTab({
                     </TableCell>
                     <TableCell>
                       <div>
-                        <p className="font-medium">{app.fullName || "N/A"}</p>
+                        <p className="font-medium">{app.full_name || "N/A"}</p>
                         <p className="text-xs text-gray-600">
                           ID: {(app.id?.toString() || "").substring(0, 8)}
                         </p>
@@ -232,7 +237,7 @@ export default function ApplicationsTab({
                                   <Label className="text-sm font-semibold">
                                     Applicant
                                   </Label>
-                                  <p>{app.fullName}</p>
+                                  <p>{app.full_name}</p>
                                 </div>
                                 <div>
                                   <Label className="text-sm font-semibold">

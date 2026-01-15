@@ -2,8 +2,16 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
-import { Home, Building2, HelpCircle, Menu, X, User } from "lucide-react";
+import { Button } from "@/app/components/ui/button";
+import {
+  Home,
+  Building2,
+  HelpCircle,
+  Menu,
+  X,
+  User,
+  ArrowRight,
+} from "lucide-react";
 import { useAuth } from "@/context/authcontext";
 
 export default function Header() {
@@ -39,11 +47,7 @@ export default function Header() {
                   isScrolled ? "text-white" : "text-primary"
                 }`}
               >
-                <img
-                  src="/images/logo-ezpay.png"
-                  alt="Logo"
-                  className="h-8"
-                />
+                <img src="/images/logo-ezpay.png" alt="Logo" className="h-8" />
                 {/* <span className="text-accent">Bridgent</span> HomeStep EZ-Pay */}
               </span>
             </div>
@@ -81,7 +85,7 @@ export default function Header() {
               Landlord
             </Link>
             <Link
-              href="/faq"
+              href="#faq"
               className={`font-montserrat transition-colors ${
                 isScrolled
                   ? "text-white hover:text-accent"
@@ -115,7 +119,7 @@ export default function Header() {
                   size="sm"
                   className="font-montserrat"
                 >
-                  Sign In
+                  Sign In <ArrowRight className="ml-2" />
                 </Button>
               </Link>
             )}
@@ -155,7 +159,7 @@ export default function Header() {
                 About
               </Link>
               <Link
-                href="/faq"
+                href="#faq"
                 className="font-montserrat text-gray-800 hover:text-primary"
               >
                 FAQ
@@ -185,7 +189,7 @@ export default function Header() {
                     size="sm"
                     className="font-montserrat w-full"
                   >
-                    Sign In
+                    Sign In <ArrowRight className="ml-2" />
                   </Button>
                 </Link>
               )}

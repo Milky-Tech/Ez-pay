@@ -1,13 +1,18 @@
 "use client";
 
 import { useState } from "react";
-import Header from "@/components/header";
-import ChatWidget from "@/components/ui/chat-widget";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+import Header from "@/app/components/header";
+import ChatWidget from "@/app/components/ui/chat-widget";
+import { Button } from "@/app/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/app/components/ui/card";
+import { Input } from "@/app/components/ui/input";
+import { Label } from "@/app/components/ui/label";
+import { Textarea } from "@/app/components/ui/textarea";
 import {
   CheckCircle,
   Upload,
@@ -29,19 +34,23 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
+} from "@/app/components/ui/select";
 import { NIGERIAN_STATES_LGAS } from "@/lib/nigerian-states";
+import Link from "next/link";
+import { useEffect } from "react";
+import { useAuth } from "@/context/authcontext";
+import Footer from "../components/footer";
 
 // API Base URL
 const API_BASE_URL = "https://ez-pay.realestway.com/api";
 
 // File upload endpoint
 const UPLOAD_ENDPOINT = `${API_BASE_URL}/upload/single`;
+const BULK_UPLOAD_ENDPOINT = `${API_BASE_URL}/upload/bulk`;
 // Property registration endpoint
-const REGISTER_ENDPOINT = `${API_BASE_URL}/landlords/property/register`;
+const REGISTER_ENDPOINT = `${API_BASE_URL}/property/register`;
 
 // Nigerian states and LGAs removed - now imported from @/lib/nigerian-states.ts
-
 
 // File type mapping
 type FileType = "image" | "document";
@@ -72,7 +81,8 @@ interface PropertyFormData {
   exterior_shot: string;
   compound_road: string;
   power_system: string;
-  interior_rooms: string;
+  interior_rooms: string[];
+  landlord_package: string;
 }
 
 export default function LandlordPartnerPage() {
@@ -108,6 +118,7 @@ export default function LandlordPartnerPage() {
     numberOfUnits: "",
     typology: "",
     desiredAnnualRent: "",
+    landlord_package: "",
   });
 
   // File states
@@ -118,7 +129,7 @@ export default function LandlordPartnerPage() {
     exteriorPhoto: File | null;
     roadPhoto: File | null;
     powerPhoto: File | null;
-    interiorPhoto: File | null;
+    interiorPhotos: File[];
   }>({
     ownershipDoc: null,
     govtId: null,
@@ -126,7 +137,7 @@ export default function LandlordPartnerPage() {
     exteriorPhoto: null,
     roadPhoto: null,
     powerPhoto: null,
-    interiorPhoto: null,
+    interiorPhotos: [],
   });
 
   const [uploadedPaths, setUploadedPaths] = useState<{
@@ -136,7 +147,7 @@ export default function LandlordPartnerPage() {
     exterior_shot: string;
     compound_road: string;
     power_system: string;
-    interior_rooms: string;
+    interior_rooms: string[];
   }>({
     ownership_doc: "",
     gov_id: "",
@@ -144,7 +155,7 @@ export default function LandlordPartnerPage() {
     exterior_shot: "",
     compound_road: "",
     power_system: "",
-    interior_rooms: "",
+    interior_rooms: [],
   });
 
   const [uploading, setUploading] = useState<{
@@ -154,7 +165,7 @@ export default function LandlordPartnerPage() {
     exteriorPhoto: boolean;
     roadPhoto: boolean;
     powerPhoto: boolean;
-    interiorPhoto: boolean;
+    interiorPhotos: boolean;
   }>({
     ownershipDoc: false,
     govtId: false,
@@ -162,14 +173,57 @@ export default function LandlordPartnerPage() {
     exteriorPhoto: false,
     roadPhoto: false,
     powerPhoto: false,
-    interiorPhoto: false,
+    interiorPhotos: false,
   });
+
+  const { isAuthenticated, user } = useAuth();
 
   const [toastMessage, setToastMessage] = useState<{
     title: string;
     description: string;
     type: "success" | "error";
   } | null>(null);
+
+  // Load data from localStorage on mount
+  useEffect(() => {
+    const savedFormData = localStorage.getItem("landlord_form_data");
+    const savedUploadedPaths = localStorage.getItem("landlord_uploaded_paths");
+    const savedStep = localStorage.getItem("landlord_current_step");
+
+    if (savedFormData) {
+      try {
+        setFormData(JSON.parse(savedFormData));
+      } catch (e) {
+        console.error("Error parsing saved form data", e);
+      }
+    }
+    if (savedUploadedPaths) {
+      try {
+        setUploadedPaths(JSON.parse(savedUploadedPaths));
+      } catch (e) {
+        console.error("Error parsing saved uploaded paths", e);
+      }
+    }
+    if (savedStep) {
+      setCurrentStep(parseInt(savedStep));
+    }
+  }, []);
+
+  // Save data to localStorage on changes
+  useEffect(() => {
+    localStorage.setItem("landlord_form_data", JSON.stringify(formData));
+  }, [formData]);
+
+  useEffect(() => {
+    localStorage.setItem(
+      "landlord_uploaded_paths",
+      JSON.stringify(uploadedPaths)
+    );
+  }, [uploadedPaths]);
+
+  useEffect(() => {
+    localStorage.setItem("landlord_current_step", currentStep.toString());
+  }, [currentStep]);
 
   const totalSteps = 4;
 
@@ -198,6 +252,13 @@ export default function LandlordPartnerPage() {
   const handlePrevious = () => {
     if (currentStep > 0) {
       setCurrentStep(currentStep - 1);
+    }
+  };
+
+  const scrollToForm = () => {
+    const formElement = document.getElementById("registration-form");
+    if (formElement) {
+      formElement.scrollIntoView({ behavior: "smooth" });
     }
   };
 
@@ -240,9 +301,46 @@ export default function LandlordPartnerPage() {
     }
   };
 
+  // Bulk file upload function
+  const uploadBulkFiles = async (
+    files: File[],
+    type: FileType
+  ): Promise<string[]> => {
+    const formData = new FormData();
+    files.forEach((file) => {
+      formData.append("files[]", file);
+    });
+    formData.append("type", type);
+
+    try {
+      const response = await fetch(BULK_UPLOAD_ENDPOINT, {
+        method: "POST",
+        headers: {
+          Accept: "application/json",
+        },
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(
+          errorData.message || `Bulk upload failed: ${response.statusText}`
+        );
+      }
+
+      const data = await response.json();
+
+      // Expected response: { urls: ["url1", "url2", ...] } or { paths: [...] }
+      return data.urls || data.paths || data.filePaths || [];
+    } catch (error) {
+      console.error("Bulk upload error:", error);
+      throw error;
+    }
+  };
+
   // Submit form data to backend
   const submitFormData = async (paths: typeof uploadedPaths) => {
-    const payload: PropertyFormData = {
+    const payload: any = {
       full_name: formData.fullName,
       email: formData.email,
       phone: formData.phone,
@@ -259,6 +357,7 @@ export default function LandlordPartnerPage() {
       state: formData.state,
       area: formData.area,
       typology: formData.typology,
+      landlord_package: formData.landlord_package,
       no_of_units: parseInt(formData.numberOfUnits) || 0,
       rent: parseFloat(formData.desiredAnnualRent) || 0,
       ownership_doc: paths.ownership_doc,
@@ -307,6 +406,7 @@ export default function LandlordPartnerPage() {
         !formData.area ||
         !formData.typology ||
         !formData.numberOfUnits ||
+        !formData.landlord_package ||
         !formData.desiredAnnualRent
       ) {
         throw new Error("Please fill in all required fields marked with *");
@@ -319,7 +419,7 @@ export default function LandlordPartnerPage() {
         !uploadedPaths.exterior_shot ||
         !uploadedPaths.compound_road ||
         !uploadedPaths.power_system ||
-        !uploadedPaths.interior_rooms
+        uploadedPaths.interior_rooms.length === 0
       ) {
         throw new Error("Please upload all required files marked with *");
       }
@@ -359,6 +459,7 @@ export default function LandlordPartnerPage() {
         area: "",
         numberOfUnits: "",
         typology: "",
+        landlord_package: "",
         desiredAnnualRent: "",
       });
 
@@ -369,7 +470,7 @@ export default function LandlordPartnerPage() {
         exteriorPhoto: null,
         roadPhoto: null,
         powerPhoto: null,
-        interiorPhoto: null,
+        interiorPhotos: [],
       });
 
       setUploadedPaths({
@@ -379,8 +480,13 @@ export default function LandlordPartnerPage() {
         exterior_shot: "",
         compound_road: "",
         power_system: "",
-        interior_rooms: "",
+        interior_rooms: [],
       });
+
+      // Clear localStorage
+      localStorage.removeItem("landlord_form_data");
+      localStorage.removeItem("landlord_uploaded_paths");
+      localStorage.removeItem("landlord_current_step");
 
       setUploading({
         ownershipDoc: false,
@@ -389,7 +495,7 @@ export default function LandlordPartnerPage() {
         exteriorPhoto: false,
         roadPhoto: false,
         powerPhoto: false,
-        interiorPhoto: false,
+        interiorPhotos: false,
       });
 
       setCurrentStep(0);
@@ -410,96 +516,130 @@ export default function LandlordPartnerPage() {
   // Handle file input changes
   const handleFileChange = async (
     field: keyof typeof files,
-    file: File | File[] | null
+    fileOrFiles: File | File[] | null
   ) => {
-    let actualFile: File | null = null;
-    if (field === "interiorPhoto" && Array.isArray(file)) {
-      actualFile = file[0] || null;
-    } else if (!Array.isArray(file)) {
-      actualFile = file;
-    }
+    if (field === "interiorPhotos") {
+      const actualFiles = Array.isArray(fileOrFiles)
+        ? fileOrFiles
+        : fileOrFiles
+        ? [fileOrFiles]
+        : [];
 
-    setFiles((prev) => ({
-      ...prev,
-      [field]: actualFile,
-    }));
+      setFiles((prev) => ({
+        ...prev,
+        [field]: actualFiles,
+      }));
 
-    if (actualFile) {
-      try {
-        setUploading((prev) => ({ ...prev, [field]: true }));
-        const fileType: FileType =
-          field === "exteriorPhoto" ||
-          field === "roadPhoto" ||
-          field === "powerPhoto" ||
-          field === "interiorPhoto"
-            ? "image"
-            : "document";
-        const pathKey =
-          field === "ownershipDoc"
-            ? "ownership_doc"
-            : field === "govtId"
-            ? "gov_id"
-            : field === "cacCert"
-            ? "cac_cert"
-            : field === "exteriorPhoto"
-            ? "exterior_shot"
-            : field === "roadPhoto"
-            ? "compound_road"
-            : field === "powerPhoto"
-            ? "power_system"
-            : field === "interiorPhoto"
-            ? "interior_rooms"
-            : "";
-
-        const uploadedPath = await uploadFile(actualFile, fileType);
+      if (actualFiles.length > 0) {
+        try {
+          setUploading((prev) => ({ ...prev, [field]: true }));
+          const uploadedPaths = await uploadBulkFiles(actualFiles, "image");
+          setUploadedPaths((prev) => ({
+            ...prev,
+            interior_rooms: uploadedPaths,
+          }));
+          showToast(
+            "Files uploaded successfully",
+            `${actualFiles.length} interior room photos have been uploaded.`,
+            "success"
+          );
+        } catch (error) {
+          console.error("Upload error:", error);
+          showToast(
+            "Upload failed",
+            error instanceof Error
+              ? error.message
+              : "Failed to upload interior photos. Please try again.",
+            "error"
+          );
+          setFiles((prev) => ({
+            ...prev,
+            [field]: [],
+          }));
+        } finally {
+          setUploading((prev) => ({ ...prev, [field]: false }));
+        }
+      } else {
         setUploadedPaths((prev) => ({
           ...prev,
-          [pathKey]: uploadedPath,
+          interior_rooms: [],
         }));
-        showToast(
-          "File uploaded successfully",
-          `${actualFile.name} has been uploaded.`,
-          "success"
-        );
-      } catch (error) {
-        console.error("Upload error:", error);
-        showToast(
-          "Upload failed",
-          error instanceof Error
-            ? error.message
-            : "Failed to upload file. Please try again.",
-          "error"
-        );
-        // Clear the file if upload failed
-        setFiles((prev) => ({
-          ...prev,
-          [field]: null,
-        }));
-      } finally {
-        setUploading((prev) => ({ ...prev, [field]: false }));
       }
     } else {
-      // If file is cleared, clear the path
-      const pathKey =
-        field === "ownershipDoc"
-          ? "ownership_doc"
-          : field === "govtId"
-          ? "gov_id"
-          : field === "cacCert"
-          ? "cac_cert"
-          : field === "exteriorPhoto"
-          ? "exterior_shot"
-          : field === "roadPhoto"
-          ? "compound_road"
-          : field === "powerPhoto"
-          ? "power_system"
-          : field === "interiorPhoto"
-          ? "interior_rooms"
-          : "";
-      setUploadedPaths((prev) => ({
+      const actualFile = Array.isArray(fileOrFiles)
+        ? fileOrFiles[0]
+        : fileOrFiles;
+
+      setFiles((prev) => ({
         ...prev,
-        [pathKey]: "",
+        [field]: actualFile,
       }));
+
+      if (actualFile) {
+        try {
+          setUploading((prev) => ({ ...prev, [field]: true }));
+          const fileType: FileType =
+            field === "exteriorPhoto" ||
+            field === "roadPhoto" ||
+            field === "powerPhoto"
+              ? "image"
+              : "document";
+
+          const pathKeys: Record<string, keyof typeof uploadedPaths> = {
+            ownershipDoc: "ownership_doc",
+            govtId: "gov_id",
+            cacCert: "cac_cert",
+            exteriorPhoto: "exterior_shot",
+            roadPhoto: "compound_road",
+            powerPhoto: "power_system",
+          };
+
+          const pathKey = pathKeys[field];
+          if (!pathKey) return;
+
+          const uploadedPath = await uploadFile(actualFile, fileType);
+          setUploadedPaths((prev) => ({
+            ...prev,
+            [pathKey]: uploadedPath,
+          }));
+          showToast(
+            "File uploaded successfully",
+            `${actualFile.name} has been uploaded.`,
+            "success"
+          );
+        } catch (error) {
+          console.error("Upload error:", error);
+          showToast(
+            "Upload failed",
+            error instanceof Error
+              ? error.message
+              : "Failed to upload file. Please try again.",
+            "error"
+          );
+          setFiles((prev) => ({
+            ...prev,
+            [field]: null,
+          }));
+        } finally {
+          setUploading((prev) => ({ ...prev, [field]: false }));
+        }
+      } else {
+        const pathKeys: Record<string, keyof typeof uploadedPaths> = {
+          ownershipDoc: "ownership_doc",
+          govtId: "gov_id",
+          cacCert: "cac_cert",
+          exteriorPhoto: "exterior_shot",
+          roadPhoto: "compound_road",
+          powerPhoto: "power_system",
+        };
+        const pathKey = pathKeys[field];
+        if (pathKey) {
+          setUploadedPaths((prev) => ({
+            ...prev,
+            [pathKey]: "",
+          }));
+        }
+      }
     }
   };
 
@@ -507,6 +647,68 @@ export default function LandlordPartnerPage() {
     <div className="min-h-screen bg-gray-50">
       <Header />
       <ChatWidget />
+      <section className="relative h-[50vh] flex pb-2 pt-auto justify-center bg-[#000000] bg-transparent-[60%]">
+        <div
+          className="absolute inset-0 bg-cover bg-center opacity-20"
+          style={{
+            backgroundImage: "url('/images/aboutUs.jpg')",
+          }}
+        />
+        <div className="relative z-10 w-full max-w-[96%] md:max-w-[70%] lg:max-w-1/3 mx-auto my-auto flex pt-6">
+          <div className="px-6 md:px-12 text-center m-auto">
+            <h1 className="text-5xl font-bold text-white mb-4 font-raleway">
+              Bridgent Partnership
+            </h1>
+          </div>
+        </div>
+      </section>
+
+      {/* Login/Registration Awareness Section */}
+      <section className="bg-white border-b">
+        <div className="max-w-7xl mx-auto px-4 py-12 sm:px-6 lg:px-8">
+          <div className="bg-gray-50 rounded-2xl p-8 md:p-12 shadow-sm border flex flex-col md:flex-row items-center justify-between gap-8">
+            <div className="text-center md:text-left">
+              <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-2 font-raleway">
+                {isAuthenticated
+                  ? `Welcome back, ${user?.full_name || "Partner"}!`
+                  : "Already a Partner?"}
+              </h2>
+              <p className="text-gray-600 max-w-xl">
+                {isAuthenticated
+                  ? "Access your dashboard to manage your properties, view remittances, and track maintenance requests."
+                  : "If you already have a landlord account with us, please login to manage your properties. Otherwise, fill the form below to become a partner."}
+              </p>
+            </div>
+            <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
+              {isAuthenticated ? (
+                <Link
+                  href={user?.role === "landlord" ? "/landlord" : "/profile"}
+                  className="w-full sm:w-auto"
+                >
+                  <Button className="w-full bg-primary hover:bg-primary/90 text-white font-montserrat h-12 px-8">
+                    Go to Dashboard
+                  </Button>
+                </Link>
+              ) : (
+                <Link href="/signin" className="w-full sm:w-auto">
+                  <Button
+                    variant="outline"
+                    className="w-full border-primary text-primary hover:bg-primary/5 font-montserrat h-12 px-8"
+                  >
+                    Login to Portal
+                  </Button>
+                </Link>
+              )}
+              <Button
+                onClick={scrollToForm}
+                className="w-full sm:w-auto bg-[#C9A227] hover:bg-[#B38F22] text-white font-montserrat h-12 px-8"
+              >
+                Become a Partner
+              </Button>
+            </div>
+          </div>
+        </div>
+      </section>
 
       {/* Toast Notification */}
       {toastMessage && (
@@ -564,12 +766,12 @@ export default function LandlordPartnerPage() {
         </div>
       )}
 
-      <div className="pt-24 pb-12">
+      <div className="pt-4 pb-5">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
-            <h1 className="text-5xl font-bold text-primary mb-4 font-raleway">
-              Bridgent Partnership: Securing Your Legacy Asset
-            </h1>
+            <h2 className="text-3xl font-extrabold text-gray-900 mb-4 font-raleway">
+              Securing Your Legacy Asset
+            </h2>
             <p className="text-xl text-gray-600 max-w-3xl mx-auto">
               Join our network of premium property owners and enjoy consistent
               income without management burden
@@ -577,9 +779,9 @@ export default function LandlordPartnerPage() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-12">
-            <Card className="border-2 border-secondary">
+            <Card className="border-2 border-[#C9A227]">
               <CardHeader
-                className="bg-secondary text-white cursor-pointer"
+                className="bg-[#C9A227] rounded-t-lg text-white cursor-pointer"
                 onClick={() => toggleSection("prime")}
               >
                 <div className="flex justify-between items-center">
@@ -634,7 +836,7 @@ export default function LandlordPartnerPage() {
 
             <Card className="border-2 border-primary">
               <CardHeader
-                className="bg-primary text-white cursor-pointer"
+                className="bg-primary rounded-t-lg text-white cursor-pointer"
                 onClick={() => toggleSection("vantage")}
               >
                 <div className="flex justify-between items-center">
@@ -960,7 +1162,7 @@ export default function LandlordPartnerPage() {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card id="registration-form">
             <CardHeader>
               <CardTitle className="font-raleway text-2xl">
                 Property Registration Form
@@ -1186,6 +1388,29 @@ export default function LandlordPartnerPage() {
                       Core Property Details
                     </h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="md:col-span-2">
+                        <Label htmlFor="propertyAddress">
+                          Choose Package *
+                        </Label>
+                        <Select
+                          value={formData.landlord_package}
+                          onValueChange={(value) =>
+                            setFormData({
+                              ...formData,
+                              landlord_package: value,
+                            })
+                          }
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select package" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="prime">Ez-Prime</SelectItem>
+                            <SelectItem value="vantage">Ez-Vantage</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
                       <div className="md:col-span-2">
                         <Label htmlFor="propertyAddress">
                           Property Address *
@@ -1558,25 +1783,27 @@ export default function LandlordPartnerPage() {
                           type="file"
                           accept="image/*"
                           className="mt-2"
+                          multiple
                           onChange={(e) =>
                             handleFileChange(
-                              "interiorPhoto",
-                              e.target.files?.[0] || null
+                              "interiorPhotos",
+                              e.target.files ? Array.from(e.target.files) : []
                             )
                           }
                           required
                         />
-                        {uploading.interiorPhoto && (
+                        {uploading.interiorPhotos && (
                           <p className="text-sm text-blue-600 mt-2 flex items-center justify-center">
                             <Loader2 className="h-4 w-4 animate-spin mr-2" />
                             Uploading...
                           </p>
                         )}
-                        {files.interiorPhoto && !uploading.interiorPhoto && (
-                          <p className="text-sm text-green-600 mt-2">
-                            ✓ {files.interiorPhoto.name} uploaded
-                          </p>
-                        )}
+                        {files.interiorPhotos.length > 0 &&
+                          !uploading.interiorPhotos && (
+                            <p className="text-sm text-green-600 mt-2">
+                              ✓ {files.interiorPhotos.length} photos uploaded
+                            </p>
+                          )}
                       </div>
                     </div>
                   </div>
@@ -1623,6 +1850,7 @@ export default function LandlordPartnerPage() {
           </Card>
         </div>
       </div>
+      <Footer />
     </div>
   );
 }

@@ -1,16 +1,19 @@
 "use client";
 
 import { Building, ChevronRight } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { Badge } from "@/app/components/ui/badge";
+import { Card, CardContent } from "@/app/components/ui/card";
+import { Button } from "@/app/components/ui/button";
 
 interface PropertyCardProps {
   property: any;
   onViewDetails: (id: string) => void;
 }
 
-export const PropertyCard = ({ property, onViewDetails }: PropertyCardProps) => {
+export const PropertyCard = ({
+  property,
+  onViewDetails,
+}: PropertyCardProps) => {
   return (
     <Card
       className="border-none shadow-sm hover:shadow-md transition-all cursor-pointer group"
@@ -51,7 +54,14 @@ export const PropertyCard = ({ property, onViewDetails }: PropertyCardProps) => 
           </div>
           <div className="text-right">
             <p className="font-bold text-slate-900 text-sm sm:text-base">
-              ₦{(property.monthly_cost || 0).toLocaleString()}
+              ₦
+              {Math.round(
+                property.rent
+                  ? (property.rent * 1.1) /
+                      12 /
+                      (property.noOfUnits || property.no_of_units || 1)
+                  : property.monthly_cost || 0
+              ).toLocaleString()}
             </p>
             <p className="text-xs text-slate-500">per month</p>
             <Badge

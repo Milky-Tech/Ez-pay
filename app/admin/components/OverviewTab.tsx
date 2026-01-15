@@ -1,6 +1,11 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/app/components/ui/card";
+import { Button } from "@/app/components/ui/button";
+import { Badge } from "@/app/components/ui/badge";
 import {
   Home,
   CheckCircle,
@@ -52,7 +57,7 @@ export default function OverviewTab({
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-gray-600">
-              Total Properties
+              Total Properties Application
             </CardTitle>
             <Home className="h-4 w-4 text-gray-600" />
           </CardHeader>
@@ -82,7 +87,7 @@ export default function OverviewTab({
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-gray-600">
-              Total Applications
+              Total Tenant Applications
             </CardTitle>
             <FileText className="h-4 w-4 text-gray-600" />
           </CardHeader>
