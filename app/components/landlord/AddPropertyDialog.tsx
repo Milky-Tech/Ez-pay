@@ -348,7 +348,7 @@ export const AddPropertyDialog = ({
                     <SelectValue placeholder="Select package" />
                   </SelectTrigger>
                   <SelectContent>
-                    {["Prime", "Vantage"].map((t) => (
+                    {["prime", "vantage"].map((t) => (
                       <SelectItem key={t} value={t}>
                         {t}
                       </SelectItem>

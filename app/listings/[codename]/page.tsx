@@ -253,8 +253,8 @@ export default function PropertyDetailsPage() {
   };
 
   // Calculate price breakdown
-  const monthlyCost = property?.monthly_cost || 0;
-  const annualCost = property?.desired_annual_rent || monthlyCost * 12;
+  const monthlyCost = property ? (property.rent * 1.1) / 12 / (property.no_of_units || 1) : 0;
+  const annualCost = property ? (property.rent * 1.1) / (property.no_of_units || 1) : 0;
   const securityDeposit = monthlyCost * 2;
   const agencyFee = 0; // Agency fee removed
 
@@ -615,7 +615,7 @@ export default function PropertyDetailsPage() {
                       Monthly EZ-Pay Rate
                     </p>
                     <p className="text-4xl font-bold text-primary font-raleway">
-                      {formatPrice(property.monthly_cost)}
+                      {formatPrice(monthlyCost)}
                     </p>
                     <p className="text-sm text-gray-600 mt-1">per month</p>
                     <div className="mt-2 text-sm text-gray-500">

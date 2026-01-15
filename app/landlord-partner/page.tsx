@@ -36,6 +36,10 @@ import {
   SelectValue,
 } from "@/app/components/ui/select";
 import { NIGERIAN_STATES_LGAS } from "@/lib/nigerian-states";
+import Link from "next/link";
+import { useEffect } from "react";
+import { useAuth } from "@/context/authcontext";
+import Footer from "../components/footer";
 
 // API Base URL
 const API_BASE_URL = "https://ez-pay.realestway.com/api";
@@ -172,11 +176,54 @@ export default function LandlordPartnerPage() {
     interiorPhotos: false,
   });
 
+  const { isAuthenticated, user } = useAuth();
+
   const [toastMessage, setToastMessage] = useState<{
     title: string;
     description: string;
     type: "success" | "error";
   } | null>(null);
+
+  // Load data from localStorage on mount
+  useEffect(() => {
+    const savedFormData = localStorage.getItem("landlord_form_data");
+    const savedUploadedPaths = localStorage.getItem("landlord_uploaded_paths");
+    const savedStep = localStorage.getItem("landlord_current_step");
+
+    if (savedFormData) {
+      try {
+        setFormData(JSON.parse(savedFormData));
+      } catch (e) {
+        console.error("Error parsing saved form data", e);
+      }
+    }
+    if (savedUploadedPaths) {
+      try {
+        setUploadedPaths(JSON.parse(savedUploadedPaths));
+      } catch (e) {
+        console.error("Error parsing saved uploaded paths", e);
+      }
+    }
+    if (savedStep) {
+      setCurrentStep(parseInt(savedStep));
+    }
+  }, []);
+
+  // Save data to localStorage on changes
+  useEffect(() => {
+    localStorage.setItem("landlord_form_data", JSON.stringify(formData));
+  }, [formData]);
+
+  useEffect(() => {
+    localStorage.setItem(
+      "landlord_uploaded_paths",
+      JSON.stringify(uploadedPaths)
+    );
+  }, [uploadedPaths]);
+
+  useEffect(() => {
+    localStorage.setItem("landlord_current_step", currentStep.toString());
+  }, [currentStep]);
 
   const totalSteps = 4;
 
@@ -205,6 +252,13 @@ export default function LandlordPartnerPage() {
   const handlePrevious = () => {
     if (currentStep > 0) {
       setCurrentStep(currentStep - 1);
+    }
+  };
+
+  const scrollToForm = () => {
+    const formElement = document.getElementById("registration-form");
+    if (formElement) {
+      formElement.scrollIntoView({ behavior: "smooth" });
     }
   };
 
@@ -429,6 +483,11 @@ export default function LandlordPartnerPage() {
         interior_rooms: [],
       });
 
+      // Clear localStorage
+      localStorage.removeItem("landlord_form_data");
+      localStorage.removeItem("landlord_uploaded_paths");
+      localStorage.removeItem("landlord_current_step");
+
       setUploading({
         ownershipDoc: false,
         govtId: false,
@@ -588,6 +647,68 @@ export default function LandlordPartnerPage() {
     <div className="min-h-screen bg-gray-50">
       <Header />
       <ChatWidget />
+      <section className="relative h-[50vh] flex pb-2 pt-auto justify-center bg-[#000000] bg-transparent-[60%]">
+        <div
+          className="absolute inset-0 bg-cover bg-center opacity-20"
+          style={{
+            backgroundImage: "url('/images/aboutUs.jpg')",
+          }}
+        />
+        <div className="relative z-10 w-full max-w-[96%] md:max-w-[70%] lg:max-w-1/3 mx-auto my-auto flex pt-6">
+          <div className="px-6 md:px-12 text-center m-auto">
+            <h1 className="text-5xl font-bold text-white mb-4 font-raleway">
+              Bridgent Partnership
+            </h1>
+          </div>
+        </div>
+      </section>
+
+      {/* Login/Registration Awareness Section */}
+      <section className="bg-white border-b">
+        <div className="max-w-7xl mx-auto px-4 py-12 sm:px-6 lg:px-8">
+          <div className="bg-gray-50 rounded-2xl p-8 md:p-12 shadow-sm border flex flex-col md:flex-row items-center justify-between gap-8">
+            <div className="text-center md:text-left">
+              <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-2 font-raleway">
+                {isAuthenticated
+                  ? `Welcome back, ${user?.full_name || "Partner"}!`
+                  : "Already a Partner?"}
+              </h2>
+              <p className="text-gray-600 max-w-xl">
+                {isAuthenticated
+                  ? "Access your dashboard to manage your properties, view remittances, and track maintenance requests."
+                  : "If you already have a landlord account with us, please login to manage your properties. Otherwise, fill the form below to become a partner."}
+              </p>
+            </div>
+            <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
+              {isAuthenticated ? (
+                <Link
+                  href={user?.role === "landlord" ? "/landlord" : "/profile"}
+                  className="w-full sm:w-auto"
+                >
+                  <Button className="w-full bg-primary hover:bg-primary/90 text-white font-montserrat h-12 px-8">
+                    Go to Dashboard
+                  </Button>
+                </Link>
+              ) : (
+                <Link href="/signin" className="w-full sm:w-auto">
+                  <Button
+                    variant="outline"
+                    className="w-full border-primary text-primary hover:bg-primary/5 font-montserrat h-12 px-8"
+                  >
+                    Login to Portal
+                  </Button>
+                </Link>
+              )}
+              <Button
+                onClick={scrollToForm}
+                className="w-full sm:w-auto bg-[#C9A227] hover:bg-[#B38F22] text-white font-montserrat h-12 px-8"
+              >
+                Become a Partner
+              </Button>
+            </div>
+          </div>
+        </div>
+      </section>
 
       {/* Toast Notification */}
       {toastMessage && (
@@ -645,12 +766,12 @@ export default function LandlordPartnerPage() {
         </div>
       )}
 
-      <div className="pt-24 pb-12">
+      <div className="pt-4 pb-5">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
-            <h1 className="text-5xl font-bold text-primary mb-4 font-raleway">
-              Bridgent Partnership: Securing Your Legacy Asset
-            </h1>
+            <h2 className="text-3xl font-extrabold text-gray-900 mb-4 font-raleway">
+              Securing Your Legacy Asset
+            </h2>
             <p className="text-xl text-gray-600 max-w-3xl mx-auto">
               Join our network of premium property owners and enjoy consistent
               income without management burden
@@ -658,9 +779,9 @@ export default function LandlordPartnerPage() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-12">
-            <Card className="border-2 border-secondary">
+            <Card className="border-2 border-[#C9A227]">
               <CardHeader
-                className="bg-secondary text-white cursor-pointer"
+                className="bg-[#C9A227] rounded-t-lg text-white cursor-pointer"
                 onClick={() => toggleSection("prime")}
               >
                 <div className="flex justify-between items-center">
@@ -715,7 +836,7 @@ export default function LandlordPartnerPage() {
 
             <Card className="border-2 border-primary">
               <CardHeader
-                className="bg-primary text-white cursor-pointer"
+                className="bg-primary rounded-t-lg text-white cursor-pointer"
                 onClick={() => toggleSection("vantage")}
               >
                 <div className="flex justify-between items-center">
@@ -1041,7 +1162,7 @@ export default function LandlordPartnerPage() {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card id="registration-form">
             <CardHeader>
               <CardTitle className="font-raleway text-2xl">
                 Property Registration Form
@@ -1729,6 +1850,7 @@ export default function LandlordPartnerPage() {
           </Card>
         </div>
       </div>
+      <Footer />
     </div>
   );
 }

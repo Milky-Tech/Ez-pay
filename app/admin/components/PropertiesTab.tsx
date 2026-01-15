@@ -218,7 +218,7 @@ export default function PropertiesTab({
                       ₦
                       {property.rent
                         ? Math.round(
-                            (property.rent * 1.1) / 12
+                            (property.rent * 1.1) / 12 / (property.no_of_units || 1)
                           ).toLocaleString()
                         : formatPrice(property.monthly_cost)}
                     </TableCell>

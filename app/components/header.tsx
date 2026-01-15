@@ -119,7 +119,7 @@ export default function Header() {
                   size="sm"
                   className="font-montserrat"
                 >
-                  Sign In
+                  Sign In <ArrowRight className="ml-2" />
                 </Button>
               </Link>
             )}

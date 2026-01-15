@@ -54,7 +54,14 @@ export const PropertyCard = ({
           </div>
           <div className="text-right">
             <p className="font-bold text-slate-900 text-sm sm:text-base">
-              ₦{(property.monthly_cost || 0).toLocaleString()}
+              ₦
+              {Math.round(
+                property.rent
+                  ? (property.rent * 1.1) /
+                      12 /
+                      (property.noOfUnits || property.no_of_units || 1)
+                  : property.monthly_cost || 0
+              ).toLocaleString()}
             </p>
             <p className="text-xs text-slate-500">per month</p>
             <Badge

@@ -445,7 +445,9 @@ const PropertyReviewDialog = ({
                   ₦
                   {propertyDetails?.rent
                     ? Math.round(
-                        (parseInt(propertyDetails.rent) * 1.1) / 12
+                        (parseInt(propertyDetails.rent) * 1.1) /
+                          12 /
+                          (propertyDetails.no_of_units || 1)
                       ).toLocaleString()
                     : property.monthly_cost
                     ? property.monthly_cost.toLocaleString()

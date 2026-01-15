@@ -40,6 +40,7 @@ export default function ListingsPage() {
         const listings = data.data || data;
         setProperties(listings);
         setFilteredProperties(listings);
+        console.log("Fetched listings:", listings);
       } catch (error) {
         console.error("Error fetching listings:", error);
       } finally {
@@ -77,7 +78,7 @@ export default function ListingsPage() {
     // Price filter
     if (maxPrice > 0) {
       filtered = filtered.filter((p) => {
-        const price = p.monthly_cost || (p.rent * 1.1) / 12 / p.no_of_units;
+        const price = (p.rent * 1.1) / 12 / (p.no_of_units || 1);
 
         return price <= maxPrice;
       });
@@ -120,7 +121,7 @@ export default function ListingsPage() {
                       placeholder="Search by location, property type, or code..."
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
-                      className="font-montserrat relative bg-inherit text-white border-gray-500 rounded-full"
+                      className="font-montserrat relative bg-inherit border-0 text-white rounded-full"
                     />
                     {/* <SearchIcon className="realtive z-40 left-3 transform text-gray-400" /> */}
                   </div>
@@ -242,10 +243,9 @@ export default function ListingsPage() {
                         <div className="border-t pt-4 flex flex-col">
                           <p className="text-2xl font-bold text-primary mb-4 font-raleway">
                             {formatPrice(
-                              property.monthly_cost ||
-                                (property.rent * 1.1) /
-                                  12 /
-                                  property.no_of_units
+                              (property.rent * 1.1) /
+                                12 /
+                                (property.no_of_units || 1)
                             )}
                             <span className="text-sm text-gray-600">
                               /month
@@ -256,7 +256,7 @@ export default function ListingsPage() {
                               property.code_name || property.id
                             }`}
                           >
-                            <Button className="w-full bg-white border-2 border-primary rounded-xl py-6 text-primary text-xl hover:bg-primary/90 font-montserrat">
+                            <Button className="w-full bg-white border-2 border-primary rounded-xl py-6 text-primary text-xl hover:bg-primary/90 hover:text-white font-montserrat">
                               View Property Details
                             </Button>
                           </Link>
