@@ -34,7 +34,12 @@ import {
   VolumeX,
   ChevronDown,
   ChevronUp,
+  Camera,
+  AlertTriangle,
+  Info,
+  Home,
 } from "lucide-react";
+import { Badge } from "@/app/components/ui/badge";
 import {
   Card,
   CardContent,
@@ -44,6 +49,7 @@ import {
 import { Checkbox } from "@/app/components/ui/checkbox";
 import { useFileUpload, UploadedFile } from "@/hooks/useFileUpload";
 import { NIGERIAN_STATES_LGAS } from "@/lib/nigerian-states";
+import { LiveCameraModal } from "@/app/components/ui/live-camera-modal";
 
 interface AddPropertyDialogProps {
   open: boolean;
@@ -69,6 +75,7 @@ export const AddPropertyDialog = ({
   onSuccess,
   toast,
 }: AddPropertyDialogProps) => {
+  const [formStep, setFormStep] = useState(0);
   const [isAddingProperty, setIsAddingProperty] = useState(false);
   const [consentGiven, setConsentGiven] = useState(false);
   const [expandedSections, setExpandedSections] = useState({
@@ -76,6 +83,16 @@ export const AddPropertyDialog = ({
     power: false,
     comfort: false,
     compound: false,
+  });
+
+  const [cameraConfig, setCameraConfig] = useState<{
+    open: boolean;
+    type: UploadedFile["type"] | null;
+    isMultiple: boolean;
+  }>({
+    open: false,
+    type: null,
+    isMultiple: false,
   });
 
   const [formData, setFormData] = useState({
@@ -89,7 +106,7 @@ export const AddPropertyDialog = ({
     power_system: "",
     interior_rooms: [] as string[],
     exterior_shot: "",
-    landlord_package: "",
+    landlord_package: "prime",
   });
 
   const {
@@ -99,6 +116,7 @@ export const AddPropertyDialog = ({
     removeFile,
     clearUploads,
     getFileByType,
+    getFilesByType,
     getInteriorRoomFiles,
   } = useFileUpload(token);
 
@@ -109,8 +127,28 @@ export const AddPropertyDialog = ({
     }));
   };
 
+  const validateStep0 = () => {
+    if (
+      !formData.property_address ||
+      !formData.state ||
+      !formData.area ||
+      !formData.typology ||
+      !formData.rent ||
+      !formData.landlord_package
+    ) {
+      toast({
+        variant: "destructive",
+        title: "Missing Information",
+        description: "Please fill in all required fields in the Basic Information section.",
+      });
+      return false;
+    }
+    return true;
+  };
+
   const handleClose = () => {
     onOpenChange(false);
+    setFormStep(0);
     clearUploads();
     setFormData({
       property_address: "",
@@ -123,7 +161,7 @@ export const AddPropertyDialog = ({
       power_system: "",
       interior_rooms: [],
       exterior_shot: "",
-      landlord_package: "",
+      landlord_package: "prime",
     });
     setConsentGiven(false);
   };
@@ -131,7 +169,10 @@ export const AddPropertyDialog = ({
   const handleAddProperty = async () => {
     if (!token || !user_id) return;
 
-    if (!consentGiven) {
+    const isVantage = formData.landlord_package === "vantage";
+    const isPrime = formData.landlord_package === "prime";
+
+    if (!isVantage && !consentGiven) {
       toast({
         variant: "destructive",
         title: "Consent Required",
@@ -144,15 +185,27 @@ export const AddPropertyDialog = ({
     const compoundRoadUrl = getFileByType("compound_road")?.url;
     const powerSystemUrl = getFileByType("power_system")?.url;
     const exteriorShotUrl = getFileByType("exterior_shot")?.url;
-    const interiorUrls = getInteriorRoomFiles()
+    
+    // Enforce power picture if Prime
+    if (isPrime && !powerSystemUrl) {
+      toast({
+        variant: "destructive",
+        title: "Missing Requirement",
+        description: "Power System Image is compulsory for Prime package.",
+      });
+      return;
+    }
+
+    const interiorFiles = getInteriorRoomFiles();
+    const interiorUrls = interiorFiles
       .map((f) => f.url)
       .filter(Boolean) as string[];
 
-    if (!compoundRoadUrl || !powerSystemUrl || !exteriorShotUrl) {
+    if (!compoundRoadUrl || !exteriorShotUrl) {
       toast({
         variant: "destructive",
         title: "Missing Files",
-        description: "Please upload all required property images",
+        description: "Please upload required property images (Compound and Exterior Shot)",
       });
       return;
     }
@@ -161,7 +214,7 @@ export const AddPropertyDialog = ({
       toast({
         variant: "destructive",
         title: "Missing Interior Photos",
-        description: "Please upload at least one interior room photo",
+        description: "Please upload at least one interior room photo (e.g., Living Room, Bedroom)",
       });
       return;
     }
@@ -225,18 +278,29 @@ export const AddPropertyDialog = ({
         else onOpenChange(true);
       }}
     >
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto sm:max-w-2xl">
+      <DialogContent className="max-w-3xl max-h-[95vh] overflow-y-auto sm:max-w-3xl">
         <DialogHeader>
-          <DialogTitle className="text-lg sm:text-xl font-raleway">
-            Add New Property
-          </DialogTitle>
+          <div className="flex items-center justify-between">
+            <DialogTitle className="text-xl sm:text-2xl font-raleway font-bold text-primary">
+              {formStep === 0 ? "Step 1: Property Details" : "Step 2: Property Imagery"}
+            </DialogTitle>
+            <div className="flex gap-2">
+              <div className={`h-2 w-12 rounded-full ${formStep === 0 ? "bg-primary" : "bg-gray-200"}`}></div>
+              <div className={`h-2 w-12 rounded-full ${formStep === 1 ? "bg-primary" : "bg-gray-200"}`}></div>
+            </div>
+          </div>
         </DialogHeader>
 
-        <div className="space-y-6">
-          <div className="space-y-4">
-            <h3 className="font-semibold text-base sm:text-lg">
-              Basic Information
-            </h3>
+        <div className="space-y-8 mt-4">
+          {formStep === 0 ? (
+            <>
+              <div className="space-y-6">
+                <div className="flex items-center gap-2 border-b pb-2">
+                  <Info className="h-5 w-5 text-primary" />
+                  <h3 className="font-bold text-lg text-primary">
+                    Basic Information
+                  </h3>
+                </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
               <div className="sm:col-span-2">
                 <Label htmlFor="property_address" className="text-sm">
@@ -372,226 +436,332 @@ export const AddPropertyDialog = ({
                   }
                 />
               </div>
-              <div>
-                <Label htmlFor="rent" className="text-sm">
-                  Monthly Rent (₦) *
-                </Label>
-                <Input
-                  id="rent"
-                  type="number"
-                  value={formData.rent}
-                  onChange={(e) =>
-                    setFormData({ ...formData, rent: e.target.value })
-                  }
-                />
-              </div>
-            </div>
-          </div>
-
-          <div className="space-y-4">
-            <h3 className="font-semibold text-base sm:text-lg">
-              Property Images
-            </h3>
-
-            <div className="space-y-2">
-              <Label className="text-sm">Compound/Road Image *</Label>
-              <UploadBox
-                type="compound_road"
-                file={getFileByType("compound_road")}
-                onUpload={(f) => handleFileUpload(f, "compound_road")}
-                onRemove={(id) => removeFile(id)}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label className="text-sm">Power System Image *</Label>
-              <UploadBox
-                type="power_system"
-                file={getFileByType("power_system")}
-                onUpload={(f) => handleFileUpload(f, "power_system")}
-                onRemove={(id) => removeFile(id)}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label className="text-sm">Exterior Shot Image *</Label>
-              <UploadBox
-                type="exterior_shot"
-                file={getFileByType("exterior_shot")}
-                onUpload={(f) => handleFileUpload(f, "exterior_shot")}
-                onRemove={(id) => removeFile(id)}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label className="text-sm">Interior Room Images *</Label>
-              <div className="border-2 border-dashed rounded-lg p-4 text-center">
-                <Upload className="h-6 w-6 text-gray-400 mx-auto mb-2" />
-                <p className="text-xs text-gray-600 mb-2">
-                  Upload multiple interior photos
-                </p>
-                <label className="cursor-pointer inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-9 px-3">
-                  Choose Files
-                  <input
-                    type="file"
-                    accept="image/*"
-                    multiple
-                    className="hidden"
+                <div>
+                  <Label htmlFor="rent" className="text-sm">
+                    Monthly Rent (₦) *
+                  </Label>
+                  <Input
+                    id="rent"
+                    type="number"
+                    value={formData.rent}
                     onChange={(e) =>
-                      handleBulkInteriorUpload(Array.from(e.target.files || []))
+                      setFormData({ ...formData, rent: e.target.value })
                     }
                   />
-                </label>
-              </div>
-              {getInteriorRoomFiles().length > 0 && (
-                <div className="mt-4 space-y-2 max-h-40 overflow-y-auto">
-                  {getInteriorRoomFiles().map((file) => (
-                    <div
-                      key={file.id}
-                      className="border rounded-lg p-2 flex items-center justify-between"
-                    >
-                      <span className="text-sm truncate max-w-[200px]">
-                        {file.file.name}
-                      </span>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-7 w-7"
-                        onClick={() => removeFile(file.id)}
-                      >
-                        <Trash2 className="h-3 w-3 text-red-500" />
-                      </Button>
-                    </div>
-                  ))}
                 </div>
-              )}
+              </div>
             </div>
-          </div>
 
-          {/* ACCESSS Standard details remain same as original for quality */}
-          <Card className="mb-8">
-            <CardHeader>
-              <CardTitle className="font-raleway text-xl sm:text-2xl flex items-center gap-2">
-                <Shield className="h-5 w-5 sm:h-6 sm:w-6" />
-                The ACCESSS Standard
-              </CardTitle>
-              <p className="text-gray-600 text-sm sm:text-base">
-                We only manage assets that deliver House Serenity.
-              </p>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <AccordionItem
-                title="A. Aesthetics & Finishing"
-                icon={Wrench}
-                isOpen={expandedSections.aesthetics}
-                onToggle={() => toggleSection("aesthetics")}
-                content={
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
-                    <StandardDetail
-                      title="Paint & Walls"
-                      text="Newly painted with premium washable matte finish. Walls must be smooth and free of defects."
-                    />
-                    <StandardDetail
-                      title="Flooring"
-                      text="High-grade ceramic/porcelain tiles (min. 60x60cm) or premium wood laminate."
-                    />
-                  </div>
-                }
-              />
-              <AccordionItem
-                title="B. Power Systems"
-                icon={Zap}
-                isOpen={expandedSections.power}
-                onToggle={() => toggleSection("power")}
-                content={
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <StandardDetail
-                      title="Guaranteed Supply"
-                      text="10 Hours Night: 7PM-5AM; 5 Hours Day: 10AM-3PM."
-                    />
-                    <StandardDetail
-                      title="Systems"
-                      text="Solar & Inverter preferred. Soundproofed generators required."
-                    />
-                  </div>
-                }
-              />
-              <AccordionItem
-                title="C. Comfort & Space"
-                icon={Thermometer}
-                isOpen={expandedSections.comfort}
-                onToggle={() => toggleSection("comfort")}
-                content={
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <StandardDetail
-                      title="Ventilation"
-                      text="Min. 15% window-to-wall ratio. Cross-ventilation required."
-                    />
-                    <StandardDetail
-                      title="A/C"
-                      text="Mandatory split units in all bedrooms and living areas."
-                    />
-                  </div>
-                }
-              />
-              <AccordionItem
-                title="D. Compound & Environment"
-                icon={Droplets}
-                isOpen={expandedSections.compound}
-                onToggle={() => toggleSection("compound")}
-                content={
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <StandardDetail
-                      title="Access"
-                      text="Paved access road. Internal compound interlocked."
-                    />
-                    <StandardDetail
-                      title="Security"
-                      text="Secured walls (min 2.4m) with barb wire/electric fence."
-                    />
-                  </div>
-                }
-              />
-            </CardContent>
-          </Card>
+            {formData.landlord_package !== "vantage" && (
+              <Card className="border-primary/20 bg-primary/5">
+                <CardHeader className="pb-2">
+                  <CardTitle className="font-raleway text-xl flex items-center gap-2 text-primary">
+                    <Shield className="h-5 w-5" />
+                    The ACCESSS Standard
+                  </CardTitle>
+                  <p className="text-gray-600 text-sm">
+                    We only manage assets that deliver House Serenity.
+                  </p>
+                </CardHeader>
+                <CardContent className="space-y-4 pt-0">
+                  <AccordionItem
+                    title="A. Aesthetics & Finishing"
+                    icon={Wrench}
+                    isOpen={expandedSections.aesthetics}
+                    onToggle={() => toggleSection("aesthetics")}
+                    content={
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <StandardDetail
+                          title="Paint & Walls"
+                          text="Newly painted with premium washable matte finish."
+                        />
+                        <StandardDetail
+                          title="Flooring"
+                          text="High-grade ceramic/porcelain tiles (min. 60x60cm)."
+                        />
+                      </div>
+                    }
+                  />
+                  <AccordionItem
+                    title="B. Power Systems"
+                    icon={Zap}
+                    isOpen={expandedSections.power}
+                    onToggle={() => toggleSection("power")}
+                    content={
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <StandardDetail
+                          title="Guaranteed Supply"
+                          text="10 Hours Night: 7PM-5AM; 5 Hours Day: 10AM-3PM."
+                        />
+                        <StandardDetail
+                          title="Systems"
+                          text="Solar/Inverter preferred. Silent generators required."
+                        />
+                      </div>
+                    }
+                  />
+                  <AccordionItem
+                    title="C. Comfort & Space"
+                    icon={Thermometer}
+                    isOpen={expandedSections.comfort}
+                    onToggle={() => toggleSection("comfort")}
+                    content={
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <StandardDetail
+                          title="Ventilation"
+                          text="Min. 15% window-to-wall ratio. Cross-ventilation."
+                        />
+                        <StandardDetail
+                          title="A/C"
+                          text="Mandatory split units in all major areas."
+                        />
+                      </div>
+                    }
+                  />
+                  <AccordionItem
+                    title="D. Compound & Environment"
+                    icon={Droplets}
+                    isOpen={expandedSections.compound}
+                    onToggle={() => toggleSection("compound")}
+                    content={
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <StandardDetail
+                          title="Access"
+                          text="Paved road. Internal compound interlocked."
+                        />
+                        <StandardDetail
+                          title="Security"
+                          text="Secured walls (min 2.4m) with electric fence."
+                        />
+                      </div>
+                    }
+                  />
+                </CardContent>
+              </Card>
+            )}
 
-          <div className="flex items-start space-x-2 p-4 border rounded-lg bg-blue-50">
-            <Checkbox
-              id="consent"
-              checked={consentGiven}
-              onCheckedChange={(c) => setConsentGiven(!!c)}
-            />
-            <div className="grid gap-1.5 leading-none">
-              <Label htmlFor="consent" className="text-sm font-medium">
-                Compliance
-              </Label>
-              <p className="text-xs text-gray-600">
-                I confirm my property meets ACCESSS standards.
-              </p>
+            {formData.landlord_package !== "vantage" && (
+              <div className="flex items-start space-x-2 p-4 border rounded-lg bg-blue-50">
+                <Checkbox
+                  id="consent"
+                  checked={consentGiven}
+                  onCheckedChange={(c) => setConsentGiven(!!c)}
+                />
+                <div className="grid gap-1.5 leading-none">
+                  <Label htmlFor="consent" className="text-sm font-medium">
+                    Compliance Confirmation
+                  </Label>
+                  <p className="text-xs text-gray-600">
+                    I confirm my property meets ACCESSS standards. Missing criteria may lead to rejection.
+                  </p>
+                </div>
+              </div>
+            )}
+            </>
+          ) : (
+            <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-300">
+              <div className="flex items-center gap-2 border-b pb-2">
+                <ImageIcon className="h-5 w-5 text-primary" />
+                <h3 className="font-bold text-lg text-primary">
+                  Property Imagery
+                </h3>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <Label className="text-sm font-bold">Compound/Road Image *</Label>
+                    <Badge variant="outline" className="text-[10px]">Required</Badge>
+                  </div>
+                  <p className="text-[10px] text-gray-500 italic">Criteria: Show the access road and compound entrance. Must be well-lit.</p>
+                  <UploadBox
+                    type="compound_road"
+                    file={getFileByType("compound_road")}
+                    onUpload={(f) => handleFileUpload(f, "compound_road")}
+                    onTrigger={() => setCameraConfig({ open: true, type: "compound_road", isMultiple: false })}
+                    onRemove={(id) => removeFile(id)}
+                    instruction="Show clear view of the compound and access road."
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <Label className="text-sm font-bold">Exterior Shot Image *</Label>
+                    <Badge variant="outline" className="text-[10px]">Main Photo</Badge>
+                  </div>
+                  <p className="text-[10px] text-gray-500 italic">Criteria: Full view of the building exterior. Best during daylight.</p>
+                  <UploadBox
+                    type="exterior_shot"
+                    file={getFileByType("exterior_shot")}
+                    onUpload={(f) => handleFileUpload(f, "exterior_shot")}
+                    onTrigger={() => setCameraConfig({ open: true, type: "exterior_shot", isMultiple: false })}
+                    onRemove={(id) => removeFile(id)}
+                    instruction="High-quality front view of the building."
+                  />
+                </div>
+
+                <div className={`space-y-2 md:col-span-2 ${formData.landlord_package === 'prime' ? 'p-4 border border-amber-200 bg-amber-50 rounded-lg' : ''}`}>
+                  <div className="flex justify-between items-center">
+                    <Label className="text-sm font-bold">Power System Image {formData.landlord_package === 'prime' && '*'}</Label>
+                    {formData.landlord_package === 'prime' && <Badge className="bg-amber-500 text-[10px]">Compulsory for Prime</Badge>}
+                  </div>
+                  <p className="text-[10px] text-gray-500 italic">Criteria: Show the generator, inverter, or solar setup currently in place.</p>
+                  <UploadBox
+                    type="power_system"
+                    file={getFileByType("power_system")}
+                    onUpload={(f) => handleFileUpload(f, "power_system")}
+                    onTrigger={() => setCameraConfig({ open: true, type: "power_system", isMultiple: false })}
+                    onRemove={(id) => removeFile(id)}
+                    instruction="Clear shot of the operational power source."
+                  />
+                  {formData.landlord_package === 'prime' && !getFileByType("power_system") && (
+                    <p className="text-[10px] text-red-500 flex items-center gap-1 mt-1">
+                      <AlertTriangle className="h-3 w-3" /> Mandatory for Prime package.
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              <div className="space-y-6 pt-4">
+                <div className="flex items-center gap-2 border-b pb-2">
+                  <Home className="h-4 w-4 text-primary" />
+                  <h4 className="font-bold text-base text-primary">Interior Details (Multiple Photos Allowed)</h4>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-center">
+                      <Label className="text-sm font-bold">Living Room</Label>
+                      <Badge variant="secondary" className="text-[10px]">{getFilesByType("living_room").length} photos</Badge>
+                    </div>
+                    <UploadBox
+                      type="living_room"
+                      onUpload={(f) => handleFileUpload(f, "living_room", true)}
+                      onTrigger={() => setCameraConfig({ open: true, type: "living_room", isMultiple: true })}
+                      instruction="Capture the main living space from multiple angles."
+                      multi
+                    />
+                    <StagingArea files={getFilesByType("living_room")} onRemove={removeFile} />
+                  </div>
+
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-center">
+                      <Label className="text-sm font-bold">Bedrooms</Label>
+                      <Badge variant="secondary" className="text-[10px]">{getFilesByType("bedroom").length} photos</Badge>
+                    </div>
+                    <UploadBox
+                      type="bedroom"
+                      onUpload={(f) => handleFileUpload(f, "bedroom", true)}
+                      onTrigger={() => setCameraConfig({ open: true, type: "bedroom", isMultiple: true })}
+                      instruction="Show each bedroom clearly including closets."
+                      multi
+                    />
+                    <StagingArea files={getFilesByType("bedroom")} onRemove={removeFile} />
+                  </div>
+
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-center">
+                      <Label className="text-sm font-bold">Kitchen</Label>
+                      <Badge variant="secondary" className="text-[10px]">{getFilesByType("kitchen").length} photos</Badge>
+                    </div>
+                    <UploadBox
+                      type="kitchen"
+                      onUpload={(f) => handleFileUpload(f, "kitchen", true)}
+                      onTrigger={() => setCameraConfig({ open: true, type: "kitchen", isMultiple: true })}
+                      instruction="Focus on cabinets, sink, and workspace."
+                      multi
+                    />
+                    <StagingArea files={getFilesByType("kitchen")} onRemove={removeFile} />
+                  </div>
+
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-center">
+                      <Label className="text-sm font-bold">Rest Rooms</Label>
+                      <Badge variant="secondary" className="text-[10px]">{getFilesByType("rest_room").length} photos</Badge>
+                    </div>
+                    <UploadBox
+                      type="rest_room"
+                      onUpload={(f) => handleFileUpload(f, "rest_room", true)}
+                      onTrigger={() => setCameraConfig({ open: true, type: "rest_room", isMultiple: true })}
+                      instruction="Capture toilets, showers, and tiling."
+                      multi
+                    />
+                    <StagingArea files={getFilesByType("rest_room")} onRemove={removeFile} />
+                  </div>
+
+                  <div className="space-y-3 md:col-span-2">
+                    <div className="flex justify-between items-center">
+                      <Label className="text-sm font-bold">Others (Balconies, Backyards, etc.)</Label>
+                      <Badge variant="secondary" className="text-[10px]">{getFilesByType("others").length} photos</Badge>
+                    </div>
+                    <UploadBox
+                      type="others"
+                      onUpload={(f) => handleFileUpload(f, "others", true)}
+                      onTrigger={() => setCameraConfig({ open: true, type: "others", isMultiple: true })}
+                      instruction="Show any additional features or amenities."
+                      multi
+                    />
+                    <StagingArea files={getFilesByType("others")} onRemove={removeFile} />
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-4 bg-red-50 border border-red-100 rounded-lg flex items-start gap-3">
+                <AlertTriangle className="h-5 w-5 text-red-500 mt-0.5" />
+                <div>
+                  <h5 className="text-sm font-bold text-red-700">Rejection Warning</h5>
+                  <p className="text-xs text-red-600">
+                    Images not meeting the specified criteria (blurriness, poor lighting, or missing key areas) will lead to the immediate rejection of your listing application.
+                  </p>
+                </div>
+              </div>
             </div>
-          </div>
+          )}
         </div>
 
-        <DialogFooter>
-          <Button
-            variant="outline"
-            onClick={handleClose}
-            disabled={isAddingProperty}
-          >
-            Cancel
-          </Button>
-          <Button
-            onClick={handleAddProperty}
-            disabled={isAddingProperty || !consentGiven}
-            className="bg-primary"
-          >
-            {isAddingProperty ? (
-              <Loader2 className="animate-spin h-4 w-4 mr-2" />
-            ) : (
-              "Add Property"
-            )}
-          </Button>
+        <DialogFooter className="flex flex-col sm:flex-row gap-3 pt-6 border-t">
+          {formStep === 0 ? (
+            <>
+              <Button variant="outline" onClick={handleClose} disabled={isAddingProperty}>
+                Cancel
+              </Button>
+              <Button 
+                onClick={() => validateStep0() && setFormStep(1)} 
+                className="bg-primary hover:bg-primary/90 min-w-[120px]"
+              >
+                Next Step
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button variant="outline" onClick={() => setFormStep(0)} disabled={isAddingProperty}>
+                Previous Step
+              </Button>
+              <Button
+                onClick={handleAddProperty}
+                disabled={isAddingProperty}
+                className="bg-primary hover:bg-primary/90 font-bold min-w-[150px]"
+              >
+                {isAddingProperty ? (
+                  <Loader2 className="animate-spin h-4 w-4 mr-2" />
+                ) : (
+                  "Submit Property"
+                )}
+              </Button>
+            </>
+          )}
         </DialogFooter>
+
+        <LiveCameraModal 
+          open={cameraConfig.open}
+          onOpenChange={(open) => setCameraConfig(prev => ({ ...prev, open }))}
+          onCapture={(file) => {
+            if (cameraConfig.type) {
+              handleFileUpload(file, cameraConfig.type, cameraConfig.isMultiple);
+            }
+          }}
+          title={`Capture ${cameraConfig.type?.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}`}
+        />
       </DialogContent>
     </Dialog>
   );
@@ -601,18 +771,27 @@ interface UploadBoxProps {
   type: UploadedFile["type"];
   file?: UploadedFile;
   onUpload: (file: File) => void;
+  onTrigger?: () => void;
   onRemove: (id: string) => void;
+  instruction?: string;
+  multi?: boolean;
 }
 
-const UploadBox = ({ type, file, onUpload, onRemove }: UploadBoxProps) => {
-  if (file) {
+const UploadBox = ({ type, file, onUpload, onTrigger, onRemove, instruction, multi }: UploadBoxProps) => {
+  if (file && !multi) {
     return (
-      <div className="border rounded-lg p-3 flex items-center justify-between">
+      <div className="border border-primary/20 bg-primary/5 rounded-lg p-3 flex items-center justify-between animate-in zoom-in-95 duration-200">
         <div className="flex items-center gap-3">
-          <ImageIcon className="h-4 w-4 text-gray-400" />
+          <div className="w-10 h-10 bg-white rounded border flex items-center justify-center overflow-hidden">
+            {file.url ? (
+              <img src={file.url} alt="Uploaded" className="w-full h-full object-cover" />
+            ) : (
+              <ImageIcon className="h-4 w-4 text-gray-400" />
+            )}
+          </div>
           <div className="min-w-0">
-            <p className="font-medium text-sm truncate">{file.file.name}</p>
-            <p className="text-xs text-gray-500">
+            <p className="font-medium text-xs truncate max-w-[150px]">{file.file.name}</p>
+            <p className="text-[10px] text-gray-500">
               {file.uploading
                 ? "Uploading..."
                 : file.error
@@ -624,26 +803,69 @@ const UploadBox = ({ type, file, onUpload, onRemove }: UploadBoxProps) => {
         <Button
           variant="ghost"
           size="icon"
-          className="h-7 w-7"
+          className="h-8 w-8 hover:bg-red-50 hover:text-red-500"
           onClick={() => onRemove(file.id)}
         >
-          <Trash2 className="h-3 w-3 text-red-500" />
+          <Trash2 className="h-4 w-4" />
         </Button>
       </div>
     );
   }
   return (
-    <div className="border-2 border-dashed rounded-lg p-4 text-center">
-      <Upload className="h-6 w-6 text-gray-400 mx-auto mb-2" />
-      <label className="cursor-pointer inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-9 px-3">
-        Choose File
-        <input
-          type="file"
-          accept="image/*"
-          className="hidden"
-          onChange={(e) => e.target.files?.[0] && onUpload(e.target.files[0])}
-        />
-      </label>
+    <div className="border-2 border-dashed border-gray-200 rounded-lg p-6 text-center hover:border-primary/50 transition-colors group bg-slate-50/50">
+      <div className="flex flex-col items-center">
+        <div className="w-12 h-12 bg-white shadow-sm rounded-full flex items-center justify-center mb-3 group-hover:scale-110 transition-transform text-primary">
+          <Camera className="h-6 w-6" />
+        </div>
+        <p className="text-sm font-bold text-gray-700 mb-1">
+          Capture Live Photo
+        </p>
+        <p className="text-[10px] text-gray-500 mb-4">{instruction}</p>
+        
+        <div className="flex flex-wrap justify-center gap-3">
+          <Button 
+            onClick={onTrigger}
+            className="border-2 border-primary bg-primary text-white hover:bg-primary/90 h-10 px-6 shadow-md font-bold"
+          >
+            <Camera className="h-4 w-4 mr-2" /> Open Camera
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const StagingArea = ({ files, onRemove }: { files: UploadedFile[], onRemove: (id: string) => void }) => {
+  if (files.length === 0) return null;
+  return (
+    <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 mt-2 p-2 bg-slate-100/50 rounded-lg border border-slate-200 max-h-48 overflow-y-auto">
+      {files.map((file) => (
+        <div key={file.id} className="relative aspect-square bg-white rounded border overflow-hidden group shadow-sm">
+          {file.url ? (
+            <img src={file.url} alt="Staged" className="w-full h-full object-cover" />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center">
+              {file.uploading ? (
+                <Loader2 className="h-4 w-4 animate-spin text-primary" />
+              ) : (
+                <ImageIcon className="h-4 w-4 text-gray-300" />
+              )}
+            </div>
+          )}
+          <button
+            onClick={() => onRemove(file.id)}
+            className="absolute top-1 right-1 bg-white/90 text-red-500 rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity shadow-sm"
+            title="Remove"
+          >
+            <Trash2 className="h-3 w-3" />
+          </button>
+          {file.error && (
+            <div className="absolute inset-0 bg-red-500/10 flex items-center justify-center">
+              <AlertTriangle className="h-4 w-4 text-red-500 shadow-sm" />
+            </div>
+          )}
+        </div>
+      ))}
     </div>
   );
 };
