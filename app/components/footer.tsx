@@ -17,7 +17,7 @@ const Footer = () => {
         <div className="absolute inset-0 bg-black/60" />
 
         <div className="relative z-10 max-w-6xl mx-auto px-6">
-          <div className="max-w-xl text-white space-y-4">
+          <div className="max-w-xl text-white space-y-4 text-center">
             <h1 className="text-4xl sm:text-5xl font-semibold leading-tight">
               Premium Homes. One <br /> Simple Monthly Payment.
             </h1>

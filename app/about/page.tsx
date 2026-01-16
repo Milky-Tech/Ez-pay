@@ -28,102 +28,99 @@ const AboutPage = () => {
           </div>
         </section>
       </div>
-      <section className="py-20 sm:mx-20 flex flex-col gap-5 sm:gap-8 sm:flex-row items-center sm:items-start">
-        <div className="w-full sm:w-[50%] flex flex-col gap-10">
-          <div className="max-w-3xl ml-20 sm:ml-0 w-32 px-2 sm:px-4 lg:px-6 bg-white shadow-lg shadow-primary/50 text-primary rounded-md py-2 text-center mb-6">
+      <section className="py-12 sm:py-20 px-4 sm:px-0 sm:mx-20 flex flex-col gap-8 sm:gap-12 sm:flex-row items-center sm:items-start">
+        {/* LEFT CONTENT */}
+        <div className="w-full sm:w-[50%] flex flex-col gap-8">
+          {/* Badge */}
+          <div className="mx-auto sm:mx-0 max-w-fit px-4 bg-white shadow-lg shadow-primary/40 text-primary rounded-md py-2 text-center">
             ABOUT US
           </div>
-          <h2 className="text-3xl">About EZ-Pay</h2>
-          <span className="text-justify ml-8 sm:mx-auto text-gray-700 max-w-3xl mx-auto flex flex-col gap-4">
+
+          {/* Heading */}
+          <h2 className="text-2xl sm:text-3xl text-center sm:text-left">
+            About EZ-Pay
+          </h2>
+
+          {/* Text */}
+          <div className="text-gray-700 text-sm sm:text-base leading-relaxed flex flex-col gap-4 max-w-3xl mx-auto sm:mx-0">
             <p>
               EZ-Pay is redefining how people rent homes by replacing the
               pressure of yearly rent with simple, predictable monthly payments.
               We believe quality living should be accessible without financial
-              strain.{" "}
+              strain.
             </p>
             <p>
               Our platform connects renters to carefully verified, premium homes
-              that meet high standards of comfort, security, and reliability.{" "}
+              that meet high standards of comfort, security, and reliability.
             </p>
             <p>
               Every EZ-Pay home comes with guaranteed power, professional
               facility management, and transparent pricing, so there are no
-              surprises.{" "}
+              surprises.
             </p>
             <p>
               For landlords, EZ-Pay offers peace of mind through consistent
-              monthly income and hands-off property management, while helping
-              preserve and enhance long-term asset value.{" "}
+              monthly income and hands-off property management.
             </p>
             <p>
-              At EZ-Pay, we are building a better rental experience, one that
-              prioritizes stability, dignity, and peace of mind for everyone
-              involved.
+              At EZ-Pay, we are building a better rental experience for
+              everyone.
             </p>
-          </span>
-          <div className="flex gap-4 mb-10 md:mb-12 pl-1">
-            <Link href="/listings" className="w-[40%]">
+          </div>
+
+          {/* Buttons */}
+          <div className="flex flex-col sm:flex-row gap-4 mt-4">
+            <Link href="/listings" className="w-full sm:w-[40%]">
               <Button
                 size="lg"
-                className="w-full bg-primary rounded-full text-sm md:text-base hover:bg-primary/90 text-white font-montserrat px-4 py-4 md:py-5"
+                className="w-full bg-primary rounded-full text-sm md:text-base hover:bg-primary/90 text-white"
               >
                 View Listings
               </Button>
             </Link>
-            <Link href="/landlord-partner" className="w-[40%]">
+
+            <Link href="/landlord-partner" className="w-full sm:w-[40%]">
               <Button
                 size="lg"
-                className="w-full border-2 border-primary bg-transparent backdrop-blur-sm text-primary rounded-full hover:bg-primary/20 hover:text-white font-montserrat text-sm md:text-base px-4 py-3 md:py-5"
+                className="w-full border-2 border-primary bg-transparent text-primary rounded-full hover:bg-primary hover:text-white"
               >
                 Become EZ-Partner
               </Button>
             </Link>
           </div>
-          <div className="flex flex-wrap gap-x-6 gap-y-2 pt-4 md:pt-3 border-t border-black/20">
+
+          {/* Stats */}
+          <div className="flex justify-between pt-6 border-t border-black/20 text-center">
             <div className="flex flex-col gap-3">
-              <h2 className="text-2xl md:text-[35px] lg:text-[40px] font-bold">
-                2500+
-              </h2>
-              <p className="text-[10px] md:text-xs text-[#888888] uppercase tracking-wider">
+              <h2 className="text-xl sm:text-[35px] font-bold">2500+</h2>
+              <p className="text-[10px] sm:text-xs text-[#888888] uppercase">
                 Happy Home Owners
               </p>
             </div>
-            <div className="hidden md:block border-l border-white/20 h-10"></div>
             <div className="flex flex-col gap-3">
-              <h2 className="text-2xl md:text-[35px] lg:text-[40px] font-bold">
-                4.8
-              </h2>
-              <p className="text-[10px] md:text-xs text-[#888888] uppercase tracking-wider">
+              <h2 className="text-xl sm:text-[35px] font-bold">4.8</h2>
+              <p className="text-[10px] sm:text-xs text-[#888888] uppercase">
                 Avg Rating
               </p>
             </div>
-            <div className="hidden md:block border-l border-white/20 h-10"></div>
             <div className="flex flex-col gap-3">
-              <h2 className="text-2xl md:text-[35px] lg:text-[40px] font-bold">
-                $10M+
-              </h2>
-              <p className="text-[10px] md:text-xs text-[#888888] uppercase tracking-wider">
+              <h2 className="text-xl sm:text-[35px] font-bold">$10M+</h2>
+              <p className="text-[10px] sm:text-xs text-[#888888] uppercase">
                 Homes Made Accessible
               </p>
             </div>
           </div>
         </div>
-        <div className="flex flex-col gap-4 w-[50%] h-[800px]">
+
+        {/* RIGHT IMAGES — HIDDEN ON MOBILE */}
+        <div className="hidden lg:flex flex-col gap-6 w-[50%] h-[800px]">
           <div
-            style={{
-              backgroundImage: "url('/images/aboutpic1.jpg')",
-              backgroundSize: "cover",
-              backgroundPosition: "center",
-            }}
-            className="mx-auto mt-8 w-full bg-cover h-[600px]"
+            className="w-full h-[380px] bg-cover bg-center rounded-lg"
+            style={{ backgroundImage: "url('/images/aboutpic1.jpg')" }}
           />
           <div
-            style={{
-              backgroundImage: "url('/images/aboutpic2.jpg')",
-              backgroundSize: "cover",
-              backgroundPosition: "center",
-            }}
-            className="mx-auto mt-8 w-full bg-cover h-[600px]"
+            className="w-full h-[380px] bg-cover bg-center rounded-lg"
+            style={{ backgroundImage: "url('/images/aboutpic2.jpg')" }}
           />
         </div>
       </section>
@@ -144,7 +141,7 @@ const AboutPage = () => {
           </p>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 px-8 sm:px-0">
-          <Card className="bg-primary/10 border-primary/20 hover:shadow-3xl shadow-xl transition-shadow shadow-black/10">
+          <Card className="bg-white hover:bg-primary/10 border-primary/20 hover:shadow-3xl shadow-xl transition-shadow shadow-black/10">
             <CardContent className="p-6 text-left">
               <div className="bg-white rounded-[15%] w-14 h-14 flex items-center justify-center ml-0 mx-auto mb-4 shadow-lg shadow-primary/30">
                 <Wallet className="h-8 w-8 text-primary" />
@@ -158,7 +155,7 @@ const AboutPage = () => {
               </p>
             </CardContent>
           </Card>
-          <Card className="bg-white border-primary/20 hover:shadow-3xl shadow-xl transition-shadow shadow-black/10">
+          <Card className="bg-white hover:bg-primary/10 border-primary/20 hover:shadow-3xl shadow-xl transition-shadow shadow-black/10">
             <CardContent className="p-6 text-left">
               <div className="bg-white rounded-[15%] w-14 h-14 flex items-center justify-center ml-0 mx-auto mb-4 shadow-lg shadow-primary/30">
                 <Zap className="h-8 w-8 text-primary" />
@@ -172,7 +169,7 @@ const AboutPage = () => {
               </p>
             </CardContent>
           </Card>
-          <Card className="bg-white border-primary/20 hover:shadow-3xl shadow-xl transition-shadow shadow-black/10">
+          <Card className="bg-white hover:bg-primary/10 border-primary/20 hover:shadow-3xl shadow-xl transition-shadow shadow-black/10">
             <CardContent className="p-6 text-left">
               <div className="bg-white rounded-[15%] w-14 h-14 flex items-center justify-center ml-0 mx-auto mb-4 shadow-lg shadow-primary/30">
                 <Shield className="h-8 w-8 text-primary" />
@@ -186,7 +183,7 @@ const AboutPage = () => {
               </p>
             </CardContent>
           </Card>
-          <Card className="bg-white border-primary/20 hover:shadow-3xl shadow-xl transition-shadow shadow-black/10">
+          <Card className="bg-white hover:bg-primary/10 border-primary/20 hover:shadow-3xl shadow-xl transition-shadow shadow-black/10">
             <CardContent className="p-6 text-left">
               <div className="bg-white rounded-[15%] w-14 h-14 flex items-center justify-center ml-0 mx-auto mb-4 shadow-lg shadow-primary/30">
                 <Home className="h-8 w-8 text-primary" />
@@ -200,7 +197,7 @@ const AboutPage = () => {
               </p>
             </CardContent>
           </Card>{" "}
-          <Card className="bg-white border-primary/20 hover:shadow-3xl shadow-xl transition-shadow shadow-black/10">
+          <Card className="bg-white hover:bg-primary/10 border-primary/20 hover:shadow-3xl shadow-xl transition-shadow shadow-black/10">
             <CardContent className="p-6 text-left">
               <div className="bg-white rounded-[15%] w-14 h-14 flex items-center justify-center ml-0 mx-auto mb-4 shadow-lg shadow-primary/30">
                 <Zap className="h-8 w-8 text-primary" />
@@ -214,7 +211,7 @@ const AboutPage = () => {
               </p>
             </CardContent>
           </Card>{" "}
-          <Card className="bg-white border-primary/20 hover:shadow-3xl shadow-xl transition-shadow shadow-black/10">
+          <Card className="bg-white hover:bg-primary/10 border-primary/20 hover:shadow-3xl shadow-xl transition-shadow shadow-black/10">
             <CardContent className="p-6 text-left">
               <div className="bg-white rounded-[15%] w-14 h-14 flex items-center justify-center ml-0 mx-auto mb-4 shadow-lg shadow-primary/30">
                 <LockIcon className="h-8 w-8 text-primary" />

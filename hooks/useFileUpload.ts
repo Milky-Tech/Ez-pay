@@ -12,7 +12,16 @@ export interface UploadedFile {
   url: string | null;
   uploading: boolean;
   error: string | null;
-  type: "compound_road" | "power_system" | "exterior_shot" | "interior_rooms";
+  type:
+    | "compound_road"
+    | "power_system"
+    | "exterior_shot"
+    | "interior_rooms"
+    | "living_room"
+    | "bedroom"
+    | "kitchen"
+    | "rest_room"
+    | "others";
 }
 
 export const useFileUpload = (token: string | null) => {
@@ -27,7 +36,18 @@ export const useFileUpload = (token: string | null) => {
     const formData = new FormData();
     formData.append("file", file);
     // Map internal types to generic 'image' or 'document' for the API if needed
-    const apiType = ["compound_road", "power_system", "exterior_shot", "interior_rooms"].includes(type) ? "image" : "document";
+    const imageTypes = [
+      "compound_road",
+      "power_system",
+      "exterior_shot",
+      "interior_rooms",
+      "living_room",
+      "bedroom",
+      "kitchen",
+      "rest_room",
+      "others",
+    ];
+    const apiType = imageTypes.includes(type) ? "image" : "document";
     formData.append("type", apiType);
 
     const response = await fetch(`${API_BASE_URL}/${endpoint}`, {
@@ -211,7 +231,20 @@ export const useFileUpload = (token: string | null) => {
     handleBulkInteriorUpload,
     removeFile,
     clearUploads,
-    getFileByType: (type: UploadedFile["type"]) => uploadedFiles.find((f) => f.type === type),
-    getInteriorRoomFiles: () => uploadedFiles.filter((f) => f.type === "interior_rooms"),
+    getFileByType: (type: UploadedFile["type"]) =>
+      uploadedFiles.find((f) => f.type === type),
+    getFilesByType: (type: UploadedFile["type"]) =>
+      uploadedFiles.filter((f) => f.type === type),
+    getInteriorRoomFiles: () =>
+      uploadedFiles.filter((f) =>
+        [
+          "interior_rooms",
+          "living_room",
+          "bedroom",
+          "kitchen",
+          "rest_room",
+          "others",
+        ].includes(f.type)
+      ),
   };
 };

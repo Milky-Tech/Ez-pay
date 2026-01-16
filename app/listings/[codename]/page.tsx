@@ -34,14 +34,12 @@ import {
   Square,
   Zap,
   Shield,
-  Droplet,
   CheckCircle,
   Calendar,
   Video,
   Home,
   Users,
   Car,
-  Wifi,
   Copy,
   Loader2,
   Mail,
@@ -74,6 +72,7 @@ export default function PropertyDetailsPage() {
     any
   > | null>(null);
   const [formErrors, setFormErrors] = useState<string[]>([]);
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const { toast } = useToast();
 
   const { isAuthenticated, user, token } = useAuth();
@@ -95,6 +94,59 @@ export default function PropertyDetailsPage() {
 
     fetchListing();
   }, [params.codename]);
+
+  // Consolidate all images into a single array
+  const getAllImages = () => {
+    if (!property) return [];
+    
+    const images: string[] = [];
+    
+    if (property.exterior_shot) images.push(property.exterior_shot);
+    if (property.compound_road) images.push(property.compound_road);
+    
+    const interiorRoomsRaw = property.interior_rooms;
+    if (interiorRoomsRaw) {
+      try {
+        let rooms: string[] = [];
+        if (typeof interiorRoomsRaw === "string") {
+          if (interiorRoomsRaw.startsWith("[") || interiorRoomsRaw.startsWith("{")) {
+            const parsed = JSON.parse(interiorRoomsRaw);
+            rooms = Array.isArray(parsed) ? parsed : [parsed];
+          } else {
+            rooms = interiorRoomsRaw.split(",").map(s => s.trim());
+          }
+        } else if (Array.isArray(interiorRoomsRaw)) {
+          rooms = interiorRoomsRaw;
+        }
+        images.push(...rooms);
+      } catch (e) {
+        console.error("Error parsing interior rooms:", e);
+      }
+    }
+    
+    return images.filter(Boolean);
+  };
+
+  const allImages = getAllImages();
+
+  // Auto-rotate images every 1 minute
+  useEffect(() => {
+    if (allImages.length <= 1) return;
+
+    const interval = setInterval(() => {
+      setCurrentImageIndex((prev) => (prev + 1) % allImages.length);
+    }, 60000); // 60 seconds
+
+    return () => clearInterval(interval);
+  }, [allImages.length]);
+
+  const getFullImageUrl = (url: string | undefined) => {
+    if (!url) return "";
+    const cleanUrl = url.trim();
+    return cleanUrl.startsWith("http")
+      ? cleanUrl
+      : `https://ez-pay.realestway.com/${cleanUrl.startsWith("/") ? cleanUrl.slice(1) : cleanUrl}`;
+  };
 
   const validateForm = (): string[] => {
     const errors: string[] = [];
@@ -167,19 +219,21 @@ export default function PropertyDetailsPage() {
         preferred_date: inspectionDate,
         email: inspectionEmail,
         phone_number: inspectionPhone,
-        // Additional context for better tracking
-        property_id: property?.id || params.codename,
-        property_name: property?.typology,
-        property_address: `${property?.property_address}, ${property?.area}, ${property?.state}`,
+        house_listing_id: property?.id ? parseInt(property.id) : undefined,
       };
 
       // Call the API endpoint
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+      };
+
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
+      }
+
       const response = await fetch(`${API_BASE_URL}/inspections/book`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
+        headers,
         body: JSON.stringify(payload),
       });
 
@@ -337,26 +391,17 @@ export default function PropertyDetailsPage() {
                       </Link>
                     )}
                   </div>
-                  {(() => {
-                    const rooms = property.interior_rooms;
-                    const roomsArray = Array.isArray(rooms)
-                      ? rooms
-                      : typeof rooms === "string"
-                      ? JSON.parse(rooms)
-                      : [];
-
-                    return roomsArray && roomsArray.length > 0 ? (
-                      <img
-                        src={`https://ez-pay.realestway.com/${roomsArray[0]?.toString()}`}
-                        alt={property.typology}
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center">
-                        <Home className="h-24 w-24 text-gray-400" />
-                      </div>
-                    );
-                  })()}
+                  {allImages.length > 0 ? (
+                    <img
+                      src={getFullImageUrl(allImages[currentImageIndex])}
+                      alt={property.typology}
+                      className="w-full h-full object-cover transition-all duration-500"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center">
+                      <Home className="h-24 w-24 text-gray-400" />
+                    </div>
+                  )}
                   <Badge className="absolute top-4 right-4 bg-secondary text-white font-montserrat text-lg px-4 py-2 shadow-lg">
                     {property.availability_status?.toUpperCase() || "AVAILABLE"}
                   </Badge>
@@ -365,92 +410,22 @@ export default function PropertyDetailsPage() {
 
               {/* Enhanced Photo Gallery */}
               <div className="mb-8">
-                <h2 className="text-2xl font-semibold text-primary mb-4 font-raleway">
-                  Property Gallery
-                </h2>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  {/* Exterior Shot */}
-                  {property.exterior_shot && (
-                    <div className="aspect-square rounded-xl overflow-hidden cursor-pointer hover:ring-2 ring-primary transition-all">
+                  {allImages.map((url: string, idx: number) => (
+                    <div
+                      key={idx}
+                      className={`aspect-square rounded-xl overflow-hidden cursor-pointer transition-all ${
+                        currentImageIndex === idx ? "ring-4 ring-primary" : "hover:ring-2 ring-primary/50"
+                      }`}
+                      onClick={() => setCurrentImageIndex(idx)}
+                    >
                       <img
-                        src={((url: string) =>
-                          url.startsWith("http")
-                            ? url
-                            : `https://ez-pay.realestway.com/${
-                                url.startsWith("/") ? url.slice(1) : url
-                              }`)(property.exterior_shot)}
+                        src={getFullImageUrl(url)}
                         className="w-full h-full object-cover"
-                        alt="Exterior"
+                        alt={`Property image ${idx + 1}`}
                       />
                     </div>
-                  )}
-
-                  {/* Compound Road */}
-                  {property.compound_road && (
-                    <div className="aspect-square rounded-xl overflow-hidden cursor-pointer hover:ring-2 ring-primary transition-all">
-                      <img
-                        src={((url: string) =>
-                          url.startsWith("http")
-                            ? url
-                            : `https://ez-pay.realestway.com/${
-                                url.startsWith("/") ? url.slice(1) : url
-                              }`)(property.compound_road)}
-                        className="w-full h-full object-cover"
-                        alt="Compound/Road"
-                      />
-                    </div>
-                  )}
-
-                  {/* Interior Rooms */}
-                  {(() => {
-                    const interiorRoomsRaw = property.interior_rooms;
-                    if (!interiorRoomsRaw) return null;
-
-                    const getImageUrl = (url: string | null) => {
-                      if (!url) return "";
-                      const cleanUrl = url.trim();
-                      return cleanUrl.startsWith("http")
-                        ? cleanUrl
-                        : `https://ez-pay.realestway.com/${
-                            cleanUrl.startsWith("/")
-                              ? cleanUrl.slice(1)
-                              : cleanUrl
-                          }`;
-                    };
-
-                    try {
-                      let rooms = [];
-                      if (typeof interiorRoomsRaw === "string") {
-                        if (
-                          interiorRoomsRaw.startsWith("[") ||
-                          interiorRoomsRaw.startsWith("{")
-                        ) {
-                          rooms = JSON.parse(interiorRoomsRaw);
-                        } else {
-                          rooms = interiorRoomsRaw.split(",");
-                        }
-                      } else {
-                        rooms = interiorRoomsRaw;
-                      }
-
-                      return Array.isArray(rooms)
-                        ? rooms.map((url: string, idx: number) => (
-                            <div
-                              key={idx}
-                              className="aspect-square rounded-xl overflow-hidden cursor-pointer hover:ring-2 ring-primary transition-all"
-                            >
-                              <img
-                                src={getImageUrl(url)}
-                                className="w-full h-full object-cover"
-                                alt={`Interior ${idx + 1}`}
-                              />
-                            </div>
-                          ))
-                        : null;
-                    } catch (e) {
-                      return null;
-                    }
-                  })()}
+                  ))}
                 </div>
               </div>
 
@@ -623,194 +598,177 @@ export default function PropertyDetailsPage() {
                     </div>
                   </div>
 
-                  <div className="space-y-3 mb-6 flex flex-col gap-1">
-                    {isAuthenticated ? (
-                      <>
-                        <Dialog>
-                          <DialogTrigger asChild>
-                            <Button className="w-full bg-primary hover:bg-primary/90 font-montserrat text-lg py-6">
-                              <Calendar className="mr-2 h-5 w-5" />
-                              Book Inspection
-                            </Button>
-                          </DialogTrigger>
-                          <DialogContent className="max-w-md">
-                            <DialogHeader>
-                              <DialogTitle className="font-raleway">
-                                Book an Inspection
-                              </DialogTitle>
-                            </DialogHeader>
-                            <form
-                              onSubmit={handleInspectionBooking}
-                              className="space-y-4"
-                            >
-                              <div>
-                                <Label className="mb-3 block">
-                                  Inspection Type *
-                                </Label>
-                                <RadioGroup
-                                  value={inspectionType}
-                                  onValueChange={(
-                                    value: "physical" | "virtual"
-                                  ) => setInspectionType(value)}
-                                  className="space-y-2"
-                                >
-                                  <div className="flex items-center space-x-2 border rounded-lg p-3 hover:bg-gray-50 cursor-pointer">
-                                    <RadioGroupItem
-                                      value="physical"
-                                      id="physical"
-                                      className="mt-0"
-                                    />
-                                    <Label
-                                      htmlFor="physical"
-                                      className="flex-1 cursor-pointer flex flex-col"
-                                    >
-                                      <div className="flex items-center">
-                                        <Users className="h-4 w-4 mr-2" />
-                                        <p className="font-semibold">
-                                          Physical Inspection
-                                        </p>
-                                        <Badge className="ml-2 bg-amber-100 text-amber-800">
-                                          ₦50,000
-                                        </Badge>
-                                      </div>
-                                      <p className="text-sm text-gray-600 mt-1">
-                                        In-person visit (fee refundable upon
-                                        signing)
-                                      </p>
-                                    </Label>
-                                  </div>
-                                  <div className="flex items-center space-x-2 border rounded-lg p-3 hover:bg-gray-50 cursor-pointer">
-                                    <RadioGroupItem
-                                      value="virtual"
-                                      id="virtual"
-                                      className="mt-0"
-                                    />
-                                    <Label
-                                      htmlFor="virtual"
-                                      className="flex-1 cursor-pointer flex flex-col"
-                                    >
-                                      <div className="flex items-center">
-                                        <Video className="h-4 w-4 mr-2" />
-                                        <p className="font-semibold">
-                                          Virtual Inspection
-                                        </p>
-                                        <Badge className="ml-2 bg-green-100 text-green-800">
-                                          Free
-                                        </Badge>
-                                      </div>
-                                      <p className="text-sm text-gray-600 mt-1">
-                                        Live video tour with our agent
-                                      </p>
-                                    </Label>
-                                  </div>
-                                </RadioGroup>
-                              </div>
-
-                              <div>
-                                <Label htmlFor="date">Preferred Date *</Label>
-                                <Input
-                                  id="date"
-                                  type="date"
-                                  value={inspectionDate}
-                                  onChange={(e) =>
-                                    setInspectionDate(e.target.value)
-                                  }
-                                  required
-                                  min={new Date().toISOString().split("T")[0]}
-                                  className="mt-1"
-                                />
-                                <p className="text-xs text-gray-500 mt-1">
-                                  Inspections available Monday-Friday, 9AM-5PM
-                                </p>
-                              </div>
-
-                              <div>
-                                <Label htmlFor="email">Email Address *</Label>
-                                <Input
-                                  id="email"
-                                  type="email"
-                                  value={inspectionEmail}
-                                  onChange={(e) =>
-                                    setInspectionEmail(e.target.value)
-                                  }
-                                  placeholder="your@email.com"
-                                  required
-                                  className="mt-1"
-                                />
-                              </div>
-
-                              <div>
-                                <Label htmlFor="phone">Phone Number *</Label>
-                                <Input
-                                  id="phone"
-                                  type="tel"
-                                  value={inspectionPhone}
-                                  onChange={(e) =>
-                                    setInspectionPhone(e.target.value)
-                                  }
-                                  placeholder="08012345678"
-                                  required
-                                  className="mt-1"
-                                />
-                                <p className="text-xs text-gray-500 mt-1">
-                                  Nigerian format: 08012345678 or +2348012345678
-                                </p>
-                              </div>
-
-                              {formErrors.length > 0 && (
-                                <div className="bg-red-50 border border-red-200 rounded-lg p-3">
-                                  <p className="text-sm font-medium text-red-800 mb-1">
-                                    Please fix the following errors:
-                                  </p>
-                                  <ul className="text-sm text-red-700 list-disc pl-4">
-                                    {formErrors.map((error, index) => (
-                                      <li key={index}>{error}</li>
-                                    ))}
-                                  </ul>
-                                </div>
-                              )}
-
-                              <Button
-                                type="submit"
-                                className="w-full bg-primary font-montserrat"
-                                disabled={isBooking}
+                    <div className="space-y-3 mb-6 flex flex-col gap-1">
+                      <Dialog>
+                        <DialogTrigger asChild>
+                          <Button className="w-full bg-primary hover:bg-primary/90 font-montserrat text-lg py-6">
+                            <Calendar className="mr-2 h-5 w-5" />
+                            Book Inspection
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent className="max-w-md">
+                          <DialogHeader>
+                            <DialogTitle className="font-raleway">
+                              Book an Inspection
+                            </DialogTitle>
+                          </DialogHeader>
+                          <form
+                            onSubmit={handleInspectionBooking}
+                            className="space-y-4"
+                          >
+                            <div>
+                              <Label className="mb-3 block">
+                                Inspection Type *
+                              </Label>
+                              <RadioGroup
+                                value={inspectionType}
+                                onValueChange={(
+                                  value: string
+                                ) => setInspectionType(value as "physical" | "virtual")}
+                                className="space-y-2"
                               >
-                                {isBooking ? (
-                                  <>
-                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                    Processing...
-                                  </>
-                                ) : (
-                                  "Confirm Booking"
-                                )}
-                              </Button>
-                            </form>
-                          </DialogContent>
-                        </Dialog>
+                                <div className="flex items-center space-x-2 border rounded-lg p-3 hover:bg-gray-50 cursor-pointer">
+                                  <RadioGroupItem
+                                    value="physical"
+                                    id="physical"
+                                    className="mt-0"
+                                  />
+                                  <Label
+                                    htmlFor="physical"
+                                    className="flex-1 cursor-pointer flex flex-col"
+                                  >
+                                    <div className="flex items-center">
+                                      <Users className="h-4 w-4 mr-2" />
+                                      <p className="font-semibold">
+                                        Physical Inspection
+                                      </p>
+                                      <Badge className="ml-2 bg-amber-100 text-amber-800">
+                                        ₦50,000
+                                      </Badge>
+                                    </div>
+                                    <p className="text-sm text-gray-600 mt-1">
+                                      In-person visit (fee refundable upon
+                                      signing)
+                                    </p>
+                                  </Label>
+                                </div>
+                                <div className="flex items-center space-x-2 border rounded-lg p-3 hover:bg-gray-50 cursor-pointer">
+                                  <RadioGroupItem
+                                    value="virtual"
+                                    id="virtual"
+                                    className="mt-0"
+                                  />
+                                  <Label
+                                    htmlFor="virtual"
+                                    className="flex-1 cursor-pointer flex flex-col"
+                                  >
+                                    <div className="flex items-center">
+                                      <Video className="h-4 w-4 mr-2" />
+                                      <p className="font-semibold">
+                                        Virtual Inspection
+                                      </p>
+                                      <Badge className="ml-2 bg-green-100 text-green-800">
+                                        Free
+                                      </Badge>
+                                    </div>
+                                    <p className="text-sm text-gray-600 mt-1">
+                                      Live video tour with our agent
+                                    </p>
+                                  </Label>
+                                </div>
+                              </RadioGroup>
+                            </div>
 
-                        <Link
-                          href={`/apply/${property.code_name || property.id}`}
-                        >
-                          <Button className="w-full bg-secondary hover:bg-secondary/90 font-montserrat text-lg py-6">
-                            Start Application
-                          </Button>
-                        </Link>
-                      </>
-                    ) : (
-                      <>
-                        <Link href="/signin">
-                          <Button className="w-full bg-primary hover:bg-primary/90 font-montserrat text-lg py-6 mb-2">
-                            Sign in to book inspection
-                          </Button>
-                        </Link>
-                        <Link href="/signin">
-                          <Button className="w-full bg-secondary hover:bg-secondary/90 font-montserrat text-lg py-6">
-                            Sign in to apply
-                          </Button>
-                        </Link>
-                      </>
-                    )}
-                  </div>
+                            <div>
+                              <Label htmlFor="date">Preferred Date *</Label>
+                              <Input
+                                id="date"
+                                type="date"
+                                value={inspectionDate}
+                                onChange={(e) =>
+                                  setInspectionDate(e.target.value)
+                                }
+                                required
+                                min={new Date().toISOString().split("T")[0]}
+                                className="mt-1"
+                              />
+                              <p className="text-xs text-gray-500 mt-1">
+                                Inspections available Monday-Friday, 9AM-5PM
+                              </p>
+                            </div>
+
+                            <div>
+                              <Label htmlFor="email">Email Address *</Label>
+                              <Input
+                                id="email"
+                                type="email"
+                                value={inspectionEmail}
+                                onChange={(e) =>
+                                  setInspectionEmail(e.target.value)
+                                }
+                                placeholder="your@email.com"
+                                required
+                                className="mt-1"
+                              />
+                            </div>
+
+                            <div>
+                              <Label htmlFor="phone">Phone Number *</Label>
+                              <Input
+                                id="phone"
+                                type="tel"
+                                value={inspectionPhone}
+                                onChange={(e) =>
+                                  setInspectionPhone(e.target.value)
+                                }
+                                placeholder="08012345678"
+                                required
+                                className="mt-1"
+                              />
+                              <p className="text-xs text-gray-500 mt-1">
+                                Nigerian format: 08012345678 or +2348012345678
+                              </p>
+                            </div>
+
+                            {formErrors.length > 0 && (
+                              <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+                                <p className="text-sm font-medium text-red-800 mb-1">
+                                  Please fix the following errors:
+                                </p>
+                                <ul className="text-sm text-red-700 list-disc pl-4">
+                                  {formErrors.map((error, index) => (
+                                    <li key={index}>{error}</li>
+                                  ))}
+                                </ul>
+                              </div>
+                            )}
+
+                            <Button
+                              type="submit"
+                              className="w-full bg-primary font-montserrat"
+                              disabled={isBooking}
+                            >
+                              {isBooking ? (
+                                <>
+                                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                  Processing...
+                                </>
+                              ) : (
+                                "Confirm Booking"
+                              )}
+                            </Button>
+                          </form>
+                        </DialogContent>
+                      </Dialog>
+
+                      <Link
+                        href={`/apply/${property.code_name || property.id}`}
+                      >
+                        <Button className="w-full bg-secondary hover:bg-secondary/90 font-montserrat text-lg py-6">
+                          Start Application
+                        </Button>
+                      </Link>
+                    </div>
 
                   <div className="mt-6 p-4 bg-gray-50 rounded-lg">
                     <h4 className="font-semibold text-gray-700 mb-2">

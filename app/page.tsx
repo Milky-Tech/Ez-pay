@@ -5,15 +5,7 @@ import Header from "@/app/components/header";
 import ChatWidget from "@/app/components/ui/chat-widget";
 import { Button } from "@/app/components/ui/button";
 import { Card, CardContent } from "@/app/components/ui/card";
-import {
-  Home,
-  Shield,
-  Zap,
-  TrendingUp,
-  Clock,
-  Wallet,
-  CheckCircle,
-} from "lucide-react";
+import { Shield, Zap, Wallet } from "lucide-react";
 import { useEffect, useState } from "react";
 import FAQSection from "./components/ui/faq";
 import Footer from "./components/footer";
@@ -41,7 +33,7 @@ export default function LandingPage() {
   useEffect(() => {
     const interval = setInterval(() => {
       setActive((prev) => (prev + 1) % slides.length);
-    }, 4000); // 4 seconds
+    }, 10000); // 4 seconds
 
     return () => clearInterval(interval);
   }, []);
@@ -61,7 +53,7 @@ export default function LandingPage() {
           <div className="px-6 md:px-12 text-left">
             <span className="flex gap-3 items-center mb-4 sm:mb-2">
               <img
-                src="/images/group.png"
+                src="/images/renters.png"
                 alt="group tenants"
                 className="h-4 md:h-5"
               />
@@ -78,7 +70,7 @@ export default function LandingPage() {
             </h1>
 
             <p className="text-sm md:text-base text-white mb-8 md:mb-6 max-w-2xl">
-              Access verified, high-end homes with guaranteed 15+ hours of power
+              Access verified, high-end homes with guaranteed 20+ hours of power
               and a predictable monthly payment structure. Welcome to House
               Serenity.
             </p>
@@ -94,13 +86,13 @@ export default function LandingPage() {
               <Link href="/landlord-partner" className="w-full sm:w-auto">
                 <Button
                   size="lg"
-                  className="w-full sm:w-auto border-2 border-primary/50 bg-primary/20 backdrop-blur-sm text-white rounded-[18px] hover:bg-secondary hover:text-white font-montserrat text-sm md:text-lg px-6 py-5 md:py-7"
+                  className="w-full sm:w-auto border-2 border-primary/50 bg-primary/20 backdrop-blur-sm text-white rounded-[18px] hover:bg-[#C9A227] hover:text-white font-montserrat text-sm md:text-lg px-6 py-5 md:py-7"
                 >
-                  Become EZ-Partner
+                  Become EZ-Landlord
                 </Button>
               </Link>
             </div>
-            <div className="flex flex-wrap gap-x-6 gap-y-2 pt-4 md:pt-6 border-t border-white/20">
+            <div className="flex flex-wrap gap-x-6 gap-y-2 pt-4 pb-3">
               <div className="flex flex-col gap-1 text-white">
                 <h2 className="text-2xl md:text-[35px] lg:text-[40px] font-bold">
                   2500+
@@ -132,7 +124,7 @@ export default function LandingPage() {
         </div>
       </section>
       <section className="py-20 sm:mx-20 flex flex-col">
-        <div className="max-w-3xl ml-20 sm:ml-0 w-32 px-2 sm:px-4 lg:px-6 bg-white shadow-lg shadow-primary/50 text-primary rounded-md py-2 text-center mb-12">
+        <div className="max-w-3xl mx-auto w-32 px-2 sm:px-4 lg:px-6 bg-white shadow-lg shadow-primary/50 text-primary rounded-md py-2 text-center mb-12">
           ABOUT US
         </div>
         <p className="text-left sm:text-center ml-8 sm:mx-auto text-gray-700 max-w-3xl mx-auto text-lg sm:text-xl md:text-2xl">
@@ -170,7 +162,7 @@ export default function LandingPage() {
           </p>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 px-8 sm:px-0">
-          <Card className="bg-primary/10 border-primary/20 hover:shadow-xl transition-shadow shadow-black/10">
+          <Card className="bg-white hover:bg-primary/10 border-primary/20 hover:shadow-xl transition-shadow shadow-black/10">
             <CardContent className="p-6 text-left">
               <div className="bg-white rounded-[15%] w-14 h-14 flex items-center justify-center ml-0 mx-auto mb-4 shadow-lg shadow-primary/30">
                 <Wallet className="h-8 w-8 text-primary" />
@@ -184,7 +176,7 @@ export default function LandingPage() {
               </p>
             </CardContent>
           </Card>
-          <Card className="bg-white border-primary/20 hover:shadow-xl transition-shadow shadow-black/10">
+          <Card className="bg-white hover:bg-primary/10 border-primary/20 hover:shadow-xl transition-shadow shadow-black/10">
             <CardContent className="p-6 text-left">
               <div className="bg-white rounded-[15%] w-14 h-14 flex items-center justify-center ml-0 mx-auto mb-4 shadow-lg shadow-primary/30">
                 <Zap className="h-8 w-8 text-primary" />
@@ -198,7 +190,7 @@ export default function LandingPage() {
               </p>
             </CardContent>
           </Card>
-          <Card className="bg-white border-primary/20 hover:shadow-xl transition-shadow shadow-black/10">
+          <Card className="bg-white hover:bg-primary/10 border-primary/20 hover:shadow-xl transition-shadow shadow-black/10">
             <CardContent className="p-6 text-left">
               <div className="bg-white rounded-[15%] w-14 h-14 flex items-center justify-center ml-0 mx-auto mb-4 shadow-lg shadow-primary/30">
                 <Shield className="h-8 w-8 text-primary" />

@@ -15,7 +15,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/app/components/ui/select";
-import { MapPin, Bed, Home, Zap, Bath, Square, SearchIcon } from "lucide-react";
+import { MapPin, Bed, Home, Zap, Bath, Square, SearchIcon, ArrowRight, Car } from "lucide-react";
 import { type Property } from "@/lib/types";
 import PropertyFilter from "./component/filter";
 import Footer from "../components/footer";
@@ -40,7 +40,7 @@ export default function ListingsPage() {
         const listings = data.data || data;
         setProperties(listings);
         setFilteredProperties(listings);
-        console.log("Fetched listings:", listings);
+       
       } catch (error) {
         console.error("Error fetching listings:", error);
       } finally {
@@ -174,95 +174,87 @@ export default function ListingsPage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {filteredProperties.map((property) => (
                     <Card
-                      key={property.id}
-                      className="overflow-hidden border-2 border-accent/20 hover:border-accent hover:shadow-2xl transition-all duration-300 group"
-                    >
-                      <div className="relative h-48 overflow-hidden">
-                        {(() => {
-                          const rooms = property.interior_rooms;
-                          const roomsArray = Array.isArray(rooms)
-                            ? rooms
-                            : typeof rooms === "string"
-                            ? JSON.parse(rooms)
-                            : [];
+  key={property.id}
+  className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm hover:shadow-lg transition"
+>
+  {/* Image */}
+  <div className="relative h-[220px] w-full overflow-hidden">
+    {(() => {
+      const rooms = property.interior_rooms;
+      const roomsArray = Array.isArray(rooms)
+        ? rooms
+        : typeof rooms === "string"
+        ? JSON.parse(rooms)
+        : [];
 
-                          return roomsArray && roomsArray.length > 0 ? (
-                            <img
-                              src={`https://ez-pay.realestway.com/${roomsArray[0]?.toString()}`}
-                              alt={property.typology}
-                              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                            />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-200 to-gray-300">
-                              <Home className="h-16 w-16 text-gray-400" />
-                            </div>
-                          );
-                        })()}
-                      </div>
-                      <CardContent className="p-6">
-                        {property.code_name && (
-                          <p className="text-sm text-gray-500 mb-2 font-montserrat">
-                            {property.code_name}
-                          </p>
-                        )}
-                        <h3 className="text-xl font-bold text-primary mb-2 font-raleway line-clamp-1">
-                          {property.typology}
-                        </h3>
-                        <div className="flex items-center text-gray-600 mb-4">
-                          <MapPin className="h-4 w-4 mr-1 flex-shrink-0" />
-                          <span className="text-sm truncate">
-                            {property.area}, {property.state}
-                          </span>
-                        </div>
+      return roomsArray && roomsArray.length > 0 ? (
+        <img
+          src={`https://ez-pay.realestway.com/${roomsArray[0]}`}
+          alt={property.typology}
+          className="h-full w-full object-cover"
+        />
+      ) : (
+        <div className="flex h-full w-full items-center justify-center bg-gray-200">
+          <Home className="h-14 w-14 text-gray-400" />
+        </div>
+      );
+    })()}
 
-                        <div className="flex items-center justify-between mb-4">
-                          <div className="flex items-center gap-4">
-                            <div className="flex items-center text-gray-600">
-                              <Bed className="h-4 w-4 mr-1" />
-                              <span className="text-sm">
-                                {property.bedrooms} beds
-                              </span>
-                            </div>
-                            <div className="flex items-center text-gray-600">
-                              <Bath className="h-4 w-4 mr-1" />
-                              <span className="text-sm">
-                                {property.bathrooms} baths
-                              </span>
-                            </div>
-                            {property.square_feet && (
-                              <div className="flex items-center text-gray-600">
-                                <Square className="h-4 w-4 mr-1" />
-                                <span className="text-sm">
-                                  {property.square_feet.toLocaleString()} sqft
-                                </span>
-                              </div>
-                            )}
-                          </div>
-                        </div>
+    {/* Badge */}
+    <span className="absolute bottom-4 left-0 rounded-r-md bg-primary px-4 py-1 text-sm font-medium text-white">
+      {property.typology}
+    </span>
+  </div>
 
-                        <div className="border-t pt-4 flex flex-col">
-                          <p className="text-2xl font-bold text-primary mb-4 font-raleway">
-                            {formatPrice(
-                              (property.rent * 1.1) /
-                                12 /
-                                (property.no_of_units || 1)
-                            )}
-                            <span className="text-sm text-gray-600">
-                              /month
-                            </span>
-                          </p>
-                          <Link
-                            href={`/listings/${
-                              property.code_name || property.id
-                            }`}
-                          >
-                            <Button className="w-full bg-white border-2 border-primary rounded-xl py-6 text-primary text-xl hover:bg-primary/90 hover:text-white font-montserrat">
-                              View Property Details
-                            </Button>
-                          </Link>
-                        </div>
-                      </CardContent>
-                    </Card>
+  {/* Content */}
+  <CardContent className="p-5">
+    {/* Price */}
+    <p className="text-lg font-bold text-black">
+      {formatPrice( (property.rent * 1.1) / 12 / (property.no_of_units || 1) )}
+      <span className="text-sm font-normal text-gray-500">/month</span>
+    </p>
+
+    {/* Title */}
+    <h3 className="mt-1 text-lg font-bold text-black">
+      {property.typology}, {property.area}
+    </h3>
+
+    {/* Location */}
+    <p className="text-sm text-gray-500">
+      {property.area}, {property.state}
+    </p>
+
+    {/* Icons */}
+    <div className="mt-4 flex items-center gap-5 text-sm text-gray-500">
+      <div className="flex items-center gap-1">
+        <Bed className="h-4 w-4" />
+        <span>{property.bedrooms} Beds</span>
+      </div>
+
+      <div className="flex items-center gap-1">
+        <Bath className="h-4 w-4" />
+        <span>{property.bathrooms} Bath</span>
+      </div>
+
+      <div className="flex items-center gap-1">
+        <Car className="h-4 w-4" />
+        <span>2 Parking</span>
+      </div>
+    </div>
+
+    {/* Button */}
+    <Link
+      href={`/listings/${ property.id}`}
+      className="mt-5 block"
+    >
+      <button className="flex w-full items-center justify-center gap-2 rounded-full border border-primary py-3 text-primary font-medium transition hover:bg-primary hover:text-white">
+        View Property
+        <ArrowRight className="h-4 w-4" />
+      </button>
+    </Link>
+  </CardContent>
+</Card>
+
                   ))}
                 </div>
               )}
