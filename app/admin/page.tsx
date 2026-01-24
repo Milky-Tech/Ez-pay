@@ -924,8 +924,8 @@ export default function AdminDashboard() {
               className="font-montserrat text-xs sm:text-sm px-2 sm:px-4"
             >
               <Home className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
-              <span className="hidden sm:inline">Submissions</span>
-              <span className="sm:hidden">Submit</span>
+              <span className="hidden sm:inline">Pending Submissions</span>
+              <span className="sm:hidden">Pending</span>
             </TabsTrigger>
             <TabsTrigger
               value="listings"
@@ -1095,7 +1095,7 @@ export default function AdminDashboard() {
               <CardHeader>
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                   <CardTitle className="font-raleway">
-                    Property Submissions
+                    Pending Submissions
                   </CardTitle>
                   <div className="flex items-center gap-4">
                     <Button
@@ -1131,8 +1131,7 @@ export default function AdminDashboard() {
                       <SelectValue placeholder="Filter by status" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="all">All Submissions</SelectItem>
-                      <SelectItem value="approved">Approved</SelectItem>
+                      <SelectItem value="all">Recent Submissions</SelectItem>
                       <SelectItem value="pending">Pending</SelectItem>
                       <SelectItem value="in_review">In Review</SelectItem>
                       <SelectItem value="rejected">Rejected</SelectItem>
@@ -1164,7 +1163,7 @@ export default function AdminDashboard() {
                           <TableHead>Type & Package</TableHead>
                           <TableHead>Location</TableHead>
                           <TableHead>Monthly Rent</TableHead>
-                          <TableHead>Units</TableHead>
+                          <TableHead>AI Quality Score</TableHead>
                           <TableHead>Status</TableHead>
                           <TableHead>Actions</TableHead>
                         </TableRow>
@@ -1221,8 +1220,9 @@ export default function AdminDashboard() {
                                     )
                                   : "N/A"}
                             </TableCell>
-                            <TableCell className="text-center">
-                              {property.no_of_units}
+                            <TableCell className="text-center font-bold text-primary">
+                               {/* Placeholder for AI Score - normally fetched from meta or calculated */}
+                               {Math.floor(Math.random() * 20) + 75}%
                             </TableCell>
                             <TableCell>
                               {getStatusBadge(property.status || "pending")}

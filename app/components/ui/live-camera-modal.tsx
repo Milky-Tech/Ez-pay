@@ -9,9 +9,9 @@ import {
 } from "@/app/components/ui/dialog";
 import { Button } from "@/app/components/ui/button";
 import { Camera, RefreshCw, X, Check, FlipHorizontal, AlertCircle, Info, CheckCircle2 } from "lucide-react";
-import * as tf from "@tensorflow/tfjs";
 import * as cocoSsd from "@tensorflow-models/coco-ssd";
 import { UploadedFile } from "@/hooks/useFileUpload";
+import { useAI } from "@/context/aicontext";
 
 interface LiveCameraModalProps {
   open: boolean;
@@ -36,35 +36,26 @@ export const LiveCameraModal = ({
   const [error, setError] = useState<string | null>(null);
   const [facingMode, setFacingMode] = useState<"user" | "environment">("environment");
   
-  // AI State
-  const [model, setModel] = useState<cocoSsd.ObjectDetection | null>(null);
-  const [isModelLoading, setIsModelLoading] = useState(false);
+  // AI State from Context
+  const { model, isModelLoading, error: aiError } = useAI();
   const [detections, setDetections] = useState<cocoSsd.DetectedObject[]>([]);
   const [brightness, setBrightness] = useState<number>(0);
   const [isValidatedNow, setIsValidatedNow] = useState(false);
   const [guidance, setGuidance] = useState<{ message: string; type: "info" | "warning" | "success" }>({
-    message: "Initializing AI guidance...",
+    message: isModelLoading ? "AI is initializing..." : "Initializing AI guidance...",
     type: "info",
   });
 
-  // Load Model
+  // Guidance Update when model status changes
   useEffect(() => {
-    const loadModel = async () => {
-      try {
-        setIsModelLoading(true);
-        await tf.ready();
-        const loadedModel = await cocoSsd.load();
-        setModel(loadedModel);
-        console.log("AI Model loaded successfully");
-      } catch (err) {
-        console.error("Failed to load AI model:", err);
-        setGuidance({ message: "AI guidance unavailable", type: "warning" });
-      } finally {
-        setIsModelLoading(false);
-      }
-    };
-    if (open) loadModel();
-  }, [open]);
+    if (aiError) {
+      setGuidance({ message: "AI guidance unavailable", type: "warning" });
+    } else if (isModelLoading) {
+      setGuidance({ message: "AI is initializing...", type: "info" });
+    } else if (model) {
+      setGuidance({ message: "Scanning environment...", type: "info" });
+    }
+  }, [model, isModelLoading, aiError]);
 
   const calculateBrightness = (video: HTMLVideoElement) => {
     const canvas = document.createElement("canvas");
@@ -84,75 +75,101 @@ export const LiveCameraModal = ({
   };
 
   const runDetection = useCallback(async () => {
-    if (model && videoRef.current && videoRef.current.readyState === 4 && !capturedImage) {
-      const video = videoRef.current;
-      
-      // Detection
-      const predictions = await model.detect(video);
-      setDetections(predictions);
-      
-      // Quality Check
-      const b = calculateBrightness(video);
-      setBrightness(b);
+    if (!open || capturedImage || !model) return;
 
-      // Guidance Logic
-      let message = "Scanning environment...";
-      let gType: "info" | "warning" | "success" = "info";
-      let isValid = false;
-
-      if (b < 40) {
-        message = "Too dark! Find better lighting.";
-        gType = "warning";
-      } else if (b > 220) {
-        message = "Too bright! Avoid direct light.";
-        gType = "warning";
-      } else {
-        const labels = predictions.map(p => p.class.toLowerCase());
+    const video = videoRef.current;
+    if (video && video.readyState === 4) {
+      try {
+        // Detection
+        const predictions = await model.detect(video);
+        setDetections(predictions);
         
-        const isKitchen = type === "kitchen";
-        const isToilet = type === "rest_room";
-        const isOutside = type === "exterior_shot" || type === "compound_road";
+        // Quality Check
+        const b = calculateBrightness(video);
+        setBrightness(b);
 
-        if (isKitchen) {
-          const kitchenObjects = ["sink", "refrigerator", "microwave", "oven", "toaster", "dining table"];
-          const found = predictions.find(p => kitchenObjects.includes(p.class.toLowerCase()));
-          if (found) {
-            message = `Kitchen ${found.class} detected!`;
-            gType = "success";
-            isValid = true;
-          } else {
-            message = "Target a kitchen area (sink, fridge, oven).";
-          }
-        } else if (isToilet) {
-          if (labels.includes("toilet") || labels.includes("sink")) {
-            message = "Bathroom fixtures detected!";
-            gType = "success";
-            isValid = true;
-          } else {
-            message = "Center the toilet or sink in the frame.";
-          }
-        } else if (isOutside) {
-          const outsideObjects = ["car", "truck", "bus", "traffic light", "bench", "bicycle"];
-          const found = predictions.find(p => outsideObjects.includes(p.class.toLowerCase()));
-          if (found) {
-            message = `Outside environment detected!`;
-            gType = "success";
-            isValid = true;
-          } else {
-            message = "Ensuring it's an outside shot. Look for vehicles or wide space.";
-          }
+        // Guidance Logic
+        let message = "Scanning...";
+        let gType: "info" | "warning" | "success" = "info";
+        let isValid = false;
+
+        if (b < 30) {
+          message = "Too dark! Find better lighting.";
+          gType = "warning";
+        } else if (b > 230) {
+          message = "Too bright! Avoid direct light.";
+          gType = "warning";
         } else {
-          message = "Ready for capture.";
-          gType = "success";
-          isValid = true;
-        }
-      }
+          const labels = predictions.map(p => p.class.toLowerCase());
+          
+          const isKitchen = type === "kitchen";
+          const isToilet = type === "rest_room";
+          const isOutside = type === "exterior_shot" || type === "compound_road";
 
-      setGuidance({ message, type: gType });
-      setIsValidatedNow(isValid);
-      requestAnimationFrame(runDetection);
+          if (isKitchen) {
+            const kitchenObjects = ["sink", "refrigerator", "microwave", "oven", "toaster", "dining table", "bottle", "cup", "bowl", "chair"];
+            const found = predictions.find(p => kitchenObjects.includes(p.class.toLowerCase()));
+            if (found) {
+              message = `KITCHEN: ${found.class.toUpperCase()} detected!`;
+              gType = "success";
+              isValid = true;
+            } else {
+              message = "Kitchen: Target sink, fridge, or stove";
+            }
+          } else if (isToilet) {
+            const toiletObjects = ["toilet", "sink"];
+            const found = predictions.find(p => toiletObjects.includes(p.class.toLowerCase()));
+            if (found) {
+              message = `RESTROOM: ${found.class.toUpperCase()} detected!`;
+              gType = "success";
+              isValid = true;
+            } else {
+              message = "Restroom: Center the toilet or sink";
+            }
+          } else if (isOutside) {
+            // Compound or Compound Road
+            const outdoorObjects = ["car", "truck", "bus", "traffic light", "bench", "bicycle", "motorcycle", "person"];
+            const found = predictions.find(p => outdoorObjects.includes(p.class.toLowerCase()));
+            if (found) {
+              message = `${type === "compound_road" ? "ROAD" : "COMPOUND"}: ${found.class.toUpperCase()} detected!`;
+              gType = "success";
+              isValid = true;
+            } else {
+              message = type === "compound_road" ? "Road: Capture driveway/street" : "Compound: Show building surroundings";
+            }
+          } else if (type === "living_room" || type === "bedroom") {
+            // Can be empty, but highlight what we see
+            const roomObjects = ["bed", "couch", "chair", "tv", "potted plant", "book", "vase"];
+            const found = predictions.find(p => roomObjects.includes(p.class.toLowerCase()));
+            if (found) {
+              message = `${type.replace('_', ' ').toUpperCase()}: ${found.class.toUpperCase()} detected!`;
+              gType = "success";
+            } else {
+              message = `${type.replace('_', ' ').split(' ')[0]} ready (Empty room okay)`;
+              gType = "success";
+            }
+            isValid = true;
+          } else {
+            message = "Ready for capture.";
+            gType = "success";
+            isValid = true;
+          }
+        }
+
+        setGuidance({ message, type: gType });
+        setIsValidatedNow(isValid);
+      } catch (err) {
+        console.error("Detection error:", err);
+      }
     }
-  }, [model, capturedImage, type]);
+    
+    // Request next frame ONLY AFTER current one is processed (with a tiny delay to breathe)
+    if (open && !capturedImage) {
+      setTimeout(() => {
+        requestAnimationFrame(runDetection);
+      }, 100); // 10fps is plenty for guidance and much lighter on CPU
+    }
+  }, [model, capturedImage, type, open]);
 
   useEffect(() => {
     if (open && model && !capturedImage) {
@@ -286,7 +303,7 @@ export const LiveCameraModal = ({
               {detections.map((det, i) => (
                 <div 
                   key={i}
-                  className="absolute border-2 border-primary/50 pointer-events-none rounded hidden sm:block"
+                  className="absolute border-2 border-primary/40 pointer-events-none rounded transition-all duration-200"
                   style={{
                     left: `${(det.bbox[0] / (videoRef.current?.videoWidth || 1)) * 100}%`,
                     top: `${(det.bbox[1] / (videoRef.current?.videoHeight || 1)) * 100}%`,
@@ -294,9 +311,9 @@ export const LiveCameraModal = ({
                     height: `${(det.bbox[3] / (videoRef.current?.videoHeight || 1)) * 100}%`
                   }}
                 >
-                  <span className="bg-primary text-white text-[8px] px-1 absolute -top-4 left-0 rounded-sm">
-                    {det.class}
-                  </span>
+                  <div className="absolute -top-6 left-0 bg-primary/90 text-white text-[10px] font-bold px-2 py-0.5 rounded shadow-sm whitespace-nowrap">
+                    {det.class.toUpperCase()} ({Math.round(det.score * 100)}%)
+                  </div>
                 </div>
               ))}
             </>
