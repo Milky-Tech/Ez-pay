@@ -15,7 +15,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/app/components/ui/select";
-import { MapPin, Bed, Home, Zap, Bath, Square, SearchIcon, ArrowRight, Car } from "lucide-react";
+import {
+  MapPin,
+  Bed,
+  Home,
+  Zap,
+  Bath,
+  Square,
+  SearchIcon,
+  ArrowRight,
+  Car,
+} from "lucide-react";
 import { type Property } from "@/lib/types";
 import PropertyFilter from "./component/filter";
 import Footer from "../components/footer";
@@ -40,7 +50,6 @@ export default function ListingsPage() {
         const listings = data.data || data;
         setProperties(listings);
         setFilteredProperties(listings);
-       
       } catch (error) {
         console.error("Error fetching listings:", error);
       } finally {
@@ -66,7 +75,7 @@ export default function ListingsPage() {
           p.area.toLowerCase().includes(searchTerm.toLowerCase()) ||
           p.typology.toLowerCase().includes(searchTerm.toLowerCase()) ||
           (p.code_name &&
-            p.code_name.toLowerCase().includes(searchTerm.toLowerCase()))
+            p.code_name.toLowerCase().includes(searchTerm.toLowerCase())),
       );
     }
 
@@ -146,7 +155,7 @@ export default function ListingsPage() {
       </section>
       <div className="pt-24 pb-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="sticky top-20 z-40 bg-gray-50 pb-4">
+          <div className="sticky top-20 z-40 bg-gray-50 pb-4 w-1/3">
             <PropertyFilter maxPrice={maxPrice} setMaxPrice={setMaxPrice} />
           </div>
 
@@ -174,87 +183,92 @@ export default function ListingsPage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {filteredProperties.map((property) => (
                     <Card
-  key={property.id}
-  className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm hover:shadow-lg transition"
->
-  {/* Image */}
-  <div className="relative h-[220px] w-full overflow-hidden">
-    {(() => {
-      const rooms = property.interior_rooms;
-      const roomsArray = Array.isArray(rooms)
-        ? rooms
-        : typeof rooms === "string"
-        ? JSON.parse(rooms)
-        : [];
+                      key={property.id}
+                      className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm hover:shadow-lg transition"
+                    >
+                      {/* Image */}
+                      <div className="relative h-[220px] w-full overflow-hidden">
+                        {(() => {
+                          const rooms = property.interior_rooms;
+                          const roomsArray = Array.isArray(rooms)
+                            ? rooms
+                            : typeof rooms === "string"
+                              ? JSON.parse(rooms)
+                              : [];
 
-      return roomsArray && roomsArray.length > 0 ? (
-        <img
-          src={`https://ez-pay.realestway.com/${roomsArray[0]}`}
-          alt={property.typology}
-          className="h-full w-full object-cover"
-        />
-      ) : (
-        <div className="flex h-full w-full items-center justify-center bg-gray-200">
-          <Home className="h-14 w-14 text-gray-400" />
-        </div>
-      );
-    })()}
+                          return roomsArray && roomsArray.length > 0 ? (
+                            <img
+                              src={`https://ez-pay.realestway.com/${roomsArray[0]}`}
+                              alt={property.typology}
+                              className="h-full w-full object-cover"
+                            />
+                          ) : (
+                            <div className="flex h-full w-full items-center justify-center bg-gray-200">
+                              <Home className="h-14 w-14 text-gray-400" />
+                            </div>
+                          );
+                        })()}
 
-    {/* Badge */}
-    <span className="absolute bottom-4 left-0 rounded-r-md bg-primary px-4 py-1 text-sm font-medium text-white">
-      {property.typology}
-    </span>
-  </div>
+                        {/* Badge */}
+                        <span className="absolute bottom-4 left-0 rounded-r-md bg-primary px-4 py-1 text-sm font-medium text-white">
+                          {property.typology}
+                        </span>
+                      </div>
 
-  {/* Content */}
-  <CardContent className="p-5">
-    {/* Price */}
-    <p className="text-lg font-bold text-black">
-      {formatPrice( (property.rent * 1.1) / 12 / (property.no_of_units || 1) )}
-      <span className="text-sm font-normal text-gray-500">/month</span>
-    </p>
+                      {/* Content */}
+                      <CardContent className="p-5">
+                        {/* Price */}
+                        <p className="text-lg font-bold text-black">
+                          {formatPrice(
+                            (property.rent * 1.1) /
+                              12 /
+                              (property.no_of_units || 1),
+                          )}
+                          <span className="text-sm font-normal text-gray-500">
+                            /month
+                          </span>
+                        </p>
 
-    {/* Title */}
-    <h3 className="mt-1 text-lg font-bold text-black">
-      {property.typology}, {property.area}
-    </h3>
+                        {/* Title */}
+                        <h3 className="mt-1 text-lg font-bold text-black">
+                          {property.typology}, {property.area}
+                        </h3>
 
-    {/* Location */}
-    <p className="text-sm text-gray-500">
-      {property.area}, {property.state}
-    </p>
+                        {/* Location */}
+                        <p className="text-sm text-gray-500">
+                          {property.area}, {property.state}
+                        </p>
 
-    {/* Icons */}
-    <div className="mt-4 flex items-center gap-5 text-sm text-gray-500">
-      <div className="flex items-center gap-1">
-        <Bed className="h-4 w-4" />
-        <span>{property.bedrooms} Beds</span>
-      </div>
+                        {/* Icons */}
+                        <div className="mt-4 flex items-center gap-5 text-sm text-gray-500">
+                          <div className="flex items-center gap-1">
+                            <Bed className="h-4 w-4" />
+                            <span>{property.bedrooms} Beds</span>
+                          </div>
 
-      <div className="flex items-center gap-1">
-        <Bath className="h-4 w-4" />
-        <span>{property.bathrooms} Bath</span>
-      </div>
+                          <div className="flex items-center gap-1">
+                            <Bath className="h-4 w-4" />
+                            <span>{property.bathrooms} Bath</span>
+                          </div>
 
-      <div className="flex items-center gap-1">
-        <Car className="h-4 w-4" />
-        <span>2 Parking</span>
-      </div>
-    </div>
+                          <div className="flex items-center gap-1">
+                            <Car className="h-4 w-4" />
+                            <span>2 Parking</span>
+                          </div>
+                        </div>
 
-    {/* Button */}
-    <Link
-      href={`/listings/${ property.id}`}
-      className="mt-5 block"
-    >
-      <button className="flex w-full items-center justify-center gap-2 rounded-full border border-primary py-3 text-primary font-medium transition hover:bg-primary hover:text-white">
-        View Property
-        <ArrowRight className="h-4 w-4" />
-      </button>
-    </Link>
-  </CardContent>
-</Card>
-
+                        {/* Button */}
+                        <Link
+                          href={`/listings/${property.id}`}
+                          className="mt-5 block"
+                        >
+                          <button className="flex w-full items-center justify-center gap-2 rounded-full border border-primary py-3 text-primary font-medium transition hover:bg-primary hover:text-white">
+                            View Property
+                            <ArrowRight className="h-4 w-4" />
+                          </button>
+                        </Link>
+                      </CardContent>
+                    </Card>
                   ))}
                 </div>
               )}
