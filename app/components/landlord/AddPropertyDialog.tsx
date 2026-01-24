@@ -210,11 +210,18 @@ export const AddPropertyDialog = ({
       return;
     }
 
-    if (interiorUrls.length === 0) {
+    const kitchenFiles = getFilesByType("kitchen");
+    const bathFiles = getFilesByType("rest_room");
+    
+    const unvalidatedKitchen = kitchenFiles.some(f => !f.aiValidated);
+    const unvalidatedBath = bathFiles.some(f => !f.aiValidated);
+    const unvalidatedExterior = !getFileByType("exterior_shot")?.aiValidated;
+
+    if (unvalidatedKitchen || unvalidatedBath || unvalidatedExterior) {
       toast({
         variant: "destructive",
-        title: "Missing Interior Photos",
-        description: "Please upload at least one interior room photo (e.g., Living Room, Bedroom)",
+        title: "AI Quality Check Failed",
+        description: "One or more required photos (Kitchen, Bath, or Exterior) were not validated by AI. Please retake them with better guidance.",
       });
       return;
     }
@@ -638,6 +645,7 @@ export const AddPropertyDialog = ({
                       type="living_room"
                       onUpload={(f) => handleFileUpload(f, "living_room", true)}
                       onTrigger={() => setCameraConfig({ open: true, type: "living_room", isMultiple: true })}
+                      onRemove={(id) => removeFile(id)}
                       instruction="Capture the main living space from multiple angles."
                       multi
                     />
@@ -653,6 +661,7 @@ export const AddPropertyDialog = ({
                       type="bedroom"
                       onUpload={(f) => handleFileUpload(f, "bedroom", true)}
                       onTrigger={() => setCameraConfig({ open: true, type: "bedroom", isMultiple: true })}
+                      onRemove={(id) => removeFile(id)}
                       instruction="Show each bedroom clearly including closets."
                       multi
                     />
@@ -668,6 +677,7 @@ export const AddPropertyDialog = ({
                       type="kitchen"
                       onUpload={(f) => handleFileUpload(f, "kitchen", true)}
                       onTrigger={() => setCameraConfig({ open: true, type: "kitchen", isMultiple: true })}
+                      onRemove={(id) => removeFile(id)}
                       instruction="Focus on cabinets, sink, and workspace."
                       multi
                     />
@@ -683,6 +693,7 @@ export const AddPropertyDialog = ({
                       type="rest_room"
                       onUpload={(f) => handleFileUpload(f, "rest_room", true)}
                       onTrigger={() => setCameraConfig({ open: true, type: "rest_room", isMultiple: true })}
+                      onRemove={(id) => removeFile(id)}
                       instruction="Capture toilets, showers, and tiling."
                       multi
                     />
@@ -698,6 +709,7 @@ export const AddPropertyDialog = ({
                       type="others"
                       onUpload={(f) => handleFileUpload(f, "others", true)}
                       onTrigger={() => setCameraConfig({ open: true, type: "others", isMultiple: true })}
+                      onRemove={(id) => removeFile(id)}
                       instruction="Show any additional features or amenities."
                       multi
                     />
@@ -755,12 +767,13 @@ export const AddPropertyDialog = ({
         <LiveCameraModal 
           open={cameraConfig.open}
           onOpenChange={(open) => setCameraConfig(prev => ({ ...prev, open }))}
-          onCapture={(file) => {
+          onCapture={(file, isValidated) => {
             if (cameraConfig.type) {
-              handleFileUpload(file, cameraConfig.type, cameraConfig.isMultiple);
+              handleFileUpload(file, cameraConfig.type, cameraConfig.isMultiple, undefined, isValidated);
             }
           }}
           title={`Capture ${cameraConfig.type?.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}`}
+          type={cameraConfig.type}
         />
       </DialogContent>
     </Dialog>

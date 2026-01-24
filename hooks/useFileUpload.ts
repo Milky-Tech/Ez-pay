@@ -12,6 +12,7 @@ export interface UploadedFile {
   url: string | null;
   uploading: boolean;
   error: string | null;
+  aiValidated?: boolean; // Track if AI confirmed the contents
   type:
     | "compound_road"
     | "power_system"
@@ -104,7 +105,8 @@ export const useFileUpload = (token: string | null) => {
     file: File,
     type: UploadedFile["type"],
     isMultiple: boolean = false,
-    onSuccess?: (url: string) => void
+    onSuccess?: (url: string) => void,
+    aiValidated: boolean = false
   ) => {
     const id = `${type}_${Date.now()}_${Math.random()
       .toString(36)
@@ -117,6 +119,7 @@ export const useFileUpload = (token: string | null) => {
       uploading: true,
       error: null,
       type,
+      aiValidated,
     };
 
     if (!isMultiple) {
@@ -136,7 +139,7 @@ export const useFileUpload = (token: string | null) => {
 
       toast({
         title: "Upload Successful",
-        description: "File uploaded successfully",
+        description: aiValidated ? "AI Validated! File uploaded successfully" : "File uploaded successfully",
       });
       return url;
     } catch (error) {

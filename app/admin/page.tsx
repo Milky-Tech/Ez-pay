@@ -98,6 +98,7 @@ interface Property {
   monthly_cost: number | null;
   availability_status: string;
   status?: string;
+  role?: string;
   full_name: string;
   property_address: string;
   no_of_units: number;
@@ -147,6 +148,7 @@ interface Landlord {
   account_number?: string;
   bank_name?: string;
   status: string;
+  role?: string;
   created_at: string;
 }
 
@@ -268,7 +270,7 @@ export default function AdminDashboard() {
 
       // Update stats
       const approvedCount = propertiesData.filter(
-        (p: Property) => p.status === "approved"
+        (p: Property) => p.status === "approved",
       ).length;
 
       setStats((prev) => ({
@@ -331,7 +333,7 @@ export default function AdminDashboard() {
 
         const pendingCount = (data.data || data).filter(
           (app: Application) =>
-            app.status === "submitted" || app.status === "vetting_pending"
+            app.status === "submitted" || app.status === "vetting_pending",
         ).length;
 
         setStats((prev) => ({
@@ -367,7 +369,7 @@ export default function AdminDashboard() {
       setUsers(data.data || data);
 
       const activeCount = (data.data || data).filter(
-        (u: any) => u.status === "active"
+        (u: any) => u.status === "active",
       ).length;
 
       setStats((prev) => ({
@@ -400,7 +402,7 @@ export default function AdminDashboard() {
         setLandlords(allLandlords);
 
         const activeCount = allLandlords.filter(
-          (landlord: Landlord) => landlord.status === "active"
+          (landlord: Landlord) => landlord.status === "active",
         ).length;
 
         setStats((prev) => ({
@@ -428,7 +430,7 @@ export default function AdminDashboard() {
           headers: {
             Authorization: `Bearer ${token}`,
           },
-        }
+        },
       );
 
       if (!response.ok) throw new Error("Failed to delete listing");
@@ -502,7 +504,7 @@ export default function AdminDashboard() {
             Authorization: `Bearer ${token}`,
           },
           body: JSON.stringify(data),
-        }
+        },
       );
 
       if (!response.ok) throw new Error("Failed to update listing");
@@ -559,7 +561,7 @@ export default function AdminDashboard() {
   // Open confirmation dialog
   const openConfirmationDialog = (
     property: Property,
-    action: "approve" | "reject"
+    action: "approve" | "reject",
   ) => {
     setConfirmationDialog({
       open: true,
@@ -637,7 +639,7 @@ export default function AdminDashboard() {
             Authorization: `Bearer ${token}`,
           },
           body: JSON.stringify({ status: "rejected" }),
-        }
+        },
       );
 
       if (!response.ok) {
@@ -1214,10 +1216,10 @@ export default function AdminDashboard() {
                               {property.monthly_cost
                                 ? formatPrice(property.monthly_cost)
                                 : property.rent
-                                ? formatPrice(
-                                    Math.round((property.rent * 1.1) / 12)
-                                  )
-                                : "N/A"}
+                                  ? formatPrice(
+                                      Math.round((property.rent * 1.1) / 12),
+                                    )
+                                  : "N/A"}
                             </TableCell>
                             <TableCell className="text-center">
                               {property.no_of_units}
@@ -1253,7 +1255,7 @@ export default function AdminDashboard() {
                                       onReject={() =>
                                         openConfirmationDialog(
                                           property,
-                                          "reject"
+                                          "reject",
                                         )
                                       }
                                     />
@@ -1269,7 +1271,7 @@ export default function AdminDashboard() {
                                       onClick={() =>
                                         openConfirmationDialog(
                                           property,
-                                          "approve"
+                                          "approve",
                                         )
                                       }
                                       title="Approve"
@@ -1282,7 +1284,7 @@ export default function AdminDashboard() {
                                       onClick={() =>
                                         openConfirmationDialog(
                                           property,
-                                          "reject"
+                                          "reject",
                                         )
                                       }
                                       title="Reject"
@@ -1607,6 +1609,7 @@ export default function AdminDashboard() {
                         <TableHead>Email</TableHead>
                         <TableHead>Phone</TableHead>
                         <TableHead>Status</TableHead>
+                        <TableHead>Role</TableHead>
                         <TableHead>Joined</TableHead>
                         <TableHead>Actions</TableHead>
                       </TableRow>
@@ -1620,6 +1623,7 @@ export default function AdminDashboard() {
                           <TableCell>{user.email}</TableCell>
                           <TableCell>{user.phone}</TableCell>
                           <TableCell>{getStatusBadge(user.status)}</TableCell>
+                          <TableCell>{user.role}</TableCell>
                           <TableCell>{formatDate(user.created_at)}</TableCell>
                           <TableCell>
                             <div className="flex items-center gap-2">

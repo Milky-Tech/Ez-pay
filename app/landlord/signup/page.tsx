@@ -39,7 +39,7 @@ export default function LandlordSignUpPage() {
   });
 
   // OTP State
-  const [otp, setOtp] = useState(["", "", "", ""]);
+  const [otp, setOtp] = useState(["", "", "", "", "", ""]);
 
   // Handle Input Changes
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -93,8 +93,8 @@ export default function LandlordSignUpPage() {
     setError("");
 
     const otpCode = otp.join("");
-    if (otpCode.length < 4) {
-      setError("Please enter the complete 4-digit code.");
+    if (otpCode.length < 6) {
+      setError("Please enter the complete 6-digit code.");
       setLoading(false);
       return;
     }
@@ -115,8 +115,8 @@ export default function LandlordSignUpPage() {
       const data = await response.json();
 
       if (response.ok) {
-        // Redirect to success or dashboard
-        router.push("/landlord/dashboard?signup=success");
+        // Redirect to signin
+        router.push("/signin?signup=success");
       } else {
         setError(data.message || "Invalid OTP. Please try again.");
       }
@@ -137,7 +137,7 @@ export default function LandlordSignUpPage() {
     setOtp(newOtp);
 
     // Auto-focus next input
-    if (value && index < 3) {
+    if (value && index < 5) {
       const nextInput = document.getElementById(`otp-${index + 1}`);
       nextInput?.focus();
     }
@@ -201,7 +201,7 @@ export default function LandlordSignUpPage() {
         step === 1 ? (
           "Sign up to partner with us"
         ) : (
-          `We've sent a 4-digit code to ${formData.email}`
+          `We've sent a 6-digit code to ${formData.email}`
         )
       }
       showSteps={true}
@@ -340,13 +340,13 @@ export default function LandlordSignUpPage() {
         </form>
       ) : (
         <form onSubmit={handleVerifyOtp} className="space-y-6">
-          <div className="flex justify-between gap-4">
+          <div className="flex justify-center sm:justify-between gap-2 sm:gap-4">
             {otp.map((digit, index) => (
               <Input
                 key={index}
                 id={`otp-${index}`}
                 type="text"
-                className="h-16 w-16 text-center text-2xl font-bold border-2 focus:border-[#961f1f] focus:ring-0 rounded-xl"
+                className="h-12 w-10 sm:h-16 sm:w-16 text-center text-xl sm:text-2xl font-bold border-2 focus:border-[#961f1f] focus:ring-0 rounded-xl transition-all"
                 value={digit}
                 onChange={(e) => handleOtpChange(index, e.target.value)}
                 onKeyDown={(e) => {

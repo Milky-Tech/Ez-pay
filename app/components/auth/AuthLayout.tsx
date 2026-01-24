@@ -30,7 +30,7 @@ export default function AuthLayout({
   return (
     <div className="max-h-screen flex flex-col md:flex-row bg-white overflow-hidden min-h-screen">
       {/* Left side - Hero Image and Text */}
-      <div className="hidden md:flex md:w-[55%] relative items-center justify-center bg-gray-900 group">
+      <div className="hidden md:flex md:w-[55%] rotate-360 relative items-center justify-center bg-gray-900 group">
         <div
           className="absolute inset-0 bg-cover bg-center transition-transform duration-700 group-hover:scale-110"
           style={{
@@ -67,7 +67,10 @@ export default function AuthLayout({
         <div className="absolute bottom-10 left-12 right-12 flex justify-between items-center text-white/50 text-xs tracking-[0.2em] font-medium uppercase">
           <span>Intelligent Home EZ-Pay</span>
           <div className="flex gap-4">
-            <Link href="/privacy" className="hover:text-white transition-colors">
+            <Link
+              href="/privacy"
+              className="hover:text-white transition-colors"
+            >
               Privacy Policy
             </Link>
             <Link href="/terms" className="hover:text-white transition-colors">
@@ -110,8 +113,8 @@ export default function AuthLayout({
                         i + 1 === currentStep
                           ? "w-12 bg-[#961f1f]"
                           : i + 1 < currentStep
-                          ? "w-12 bg-[#961f1f]/60"
-                          : "w-3 bg-gray-200"
+                            ? "w-12 bg-[#961f1f]/60"
+                            : "w-3 bg-gray-200"
                       }`}
                     />
                   ))}
