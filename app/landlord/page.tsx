@@ -226,7 +226,7 @@ export default function LandlordDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col lg:flex-row">
+    <div className="max-h-screen bg-slate-50 flex flex-col lg:flex-row">
       {/* Mobile Header */}
       <header className="lg:hidden h-16 bg-white border-b px-4 flex items-center justify-between sticky top-0 z-20">
         <div className="flex items-center gap-3">
@@ -269,7 +269,7 @@ export default function LandlordDashboard() {
 
       {/* Sidebar Navigation */}
       <aside
-        className={`fixed lg:relative inset-y-0 left-0 z-40 w-64 bg-white border-r flex flex-col transform ${
+        className={`fixed lg:relative inset-y-0 h-screen left-0 z-40 w-64 bg-white border-r flex flex-col transform ${
           mobileSidebarOpen ? "translate-x-0" : "-translate-x-full"
         } lg:translate-x-0 transition-transform duration-300 ease-in-out lg:flex`}
       >
@@ -339,7 +339,7 @@ export default function LandlordDashboard() {
       </aside>
 
       {/* Main Content */}
-      <main className="flex-grow flex flex-col min-w-0 overflow-hidden">
+      <main className="flex-grow flex flex-col min-w-0 overflow-scroll">
         {/* Desktop Header */}
         <header className="hidden lg:flex h-16 bg-white border-b px-8 items-center justify-between sticky top-0 z-10">
           <div className="flex items-center gap-4 flex-grow max-w-xl">
@@ -810,8 +810,8 @@ export default function LandlordDashboard() {
                                 })
                               }
                             >
-                              <LayoutDashboard className="h-6 w-6" />
-                              <span>Business Owner</span>
+                              <LayoutDashboard className="h-6 w-6 text-black" />
+                              <span className="text-black">Business Owner</span>
                             </Button>
                             <Button
                               variant={
