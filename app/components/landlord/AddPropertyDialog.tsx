@@ -38,6 +38,7 @@ import {
   AlertTriangle,
   Info,
   Home,
+  File,
 } from "lucide-react";
 import { Badge } from "@/app/components/ui/badge";
 import {
@@ -107,6 +108,7 @@ export const AddPropertyDialog = ({
     interior_rooms: [] as string[],
     exterior_shot: "",
     landlord_package: "prime",
+    c_of_o: "",
   });
 
   const {
@@ -163,6 +165,7 @@ export const AddPropertyDialog = ({
       interior_rooms: [],
       exterior_shot: "",
       landlord_package: "prime",
+      c_of_o: "",
     });
     setConsentGiven(false);
   };
@@ -242,6 +245,7 @@ export const AddPropertyDialog = ({
         lead_image_url: exteriorShotUrl, // Fix: Use exterior shot as lead image
         interior_rooms: interiorUrls,
         landlord_package: formData.landlord_package, // Default package
+        c_of_o: getFileByType("c_of_o")?.url || "",
       };
 
       const response = await fetch(`${API_BASE_URL}/listings`, {
@@ -685,6 +689,28 @@ export const AddPropertyDialog = ({
                       </p>
                     )}
                 </div>
+
+                <div className="space-y-2 md:col-span-2">
+                  <div className="flex justify-between items-center">
+                    <Label className="text-sm font-bold">
+                      C of O (Certificate of Occupancy)
+                    </Label>
+                    <Badge variant="outline" className="text-[10px]">
+                      Optional Document
+                    </Badge>
+                  </div>
+                  <p className="text-[10px] text-gray-500 italic">
+                    Criteria: Upload a clear scan or photo of the property's
+                    Certificate of Occupancy.
+                  </p>
+                  <UploadBox
+                    type="c_of_o"
+                    file={getFileByType("c_of_o")}
+                    onUpload={(f) => handleFileUpload(f, "c_of_o")}
+                    onRemove={(id) => removeFile(id)}
+                    instruction="Upload official property title document."
+                  />
+                </div>
               </div>
 
               <div className="space-y-6 pt-4">
@@ -944,14 +970,14 @@ const UploadBox = ({
       <div className="border border-primary/20 bg-primary/5 rounded-lg p-3 flex items-center justify-between animate-in zoom-in-95 duration-200">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 bg-white rounded border flex items-center justify-center overflow-hidden">
-            {file.url ? (
+            {file.url && type !== "c_of_o" ? (
               <img
                 src={file.url}
                 alt="Uploaded"
                 className="w-full h-full object-cover"
               />
             ) : (
-              <ImageIcon className="h-4 w-4 text-gray-400" />
+              <File className="h-4 w-4 text-primary" />
             )}
           </div>
           <div className="min-w-0">
@@ -982,20 +1008,46 @@ const UploadBox = ({
     <div className="border-2 border-dashed border-gray-200 rounded-lg p-6 text-center hover:border-primary/50 transition-colors group bg-slate-50/50">
       <div className="flex flex-col items-center">
         <div className="w-12 h-12 bg-white shadow-sm rounded-full flex items-center justify-center mb-3 group-hover:scale-110 transition-transform text-primary">
-          <Camera className="h-6 w-6" />
+          {type === "c_of_o" ? (
+            <File className="h-6 w-6" />
+          ) : (
+            <Camera className="h-6 w-6" />
+          )}
         </div>
         <p className="text-sm font-bold text-gray-700 mb-1">
-          Capture Live Photo
+          {type === "c_of_o" ? "Upload Document" : "Capture Live Photo"}
         </p>
         <p className="text-[10px] text-gray-500 mb-4">{instruction}</p>
 
         <div className="flex flex-wrap justify-center gap-3">
-          <Button
-            onClick={onTrigger}
-            className="border-2 border-primary bg-primary text-white hover:bg-primary/90 h-10 px-6 shadow-md font-bold"
-          >
-            <Camera className="h-4 w-4 mr-2" /> Open Camera
-          </Button>
+          {onTrigger && (
+            <Button
+              onClick={onTrigger}
+              className="border-2 border-primary bg-primary text-white hover:bg-primary/90 h-10 px-6 shadow-md font-bold"
+            >
+              <Camera className="h-4 w-4 mr-2" /> Open Camera
+            </Button>
+          )}
+          <div className="relative">
+            <input
+              type="file"
+              id={`file-upload-${type}`}
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) onUpload(file);
+              }}
+            />
+            <Button
+              variant="outline"
+              asChild
+              className="border-2 border-slate-200 h-10 px-6 font-bold hover:bg-slate-100"
+            >
+              <label htmlFor={`file-upload-${type}`} className="cursor-pointer">
+                <Upload className="h-4 w-4 mr-2" /> Choose File
+              </label>
+            </Button>
+          </div>
         </div>
       </div>
     </div>

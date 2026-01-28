@@ -22,6 +22,8 @@ export interface UploadedFile {
     | "bedroom"
     | "kitchen"
     | "rest_room"
+    | "cac_cert"
+    | "c_of_o"
     | "others";
 }
 
@@ -106,7 +108,8 @@ export const useFileUpload = (token: string | null) => {
     type: UploadedFile["type"],
     isMultiple: boolean = false,
     onSuccess?: (url: string) => void,
-    aiValidated: boolean = false
+    aiValidated: boolean = false,
+    endpoint?: string
   ) => {
     const id = `${type}_${Date.now()}_${Math.random()
       .toString(36)
@@ -129,7 +132,7 @@ export const useFileUpload = (token: string | null) => {
     setUploadedFiles((prev) => [...prev, newFile]);
 
     try {
-      const url = await uploadFile(file, type);
+      const url = await uploadFile(file, type, endpoint);
 
       setUploadedFiles((prev) =>
         prev.map((f) => (f.id === id ? { ...f, url, uploading: false } : f))

@@ -20,6 +20,9 @@ import {
   ClipboardCheck,
   AlertTriangle,
   Shield,
+  Upload,
+  Trash2,
+  Paperclip,
 } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/app/components/ui/button";
@@ -42,6 +45,7 @@ import {
 } from "@/app/components/ui/avatar";
 import { useToast } from "@/hooks/use-toast";
 import { useLandlordData } from "@/hooks/useLandlordData";
+import { useFileUpload } from "@/hooks/useFileUpload";
 import { PropertyCard } from "@/app/components/landlord/PropertyCard";
 import { ApplicationItem } from "@/app/components/landlord/ApplicationItem";
 import { AddPropertyDialog } from "@/app/components/landlord/AddPropertyDialog";
@@ -62,7 +66,6 @@ export default function LandlordDashboard() {
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [addPropertyDialog, setAddPropertyDialog] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-
   const {
     landlordData,
     properties,
@@ -72,8 +75,12 @@ export default function LandlordDashboard() {
     setLandlordData,
   } = useLandlordData(user, token);
 
+  const { handleFileUpload, uploadedFiles } = useFileUpload(token);
+
+  const [editFormData, setEditFormData] = useState<any>({});
+
   const calculateCompletion = () => {
-    if (!landlordData) return 0;
+    if (!editFormData || Object.keys(editFormData).length === 0) return 0;
 
     const baseFields = [
       "full_name",
@@ -87,14 +94,14 @@ export default function LandlordDashboard() {
     ];
 
     let totalFields = [...baseFields];
-    if (landlordData.designation === "business") {
+    if (editFormData.designation === "business") {
       totalFields.push("business_name", "business_address", "cac_cert");
-    } else if (landlordData.designation === "employee") {
+    } else if (editFormData.designation === "employee") {
       totalFields.push("place_of_work");
     }
 
     const completedFields = totalFields.filter((field) => {
-      const value = landlordData[field];
+      const value = editFormData[field];
       return value && value.toString().trim() !== "";
     });
 
@@ -103,8 +110,6 @@ export default function LandlordDashboard() {
 
   const completionPercentage = calculateCompletion();
   const isProfileComplete = completionPercentage === 100;
-
-  const [editFormData, setEditFormData] = useState<any>({});
 
   useEffect(() => {
     if (landlordData) {
@@ -156,9 +161,9 @@ export default function LandlordDashboard() {
       const response = await fetch(
         `${
           process.env.NEXT_PUBLIC_API_URL || "https://ez-pay.realestway.com/api"
-        }/landlord/${user.id}`,
+        }/landlords/${user.id}`,
         {
-          method: "PUT",
+          method: "PATCH",
           headers: {
             "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
@@ -848,21 +853,87 @@ export default function LandlordDashboard() {
                                 />
                               </div>
                               <div className="space-y-2">
-                                <Label>CAC Certificate URL *</Label>
-                                <div className="relative">
-                                  <Input
-                                    value={editFormData.cac_cert || ""}
-                                    onChange={(e) =>
-                                      setEditFormData({
-                                        ...editFormData,
-                                        cac_cert: e.target.value,
-                                      })
-                                    }
-                                    placeholder="https://..."
-                                    className="bg-slate-50 border-none pr-10"
-                                  />
-                                  <ClipboardCheck className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                                </div>
+                                <Label>CAC Certificate *</Label>
+                                {editFormData.cac_cert ? (
+                                  <div className="flex items-center gap-2 p-2 bg-primary/5 border border-primary/20 rounded-lg animate-in fade-in duration-300">
+                                    <div className="w-8 h-8 rounded bg-white flex items-center justify-center border border-primary/10">
+                                      <Paperclip className="h-4 w-4 text-primary" />
+                                    </div>
+                                    <div className="flex-grow min-w-0">
+                                      <p className="text-xs font-bold text-slate-700 truncate">
+                                        {editFormData.cac_cert.split("/").pop()}
+                                      </p>
+                                      <p className="text-[10px] text-slate-500">
+                                        Uploaded Document
+                                      </p>
+                                    </div>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-8 w-8 text-red-500 hover:text-red-600 hover:bg-red-50"
+                                      onClick={() =>
+                                        setEditFormData((prev: any) => ({
+                                          ...prev,
+                                          cac_cert: "",
+                                        }))
+                                      }
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  </div>
+                                ) : (
+                                  <div className="relative">
+                                    <input
+                                      type="file"
+                                      id="cac_cert_upload"
+                                      className="hidden"
+                                      accept=".pdf,.jpg,.jpeg,.png"
+                                      onChange={async (e) => {
+                                        const file = e.target.files?.[0];
+                                        if (file) {
+                                          await handleFileUpload(
+                                            file,
+                                            "cac_cert",
+                                            false,
+                                            (url) => {
+                                              setEditFormData((prev: any) => ({
+                                                ...prev,
+                                                cac_cert: url,
+                                              }));
+                                            },
+                                            false,
+                                            "upload/single",
+                                          );
+                                        }
+                                      }}
+                                    />
+                                    <label
+                                      htmlFor="cac_cert_upload"
+                                      className="flex flex-col items-center justify-center border-2 border-dashed border-slate-200 rounded-lg p-4 h-12 bg-slate-50 hover:bg-slate-100 hover:border-primary/50 cursor-pointer transition-all group"
+                                    >
+                                      <div className="flex items-center gap-2">
+                                        {uploadedFiles.find(
+                                          (f) =>
+                                            f.type === "cac_cert" &&
+                                            f.uploading,
+                                        ) ? (
+                                          <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                                        ) : (
+                                          <Upload className="h-4 w-4 text-slate-400 group-hover:text-primary transition-colors" />
+                                        )}
+                                        <span className="text-sm font-medium text-slate-500 group-hover:text-slate-700">
+                                          {uploadedFiles.find(
+                                            (f) =>
+                                              f.type === "cac_cert" &&
+                                              f.uploading,
+                                          )
+                                            ? "Uploading..."
+                                            : "Upload Certificate"}
+                                        </span>
+                                      </div>
+                                    </label>
+                                  </div>
+                                )}
                               </div>
                               <div className="md:col-span-2 space-y-2">
                                 <Label>Business Address *</Label>
