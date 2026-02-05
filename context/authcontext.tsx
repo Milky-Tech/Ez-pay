@@ -49,17 +49,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const storedToken = localStorage.getItem("token");
     const storedUser = localStorage.getItem("user");
 
-    if (storedToken && storedUser) {
-      try {
-        const parsedUser = JSON.parse(storedUser);
-        setUser(parsedUser);
-        setToken(storedToken);
-        setIsAuthenticated(true);
-        console.debug("Session restored for:", parsedUser.email);
-      } catch (error) {
-        console.error("Failed to parse user data:", error);
-        localStorage.removeItem("token");
-        localStorage.removeItem("user");
+    if (storedToken) {
+      setToken(storedToken);
+      setIsAuthenticated(true);
+      
+      if (storedUser) {
+        try {
+          const parsedUser = JSON.parse(storedUser);
+          setUser(parsedUser);
+          console.debug("Session restored for:", parsedUser.email);
+        } catch (error) {
+          console.error("Failed to parse stored user data:", error);
+          // Don't clear the token, just the invalid user data
+          localStorage.removeItem("user");
+        }
       }
     }
     setLoading(false);
@@ -81,8 +84,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         body: JSON.stringify({ email, password }),
       });
 
-      console.log("Login Response Status:", response.status);
-
       let data;
       const contentType = response.headers.get("content-type");
       if (contentType && contentType.includes("application/json")) {
@@ -92,8 +93,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         console.warn("Expected JSON but received:", text.substring(0, 100));
         data = { message: "Server returned non-JSON response" };
       }
-
-      console.log("Login Response Data:", data);
 
       // Normalize possible response shapes: { data: { token, user } } OR { token, user } OR { access_token, user }
       const tokenValue =
@@ -147,8 +146,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         body: JSON.stringify(data),
       });
 
-      console.log("Register Response Status:", response.status);
-
       let result;
       const contentType = response.headers.get("content-type");
       if (contentType && contentType.includes("application/json")) {
@@ -158,8 +155,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         console.warn("Expected JSON but received:", text.substring(0, 100));
         result = { message: "Server returned non-JSON response" };
       }
-
-      console.log("Register Response Data:", result);
 
       const tokenValue =
         result?.data?.token ??

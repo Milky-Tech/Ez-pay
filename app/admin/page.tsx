@@ -319,7 +319,7 @@ export default function AdminDashboard() {
   const fetchApplications = useCallback(async () => {
     try {
       setLoading((prev) => ({ ...prev, applications: true }));
-      const response = await fetch(`${API_BASE_URL}/applications`, {
+      const response = await fetch(`${API_BASE_URL}/listings/apply`, {
         method: "GET",
         headers: {
           Accept: "application/json",

@@ -567,9 +567,7 @@ export default function LandlordDashboard() {
                             <ApplicationItem
                               key={a.id}
                               application={a}
-                              onClick={(id) =>
-                                router.push(`/applications/${id}`)
-                              }
+                              onClick={(id) => router.push(`/listings/apply/${id}`)}
                             />
                           ))}
                         </div>

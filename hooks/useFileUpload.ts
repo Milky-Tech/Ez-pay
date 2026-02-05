@@ -24,6 +24,10 @@ export interface UploadedFile {
     | "rest_room"
     | "cac_cert"
     | "c_of_o"
+    | "bank_statements"
+    | "govt_id"
+    | "live_photo"
+    | "live_video"
     | "others";
 }
 
@@ -48,15 +52,23 @@ export const useFileUpload = (token: string | null) => {
       "bedroom",
       "kitchen",
       "rest_room",
+      "live_photo",
+      "govt_id",
       "others",
     ];
-    const apiType = imageTypes.includes(type) ? "image" : "document";
+    let apiType = "document";
+    if (type === "live_video") {
+      apiType = "video";
+    } else if (imageTypes.includes(type)) {
+      apiType = "image";
+    }
     formData.append("type", apiType);
 
     const response = await fetch(`${API_BASE_URL}/${endpoint}`, {
       method: "POST",
       headers: {
         Accept: "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
       body: formData,
     });
@@ -72,7 +84,7 @@ export const useFileUpload = (token: string | null) => {
       data.filePath || 
       data.data?.url || 
       data.data?.path || 
-      `/storage/uploads/${apiType === "image" ? "images" : "documents"}/${file.name}`
+      `/storage/uploads/${apiType === "image" ? "images" : apiType === "video" ? "videos" : "documents"}/${file.name}`
     );
   };
 

@@ -18,6 +18,7 @@ import { Input } from "@/app/components/ui/input";
 import { Label } from "@/app/components/ui/label";
 import { Textarea } from "@/app/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/app/components/ui/radio-group";
+import { Progress } from "@/app/components/ui/progress";
 import { Alert, AlertDescription } from "@/app/components/ui/alert";
 import {
   Upload,
@@ -27,17 +28,17 @@ import {
   CheckCircle,
   AlertCircle,
   ArrowLeft,
+  Camera,
+  Video,
+  Loader2,
 } from "lucide-react";
+import { useAuth } from "@/context/authcontext";
+import { useFileUpload } from "@/hooks/useFileUpload";
+import { LiveCameraModal } from "@/app/components/ui/live-camera-modal";
+import { LiveVideoModal } from "@/app/components/ui/live-video-modal";
 
-// Simplified demo property (no dynamic lookup needed)
-const DEFAULT_PROPERTY = {
-  id: "1",
-  code_name: "PREMIUM-001",
-  typology: "4-Bedroom Luxury Villa",
-  area: "Ikoyi",
-  state: "Lagos",
-  monthly_cost: 8500000,
-};
+const API_BASE_URL =
+  process.env.NEXT_PUBLIC_API_URL || "https://ez-pay.realestway.com/api";
 
 const stepTitles = [
   "Personal Information",
@@ -46,13 +47,20 @@ const stepTitles = [
   "Identification",
   "Terms & Review",
 ];
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL || "https://ez-pay.realestway.com/api";
 
 export default function RentalApplicationContent() {
   const params = useParams();
   const router = useRouter();
   const { toast } = useToast();
+  const { token, user, isAuthenticated } = useAuth();
+  const { handleFileUpload, getFileByType, getFilesByType, uploadedFiles } =
+    useFileUpload(token);
+
+  const [property, setProperty] = useState<any>(null);
+  const [loadingProperty, setLoadingProperty] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [cameraOpen, setCameraOpen] = useState(false);
+  const [videoCameraOpen, setVideoCameraOpen] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
   const [formData, setFormData] = useState({
     fullName: "",
@@ -68,18 +76,50 @@ export default function RentalApplicationContent() {
     monthlyIncome: "",
     hrContact: "",
     desiredStartDate: "",
-    paymentPlan: "anchor" as "anchor" | "ascend",
+    paymentPlan: "ez_anchor" as "ez_anchor" | "ez_ascend",
     emergencyContactName: "",
     emergencyContactPhone: "",
   });
 
-  const totalSteps = stepTitles.length;
-  const progress = ((currentStep + 1) / totalSteps) * 100;
+  const propertyCode = params?.codename as string;
 
-  // Get property code from URL or use default
-  const propertyCode =
-    (params?.codename as string) || DEFAULT_PROPERTY.code_name;
-  const property = DEFAULT_PROPERTY;
+  useEffect(() => {
+    const fetchListing = async () => {
+      if (!propertyCode) return;
+      try {
+        const response = await fetch(
+          `${API_BASE_URL}/listings/${propertyCode}`,
+        );
+        if (!response.ok) throw new Error("Listing not found");
+        const data = await response.json();
+        const prop = data.data || data;
+        setProperty(prop);
+
+        // Auto-fill some data if user is logged in
+        if (user) {
+          setFormData((prev) => ({
+            ...prev,
+            fullName: user.full_name || prev.fullName,
+            email: user.email || prev.email,
+            phone: user.phone || prev.phone,
+          }));
+        }
+      } catch (error) {
+        console.error("Error fetching listing:", error);
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "Failed to load property details.",
+        });
+      } finally {
+        setLoadingProperty(false);
+      }
+    };
+
+    fetchListing();
+  }, [propertyCode, user, toast]);
+
+  // No authentication required - public form
 
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat("en-NG", {
@@ -89,6 +129,8 @@ export default function RentalApplicationContent() {
       maximumFractionDigits: 0,
     }).format(price);
   };
+
+  const totalSteps = stepTitles.length;
 
   const handleNext = () => {
     if (currentStep < totalSteps - 1) {
@@ -104,23 +146,90 @@ export default function RentalApplicationContent() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!property) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Property details not loaded.",
+      });
+      return;
+    }
+
+    // No authentication required - public form
+
+    // Get file URLs
+    const bankStatements = getFilesByType("bank_statements")
+      .map((f) => f.url)
+      .filter(Boolean);
+    const govtIdUrl = getFileByType("govt_id")?.url;
+    const livePhotoUrl = getFileByType("live_photo")?.url;
+    const liveVideoUrl = getFileByType("live_video")?.url;
+
+    // Validate required files
+    if (
+      bankStatements.length === 0 ||
+      !govtIdUrl ||
+      !livePhotoUrl ||
+      !liveVideoUrl
+    ) {
+      toast({
+        variant: "destructive",
+        title: "Missing Files",
+        description:
+          "Please ensure all required documents, live captures, and verification video are uploaded.",
+      });
+      return;
+    }
+
+    setIsSubmitting(true);
+
     try {
+      const payloadPaymentPlan =
+        formData.paymentPlan === "ez_anchor"
+          ? "anchor"
+          : formData.paymentPlan === "ez_ascend"
+            ? "ascend"
+            : formData.paymentPlan;
+
+      const applicationData = {
+        listing_id: property.id,
+        full_name: formData.fullName,
+        email: formData.email,
+        phone: formData.phone,
+        current_address: formData.currentAddress,
+        current_landlord_name: formData.currentLandlordName,
+        current_landlord_contact: formData.currentLandlordContact,
+        reason_for_leaving: formData.reasonForLeaving,
+        duration_of_stay: formData.durationOfStay,
+        company_name: formData.companyName,
+        job_title: formData.jobTitle,
+        monthly_income: formData.monthlyIncome,
+        hr_contact: formData.hrContact,
+        desired_start_date: formData.desiredStartDate,
+        payment_plan: payloadPaymentPlan,
+        tenant_package: payloadPaymentPlan,
+        emergency_contact_name: formData.emergencyContactName,
+        emergency_contact_phone: formData.emergencyContactPhone,
+        bank_statement: bankStatements[0], // Using the first statement as required singular field
+        government_id: govtIdUrl,
+        live_photo: livePhotoUrl,
+        verification_video: liveVideoUrl,
+      };
+
       const response = await fetch(`${API_BASE_URL}/applications/apply`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Accept: "application/json",
         },
-        body: JSON.stringify({
-          property_code: property.code_name,
-          ...formData,
-        }),
+        body: JSON.stringify(applicationData),
       });
 
       if (response.ok) {
         toast({
           title: "Application Submitted",
-          description: `Your application for ${property.typology} has been submitted successfully. You will receive an email confirmation shortly.`,
+          description: `Your application for ${property.typology} has been submitted successfully.`,
         });
 
         // Reset form
@@ -139,42 +248,54 @@ export default function RentalApplicationContent() {
           monthlyIncome: "",
           hrContact: "",
           desiredStartDate: "",
-          paymentPlan: "anchor",
+          paymentPlan: "ez_anchor",
           emergencyContactName: "",
           emergencyContactPhone: "",
         });
 
-        // Redirect to listings page
-        setTimeout(() => {
-          router.push("/listings");
-        }, 2000);
+        // Redirect to listings or dashboard
+        router.push("/listings");
       } else {
-        const error = await response.json().catch(() => ({}));
-        toast({
-          title: "Submission Failed",
-          description:
-            error.message || "Failed to submit application. Please try again.",
-        });
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to submit application");
       }
     } catch (error) {
       console.error("Error submitting application:", error);
       toast({
-        title: "Error",
+        variant: "destructive",
+        title: "Submission Failed",
         description:
-          "Network error. Please check your connection and try again.",
+          error instanceof Error
+            ? error.message
+            : "Failed to submit application. Please try again.",
       });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
-  // Simple progress bar component
-  const ProgressBar = ({ value }: { value: number }) => (
-    <div className="w-full bg-gray-200 rounded-full h-2">
-      <div
-        className="bg-primary h-2 rounded-full transition-all duration-300"
-        style={{ width: `${value}%` }}
-      ></div>
-    </div>
-  );
+  if (loadingProperty) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <Loader2 className="h-12 w-12 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (!property) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4">
+        <AlertCircle className="h-12 w-12 text-red-500 mb-4" />
+        <h2 className="text-2xl font-bold text-gray-900">Property Not Found</h2>
+        <p className="text-gray-600 mt-2">
+          The property you are looking for does not exist or has been removed.
+        </p>
+        <Button onClick={() => router.push("/listings")} className="mt-6">
+          Back to Listings
+        </Button>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -218,7 +339,7 @@ export default function RentalApplicationContent() {
                       <div className="flex justify-between items-center mb-2">
                         <span className="text-gray-600">Monthly Rent:</span>
                         <span className="text-2xl font-bold text-primary font-raleway">
-                          {formatPrice(property.monthly_cost)}
+                          {formatPrice(property.monthly_cost || property.rent)}
                         </span>
                       </div>
                       <p className="text-sm text-gray-500">
@@ -271,7 +392,7 @@ export default function RentalApplicationContent() {
                     {property.typology}
                   </CardDescription>
                   <div className="mt-4">
-                    <ProgressBar value={progress} />
+                    {/* <Progress value={progress} className="h-2" /> */}
                     <div className="flex justify-between mt-2">
                       <p className="text-sm font-medium text-primary">
                         Step {currentStep + 1}: {stepTitles[currentStep]}
@@ -542,7 +663,7 @@ export default function RentalApplicationContent() {
                             {formData.monthlyIncome && (
                               <p className="text-sm text-gray-600 mt-1">
                                 {parseInt(formData.monthlyIncome) >=
-                                property.monthly_cost ? (
+                                (property.monthly_cost || property.rent) ? (
                                   <span className="text-green-600">
                                     ✓ Income meets requirement
                                   </span>
@@ -573,13 +694,19 @@ export default function RentalApplicationContent() {
                           </div>
                           <div className="border-2 border-dashed border-gray-300 rounded-lg p-6">
                             <div className="text-center">
-                              <Upload className="h-10 w-10 text-gray-400 mx-auto mb-3" />
+                              {getFileByType("bank_statements")?.uploading ? (
+                                <Loader2 className="h-10 w-10 animate-spin text-primary mx-auto mb-3" />
+                              ) : (
+                                <Upload className="h-10 w-10 text-gray-400 mx-auto mb-3" />
+                              )}
                               <Label
                                 htmlFor="bankStatements"
-                                className="block text-center"
+                                className="block text-center cursor-pointer"
                               >
                                 <span className="text-primary font-semibold">
-                                  Upload 6 Months Bank Statements
+                                  {getFilesByType("bank_statements").length > 0
+                                    ? `Uploaded ${getFilesByType("bank_statements").length} Statements`
+                                    : "Upload 6 Months Bank Statements"}
                                 </span>{" "}
                                 *
                               </Label>
@@ -590,8 +717,33 @@ export default function RentalApplicationContent() {
                                 id="bankStatements"
                                 type="file"
                                 multiple
-                                className="mt-3"
+                                className="hidden"
+                                onChange={(e) => {
+                                  const files = Array.from(
+                                    e.target.files || [],
+                                  );
+                                  files.forEach((file) =>
+                                    handleFileUpload(
+                                      file,
+                                      "bank_statements",
+                                      true,
+                                    ),
+                                  );
+                                }}
                               />
+                            </div>
+                            <div className="mt-4 flex flex-wrap gap-2">
+                              {getFilesByType("bank_statements").map((f, i) => (
+                                <div
+                                  key={i}
+                                  className="bg-primary/10 text-primary text-xs px-2 py-1 rounded flex items-center"
+                                >
+                                  Statement {i + 1}
+                                  {f.url && (
+                                    <CheckCircle className="ml-1 h-3 w-3" />
+                                  )}
+                                </div>
+                              ))}
                             </div>
                           </div>
                         </div>
@@ -615,13 +767,19 @@ export default function RentalApplicationContent() {
 
                           <div className="border-2 border-dashed border-gray-300 rounded-lg p-6">
                             <div className="text-center">
-                              <Upload className="h-10 w-10 text-gray-400 mx-auto mb-3" />
+                              {getFileByType("govt_id")?.uploading ? (
+                                <Loader2 className="h-10 w-10 animate-spin text-primary mx-auto mb-3" />
+                              ) : (
+                                <Upload className="h-10 w-10 text-gray-400 mx-auto mb-3" />
+                              )}
                               <Label
                                 htmlFor="govtId"
-                                className="block text-center"
+                                className="block text-center cursor-pointer"
                               >
                                 <span className="text-primary font-semibold">
-                                  Government Issued ID
+                                  {getFileByType("govt_id")?.url
+                                    ? "ID Document Uploaded"
+                                    : "Government Issued ID"}
                                 </span>{" "}
                                 *
                               </Label>
@@ -633,8 +791,18 @@ export default function RentalApplicationContent() {
                                 id="govtId"
                                 type="file"
                                 accept="image/*,.pdf"
-                                className="mt-3"
+                                className="hidden"
+                                onChange={(e) => {
+                                  const file = e.target.files?.[0];
+                                  if (file) handleFileUpload(file, "govt_id");
+                                }}
                               />
+                              {getFileByType("govt_id")?.url && (
+                                <div className="mt-2 text-green-600 flex items-center justify-center text-xs">
+                                  <CheckCircle className="h-3 w-3 mr-1" /> File
+                                  ready
+                                </div>
+                              )}
                             </div>
                           </div>
 
@@ -652,25 +820,61 @@ export default function RentalApplicationContent() {
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div className="border-2 border-dashed border-gray-300 rounded-lg p-6">
                               <div className="text-center">
-                                <Upload className="h-10 w-10 text-gray-400 mx-auto mb-3" />
-                                <Label
-                                  htmlFor="livePhoto"
-                                  className="block text-center"
+                                {getFileByType("live_photo")?.uploading ? (
+                                  <Loader2 className="h-10 w-10 animate-spin text-primary mx-auto mb-3" />
+                                ) : (
+                                  <Camera className="h-10 w-10 text-gray-400 mx-auto mb-3" />
+                                )}
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  className="w-full text-primary font-semibold hover:bg-primary/5"
+                                  onClick={() => setCameraOpen(true)}
                                 >
-                                  <span className="text-primary font-semibold">
-                                    Live Selfie Photo
-                                  </span>{" "}
+                                  {getFileByType("live_photo")?.url
+                                    ? "Retake Live Photo"
+                                    : "Take Live Selfie Photo"}{" "}
                                   *
-                                </Label>
+                                </Button>
                                 <p className="text-sm text-gray-500 mt-1">
-                                  Take a clear photo
+                                  Capture real-time image
                                 </p>
-                                <Input
-                                  id="livePhoto"
-                                  type="file"
-                                  accept="image/*"
-                                  className="mt-3"
-                                />
+                                {getFileByType("live_photo")?.url && (
+                                  <div className="mt-2 text-green-600 flex items-center justify-center text-xs">
+                                    <CheckCircle className="h-3 w-3 mr-1" />{" "}
+                                    Captured successfully
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+
+                            <div className="border-2 border-dashed border-gray-300 rounded-lg p-6">
+                              <div className="text-center">
+                                {getFileByType("live_video")?.uploading ? (
+                                  <Loader2 className="h-10 w-10 animate-spin text-primary mx-auto mb-3" />
+                                ) : (
+                                  <Video className="h-10 w-10 text-gray-400 mx-auto mb-3" />
+                                )}
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  className="w-full text-primary font-semibold hover:bg-primary/5"
+                                  onClick={() => setVideoCameraOpen(true)}
+                                >
+                                  {getFileByType("live_video")?.url
+                                    ? "Retake Verification Video"
+                                    : "Record Verification Video"}{" "}
+                                  *
+                                </Button>
+                                <p className="text-sm text-gray-500 mt-1">
+                                  10 second live recording
+                                </p>
+                                {getFileByType("live_video")?.url && (
+                                  <div className="mt-2 text-green-600 flex items-center justify-center text-xs">
+                                    <CheckCircle className="h-3 w-3 mr-1" />{" "}
+                                    Recorded successfully
+                                  </div>
+                                )}
                               </div>
                             </div>
                           </div>
@@ -724,13 +928,15 @@ export default function RentalApplicationContent() {
                             </Label>
                             <RadioGroup
                               value={formData.paymentPlan}
-                              onValueChange={(value: "anchor" | "ascend") =>
+                              onValueChange={(
+                                value: "ez_anchor" | "ez_ascend",
+                              ) =>
                                 setFormData({ ...formData, paymentPlan: value })
                               }
                             >
                               <div className="flex items-start space-x-3 border rounded-lg p-4 hover:border-primary hover:bg-primary/5 transition-colors">
                                 <RadioGroupItem
-                                  value="anchor"
+                                  value="ez_anchor"
                                   id="ez_anchor"
                                   className="mt-1"
                                 />
@@ -750,7 +956,10 @@ export default function RentalApplicationContent() {
                                         </p>
                                         <div className="mt-2">
                                           <p className="font-semibold text-primary">
-                                            {formatPrice(property.monthly_cost)}{" "}
+                                            {formatPrice(
+                                              property.monthly_cost ||
+                                                property.rent,
+                                            )}{" "}
                                             / month
                                           </p>
                                         </div>
@@ -764,7 +973,7 @@ export default function RentalApplicationContent() {
                               </div>
                               <div className="flex items-start space-x-3 border rounded-lg p-4 hover:border-primary hover:bg-primary/5 transition-colors mt-3">
                                 <RadioGroupItem
-                                  value="ascend"
+                                  value="ez_ascend"
                                   id="ez_ascend"
                                   className="mt-1"
                                 />
@@ -786,7 +995,8 @@ export default function RentalApplicationContent() {
                                         <p className="font-semibold text-primary">
                                           Starting from{" "}
                                           {formatPrice(
-                                            property.monthly_cost * 0.8,
+                                            (property.monthly_cost ||
+                                              property.rent) * 0.8,
                                           )}{" "}
                                           / month
                                         </p>
@@ -820,7 +1030,7 @@ export default function RentalApplicationContent() {
                                   Selected Plan:
                                 </span>
                                 <span className="font-medium">
-                                  {formData.paymentPlan === "anchor"
+                                  {formData.paymentPlan === "ez_anchor"
                                     ? "EZ-Anchor (Fixed)"
                                     : "EZ-Ascend (Graduated)"}
                                 </span>
@@ -865,7 +1075,7 @@ export default function RentalApplicationContent() {
                         type="button"
                         variant="outline"
                         onClick={handlePrevious}
-                        disabled={currentStep === 0}
+                        disabled={currentStep === 0 || isSubmitting}
                         className="font-montserrat"
                       >
                         Back
@@ -875,16 +1085,24 @@ export default function RentalApplicationContent() {
                           <Button
                             type="button"
                             onClick={handleNext}
-                            className="bg-primary font-montserrat px-8"
+                            className="bg-primary hover:bg-primary/90 font-montserrat px-8"
                           >
                             Continue
                           </Button>
                         ) : (
                           <Button
                             type="submit"
-                            className="bg-secondary font-montserrat px-8"
+                            disabled={isSubmitting}
+                            className="bg-secondary hover:bg-secondary/90 font-montserrat px-8"
                           >
-                            Submit Application
+                            {isSubmitting ? (
+                              <>
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                Submitting...
+                              </>
+                            ) : (
+                              "Submit Application"
+                            )}
                           </Button>
                         )}
                       </div>
@@ -896,6 +1114,22 @@ export default function RentalApplicationContent() {
           </div>
         </div>
       </div>
+
+      <LiveCameraModal
+        open={cameraOpen}
+        onOpenChange={setCameraOpen}
+        onCapture={(file) => handleFileUpload(file, "live_photo")}
+        title="Identity Verification Selfie"
+        type="live_photo"
+      />
+
+      <LiveVideoModal
+        open={videoCameraOpen}
+        onOpenChange={setVideoCameraOpen}
+        onCapture={(file) => handleFileUpload(file, "live_video")}
+        title="Live Verification Video"
+        maxDuration={10}
+      />
     </div>
   );
 }

@@ -1,5 +1,6 @@
 import { AuthProvider } from "@/context/authcontext";
 import { AIProvider } from "@/context/aicontext";
+import CookieConsent from "@/app/components/ui/cookie-consent";
 import "./globals.css";
 import type { Metadata } from "next";
 import { Raleway, Open_Sans, Montserrat, Great_Vibes } from "next/font/google";
@@ -47,7 +48,10 @@ export default function RootLayout({
     >
       <body className="font-open-sans antialiased">
         <AuthProvider>
-          <AIProvider>{children}</AIProvider>
+          <AIProvider>
+            {children}
+            <CookieConsent />
+          </AIProvider>
         </AuthProvider>
       </body>
     </html>
