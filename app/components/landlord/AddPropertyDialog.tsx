@@ -187,11 +187,12 @@ export const AddPropertyDialog = ({
     }
 
     const compoundRoadUrl = getFileByType("compound_road")?.url;
-    const powerSystemUrl = getFileByType("power_system")?.url;
+    const powerFiles = getFilesByType("power_system");
+    const powerSystemUrl = powerFiles[0]?.url; // Use first one as main if needed by API
     const exteriorShotUrl = getFileByType("exterior_shot")?.url;
 
     // Enforce power picture if Prime
-    if (isPrime && !powerSystemUrl) {
+    if (isPrime && powerFiles.length === 0) {
       toast({
         variant: "destructive",
         title: "Missing Requirement",
@@ -650,18 +651,23 @@ export const AddPropertyDialog = ({
                 </div>
 
                 <div
-                  className={`space-y-2 md:col-span-2 ${formData.landlord_package === "prime" ? "p-4 border border-amber-200 bg-amber-50 rounded-lg" : ""}`}
+                  className={`space-y-3 md:col-span-2 ${formData.landlord_package === "prime" ? "p-4 border border-amber-200 bg-amber-50 rounded-lg" : ""}`}
                 >
                   <div className="flex justify-between items-center">
                     <Label className="text-sm font-bold">
                       Power System Image{" "}
                       {formData.landlord_package === "prime" && "*"}
                     </Label>
-                    {formData.landlord_package === "prime" && (
-                      <Badge className="bg-amber-500 text-[10px]">
-                        Compulsory for Prime
+                    <div className="flex gap-2">
+                      {formData.landlord_package === "prime" && (
+                        <Badge className="bg-amber-500 text-[10px]">
+                          Compulsory for Prime
+                        </Badge>
+                      )}
+                      <Badge variant="secondary" className="text-[10px]">
+                        {getFilesByType("power_system").length} photos
                       </Badge>
-                    )}
+                    </div>
                   </div>
                   <p className="text-[10px] text-gray-500 italic">
                     Criteria: Show the generator, inverter, or solar setup
@@ -669,20 +675,24 @@ export const AddPropertyDialog = ({
                   </p>
                   <UploadBox
                     type="power_system"
-                    file={getFileByType("power_system")}
-                    onUpload={(f) => handleFileUpload(f, "power_system")}
+                    onUpload={(f) => handleFileUpload(f, "power_system", true)}
                     onTrigger={() =>
                       setCameraConfig({
                         open: true,
                         type: "power_system",
-                        isMultiple: false,
+                        isMultiple: true,
                       })
                     }
                     onRemove={(id) => removeFile(id)}
                     instruction="Clear shot of the operational power source."
+                    multi
+                  />
+                  <StagingArea
+                    files={getFilesByType("power_system")}
+                    onRemove={removeFile}
                   />
                   {formData.landlord_package === "prime" &&
-                    !getFileByType("power_system") && (
+                    getFilesByType("power_system").length === 0 && (
                       <p className="text-[10px] text-red-500 flex items-center gap-1 mt-1">
                         <AlertTriangle className="h-3 w-3" /> Mandatory for
                         Prime package.
@@ -861,18 +871,43 @@ export const AddPropertyDialog = ({
                 </div>
               </div>
 
-              <div className="p-4 bg-red-50 border border-red-100 rounded-lg flex items-start gap-3">
-                <AlertTriangle className="h-5 w-5 text-red-500 mt-0.5" />
-                <div>
-                  <h5 className="text-sm font-bold text-red-700">
-                    Rejection Warning
-                  </h5>
-                  <p className="text-xs text-red-600">
-                    Images not meeting the specified criteria (blurriness, poor
-                    lighting, or missing key areas) will lead to the immediate
-                    rejection of your listing application.
-                  </p>
+              <div className="p-4 bg-red-50 border border-red-100 rounded-lg flex flex-col gap-3">
+                <div className="flex items-start gap-3">
+                  <AlertTriangle className="h-5 w-5 text-red-500 mt-0.5" />
+                  <div>
+                    <h5 className="text-sm font-bold text-red-700">
+                      Rejection Warning
+                    </h5>
+                    <p className="text-xs text-red-600">
+                      Images not meeting the specified criteria (blurriness,
+                      poor lighting, or missing key areas) will lead to the
+                      immediate rejection of your listing application.
+                    </p>
+                  </div>
                 </div>
+
+                {formData.landlord_package === "vantage" &&
+                  uploadedFiles.some((f) => f.aiMetadata && !f.aiValidated) && (
+                    <div className="mt-2 border-t pt-2">
+                      <h6 className="text-[10px] font-bold text-amber-700 uppercase">
+                        AI Detected Gaps (Vantage Review)
+                      </h6>
+                      <ul className="text-[10px] text-amber-600 list-disc list-inside mt-1">
+                        {uploadedFiles
+                          .filter((f) => f.aiMetadata && !f.aiValidated)
+                          .map((f, i) => (
+                            <li key={i}>
+                              {f.type.replace("_", " ")}: Missing{" "}
+                              {f.aiMetadata.missing_objects.join(", ")}
+                            </li>
+                          ))}
+                      </ul>
+                      <p className="text-[10px] text-amber-500 italic mt-1 font-medium">
+                        Note: These gaps may delay secondary review. Improved
+                        captures are recommended.
+                      </p>
+                    </div>
+                  )}
               </div>
             </div>
           )}
@@ -924,7 +959,7 @@ export const AddPropertyDialog = ({
           onOpenChange={(open) =>
             setCameraConfig((prev) => ({ ...prev, open }))
           }
-          onCapture={(file, isValidated) => {
+          onCapture={(file, isValidated, aiMetadata) => {
             if (cameraConfig.type) {
               handleFileUpload(
                 file,
@@ -932,6 +967,7 @@ export const AddPropertyDialog = ({
                 cameraConfig.isMultiple,
                 undefined,
                 isValidated,
+                aiMetadata,
               );
             }
           }}
@@ -940,6 +976,7 @@ export const AddPropertyDialog = ({
             .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
             .join(" ")}`}
           type={cameraConfig.type}
+          packageType={formData.landlord_package as "prime" | "vantage"}
         />
       </DialogContent>
     </Dialog>
@@ -1028,26 +1065,6 @@ const UploadBox = ({
               <Camera className="h-4 w-4 mr-2" /> Open Camera
             </Button>
           )}
-          <div className="relative">
-            <input
-              type="file"
-              id={`file-upload-${type}`}
-              className="hidden"
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                if (file) onUpload(file);
-              }}
-            />
-            <Button
-              variant="outline"
-              asChild
-              className="border-2 border-slate-200 h-10 px-6 font-bold hover:bg-slate-100"
-            >
-              <label htmlFor={`file-upload-${type}`} className="cursor-pointer">
-                <Upload className="h-4 w-4 mr-2" /> Choose File
-              </label>
-            </Button>
-          </div>
         </div>
       </div>
     </div>

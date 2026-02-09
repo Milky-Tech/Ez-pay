@@ -13,6 +13,7 @@ export interface UploadedFile {
   uploading: boolean;
   error: string | null;
   aiValidated?: boolean; // Track if AI confirmed the contents
+  aiMetadata?: any; // Detailed AI validation results (detected objects, confidence, missing)
   type:
     | "compound_road"
     | "power_system"
@@ -121,6 +122,7 @@ export const useFileUpload = (token: string | null) => {
     isMultiple: boolean = false,
     onSuccess?: (url: string) => void,
     aiValidated: boolean = false,
+    aiMetadata?: any,
     endpoint?: string
   ) => {
     const id = `${type}_${Date.now()}_${Math.random()
@@ -135,6 +137,7 @@ export const useFileUpload = (token: string | null) => {
       error: null,
       type,
       aiValidated,
+      aiMetadata,
     };
 
     if (!isMultiple) {

@@ -8,17 +8,19 @@ import {
   DialogTitle,
 } from "@/app/components/ui/dialog";
 import { Button } from "@/app/components/ui/button";
-import { Camera, RefreshCw, X, Check, FlipHorizontal, AlertCircle, Info, CheckCircle2 } from "lucide-react";
+import { Camera, RefreshCw, X, Check, FlipHorizontal, AlertCircle, Info, CheckCircle2, AlertTriangle } from "lucide-react";
 import * as cocoSsd from "@tensorflow-models/coco-ssd";
 import { UploadedFile } from "@/hooks/useFileUpload";
 import { useAI } from "@/context/aicontext";
+import { validateRoomFrame, RoomType, ValidationResult } from "@/lib/ai/room-validation";
 
 interface LiveCameraModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onCapture: (file: File, isValidated: boolean) => void;
+  onCapture: (file: File, isValidated: boolean, metadata?: any) => void;
   title?: string;
   type?: UploadedFile["type"] | null;
+  packageType?: "prime" | "vantage";
 }
 
 export const LiveCameraModal = ({
@@ -27,12 +29,14 @@ export const LiveCameraModal = ({
   onCapture,
   title = "Capture Live Photo",
   type,
+  packageType = "prime",
 }: LiveCameraModalProps) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [isValidatedAtCapture, setIsValidatedAtCapture] = useState(false);
+  const [captureMetadata, setCaptureMetadata] = useState<ValidationResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [facingMode, setFacingMode] = useState<"user" | "environment">("environment");
   
@@ -40,11 +44,31 @@ export const LiveCameraModal = ({
   const { model, isModelLoading, error: aiError } = useAI();
   const [detections, setDetections] = useState<cocoSsd.DetectedObject[]>([]);
   const [brightness, setBrightness] = useState<number>(0);
-  const [isValidatedNow, setIsValidatedNow] = useState(false);
+  const [currentValidation, setCurrentValidation] = useState<ValidationResult | null>(null);
   const [guidance, setGuidance] = useState<{ message: string; type: "info" | "warning" | "success" }>({
     message: isModelLoading ? "AI is initializing..." : "Initializing AI guidance...",
     type: "info",
   });
+  const detectionRequestId = useRef<number | null>(null);
+
+  // Reset all states when modal closes or opens
+  useEffect(() => {
+    if (!open) {
+      setCapturedImage(null);
+      setIsValidatedAtCapture(false);
+      setCaptureMetadata(null);
+      setDetections([]);
+      setCurrentValidation(null);
+      setGuidance({
+        message: isModelLoading ? "AI is initializing..." : "Initializing AI guidance...",
+        type: "info",
+      });
+      if (detectionRequestId.current) {
+        cancelAnimationFrame(detectionRequestId.current);
+        detectionRequestId.current = null;
+      }
+    }
+  }, [open, isModelLoading]);
 
   // Guidance Update when model status changes
   useEffect(() => {
@@ -88,93 +112,47 @@ export const LiveCameraModal = ({
         const b = calculateBrightness(video);
         setBrightness(b);
 
+        // Map component type to validation room type
+        let roomKey: RoomType = "living_room";
+        if (type === "rest_room") roomKey = "restroom";
+        else if (type === "kitchen") roomKey = "kitchen";
+        else if (type === "bedroom") roomKey = "bedroom";
+        else if (type === "living_room") roomKey = "living_room";
+        else if (type === "compound_road") roomKey = "compound_road";
+        else if (type === "exterior_shot") roomKey = "exterior_shot";
+        else if (type === "compound") roomKey = "compound";
+        else if (type === "power_system") roomKey = "power_system";
+
+        const result = validateRoomFrame(predictions, roomKey, b);
+        setCurrentValidation(result);
+
         // Guidance Logic
-        let message = "Scanning...";
-        let gType: "info" | "warning" | "success" = "info";
-        let isValid = false;
+        let message = result.user_hint;
+        let gType: "info" | "warning" | "success" = result.scene_match ? "success" : "info";
 
-        if (b < 30) {
-          message = "Too dark! Find better lighting.";
-          gType = "warning";
-        } else if (b > 230) {
-          message = "Too bright! Avoid direct light.";
-          gType = "warning";
-        } else {
-          const labels = predictions.map(p => p.class.toLowerCase());
-          
-          const isKitchen = type === "kitchen";
-          const isToilet = type === "rest_room";
-          const isOutside = type === "exterior_shot" || type === "compound_road";
-
-          if (isKitchen) {
-            const kitchenObjects = ["sink", "refrigerator", "microwave", "oven", "toaster", "dining table", "bottle", "cup", "bowl", "chair"];
-            const found = predictions.find(p => kitchenObjects.includes(p.class.toLowerCase()));
-            if (found) {
-              message = `KITCHEN: ${found.class.toUpperCase()} detected!`;
-              gType = "success";
-              isValid = true;
-            } else {
-              message = "Kitchen: Target sink, fridge, or stove";
-            }
-          } else if (isToilet) {
-            const toiletObjects = ["toilet", "sink"];
-            const found = predictions.find(p => toiletObjects.includes(p.class.toLowerCase()));
-            if (found) {
-              message = `RESTROOM: ${found.class.toUpperCase()} detected!`;
-              gType = "success";
-              isValid = true;
-            } else {
-              message = "Restroom: Center the toilet or sink";
-            }
-          } else if (isOutside) {
-            // Compound or Compound Road
-            const outdoorObjects = ["car", "truck", "bus", "traffic light", "bench", "bicycle", "motorcycle", "person"];
-            const found = predictions.find(p => outdoorObjects.includes(p.class.toLowerCase()));
-            if (found) {
-              message = `${type === "compound_road" ? "ROAD" : "COMPOUND"}: ${found.class.toUpperCase()} detected!`;
-              gType = "success";
-              isValid = true;
-            } else {
-              message = type === "compound_road" ? "Road: Capture driveway/street" : "Compound: Show building surroundings";
-            }
-          } else if (type === "living_room" || type === "bedroom") {
-            // Can be empty, but highlight what we see
-            const roomObjects = ["bed", "couch", "chair", "tv", "potted plant", "book", "vase"];
-            const found = predictions.find(p => roomObjects.includes(p.class.toLowerCase()));
-            if (found) {
-              message = `${type.replace('_', ' ').toUpperCase()}: ${found.class.toUpperCase()} detected!`;
-              gType = "success";
-            } else {
-              message = `${type.replace('_', ' ').split(' ')[0]} ready (Empty room okay)`;
-              gType = "success";
-            }
-            isValid = true;
-          } else {
-            message = "Ready for capture.";
-            gType = "success";
-            isValid = true;
-          }
-        }
+        if (b < 30 || b > 230) gType = "warning";
 
         setGuidance({ message, type: gType });
-        setIsValidatedNow(isValid);
       } catch (err) {
         console.error("Detection error:", err);
       }
     }
     
-    // Request next frame ONLY AFTER current one is processed (with a tiny delay to breathe)
+    // Request next frame ONLY IF modal is still open and no image captured
     if (open && !capturedImage) {
-      setTimeout(() => {
-        requestAnimationFrame(runDetection);
-      }, 100); // 10fps is plenty for guidance and much lighter on CPU
+      detectionRequestId.current = requestAnimationFrame(runDetection);
     }
   }, [model, capturedImage, type, open]);
 
   useEffect(() => {
     if (open && model && !capturedImage) {
-      const animationId = requestAnimationFrame(runDetection);
-      return () => cancelAnimationFrame(animationId);
+      detectionRequestId.current = requestAnimationFrame(runDetection);
+      return () => {
+        if (detectionRequestId.current) {
+          cancelAnimationFrame(detectionRequestId.current);
+          detectionRequestId.current = null;
+        }
+      };
     }
   }, [open, model, capturedImage, runDetection]);
 
@@ -220,7 +198,8 @@ export const LiveCameraModal = ({
         context.drawImage(video, 0, 0, canvas.width, canvas.height);
         const imageData = canvas.toDataURL("image/jpeg", 0.9);
         setCapturedImage(imageData);
-        setIsValidatedAtCapture(isValidatedNow);
+        setIsValidatedAtCapture(currentValidation?.scene_match || false);
+        setCaptureMetadata(currentValidation);
         
         if (stream) {
           stream.getTracks().forEach((track) => track.stop());
@@ -232,6 +211,7 @@ export const LiveCameraModal = ({
   const handleRetake = () => {
     setCapturedImage(null);
     setIsValidatedAtCapture(false);
+    setCaptureMetadata(null);
     startCamera();
   };
 
@@ -243,9 +223,10 @@ export const LiveCameraModal = ({
           const file = new File([blob], `AI_capture_${Date.now()}.jpg`, {
             type: "image/jpeg",
           });
-          onCapture(file, isValidatedAtCapture);
+          onCapture(file, isValidatedAtCapture, captureMetadata);
           onOpenChange(false);
           setCapturedImage(null);
+          setCaptureMetadata(null);
         });
     }
   };
@@ -287,15 +268,26 @@ export const LiveCameraModal = ({
               
               {/* Guidance Overlay */}
               <div className="absolute inset-0 pointer-events-none border-[12px] border-white/5 flex flex-col items-center justify-end pb-24">
-                <div className={`px-4 py-2 rounded-full backdrop-blur-md flex items-center gap-2 transition-all duration-300 ${
+                <div className={`px-4 py-2 rounded-full backdrop-blur-md flex flex-col items-center gap-1 transition-all duration-300 max-w-[85%] ${
                   guidance.type === "warning" ? "bg-red-500/80 text-white" : 
                   guidance.type === "success" ? "bg-green-500/80 text-white" : 
                   "bg-white/20 text-white"
                 }`}>
-                  {guidance.type === "warning" ? <AlertCircle className="h-4 w-4" /> : 
-                   guidance.type === "success" ? <CheckCircle2 className="h-4 w-4" /> : 
-                   <Info className="h-4 w-4" />}
-                  <span className="text-xs font-bold font-raleway">{guidance.message}</span>
+                  <div className="flex items-center gap-2">
+                    {guidance.type === "warning" ? <AlertCircle className="h-4 w-4" /> : 
+                     guidance.type === "success" ? <CheckCircle2 className="h-4 w-4" /> : 
+                     <Info className="h-4 w-4" />}
+                    <span className="text-xs font-bold font-raleway text-center">{guidance.message}</span>
+                  </div>
+                  
+                  {currentValidation && currentValidation.missing_objects.length > 0 && (
+                    <div className="text-[10px] opacity-90 flex flex-wrap justify-center gap-1 mt-1">
+                      <span className="font-bold">Missing:</span>
+                      {currentValidation.missing_objects.map((obj, i) => (
+                        <span key={i} className="bg-black/20 px-1.5 rounded">{obj}</span>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -322,9 +314,9 @@ export const LiveCameraModal = ({
           <canvas ref={canvasRef} className="hidden" />
         </div>
 
-        <div className="p-8 bg-gradient-to-t from-black to-black/40 flex items-center justify-center gap-6 relative z-10">
+        <div className="p-8 bg-gradient-to-t from-black to-black/40 flex flex-col items-center justify-center gap-6 relative z-10">
           {!capturedImage ? (
-            <>
+            <div className="flex items-center justify-center gap-6 w-full">
               <Button
                 variant="ghost"
                 size="icon"
@@ -335,7 +327,7 @@ export const LiveCameraModal = ({
               </Button>
               <div className="relative group">
                 <div className={`absolute -inset-1 rounded-full blur opacity-50 transition duration-500 ${
-                  isValidatedNow ? 'bg-green-500 opacity-75' : 'bg-primary'
+                  currentValidation?.scene_match ? 'bg-green-500 opacity-75' : 'bg-primary'
                 }`} />
                 <Button
                   size="icon"
@@ -344,7 +336,7 @@ export const LiveCameraModal = ({
                   }`}
                   onClick={handleCapture}
                 >
-                  <Camera className={`h-10 w-10 ${isValidatedNow ? 'text-green-600' : ''}`} />
+                  <Camera className={`h-10 w-10 ${currentValidation?.scene_match ? 'text-green-600' : ''}`} />
                 </Button>
               </div>
               <Button
@@ -355,24 +347,43 @@ export const LiveCameraModal = ({
               >
                 <X className="h-6 w-6" />
               </Button>
-            </>
+            </div>
           ) : (
-            <div className="flex w-full gap-4 animate-in slide-in-from-bottom-4">
-              <Button
-                variant="outline"
-                className="flex-1 h-14 rounded-xl text-white border-white/20 bg-white/5 hover:bg-white/10"
-                onClick={handleRetake}
-              >
-                <RefreshCw className="mr-2 h-4 w-4" />
-                Retake
-              </Button>
-              <Button
-                className="flex-1 h-14 rounded-xl bg-primary hover:bg-primary/90 text-white font-bold shadow-lg shadow-primary/20"
-                onClick={handleDone}
-              >
-                <Check className="mr-2 h-5 w-5" />
-                Continue
-              </Button>
+            <div className="w-full space-y-4">
+              {packageType === "prime" && !isValidatedAtCapture && (
+                <div className="bg-red-500/20 border border-red-500/50 p-3 rounded-xl text-white text-center animate-in fade-in slide-in-from-top-2">
+                  <div className="flex items-center justify-center gap-2 mb-1">
+                    <AlertTriangle className="h-4 w-4 text-red-400" />
+                    <span className="text-xs font-bold">Standard Not Met</span>
+                  </div>
+                  <p className="text-[10px] opacity-90">
+                    This capture doesn't meet Ez-Prime standards. Please <b>Recapture</b> or switch to <b>Ez-Vantage</b> package to proceed.
+                  </p>
+                </div>
+              )}
+              
+              <div className="flex w-full gap-4 animate-in slide-in-from-bottom-4">
+                <Button
+                  variant="outline"
+                  className="flex-1 h-14 rounded-xl text-white border-white/20 bg-white/5 hover:bg-white/10"
+                  onClick={handleRetake}
+                >
+                  <RefreshCw className="mr-2 h-4 w-4" />
+                  Retake
+                </Button>
+                <Button
+                  className={`flex-1 h-14 rounded-xl font-bold shadow-lg ${
+                    packageType === "prime" && !isValidatedAtCapture
+                      ? "bg-gray-600 cursor-not-allowed opacity-50"
+                      : "bg-primary hover:bg-primary/90 text-white shadow-primary/20"
+                  }`}
+                  onClick={handleDone}
+                  disabled={packageType === "prime" && !isValidatedAtCapture}
+                >
+                  <Check className="mr-2 h-5 w-5" />
+                  Continue
+                </Button>
+              </div>
             </div>
           )}
         </div>
