@@ -97,7 +97,7 @@ Open [http://localhost:3000](http://localhost:3000) to view the application.
   /landlord-partner/page.tsx   # Landlord registration
   /listings/page.tsx           # Property listings
   /listings/[codename]/page.tsx # Property details
-  /apply/[codename]/page.tsx   # Rental application
+  /listings/apply/[codename]/page.tsx # Rental application
   /admin/page.tsx              # Admin dashboard
 /components
   /header.tsx                  # Navigation header
@@ -137,7 +137,7 @@ Open [http://localhost:3000](http://localhost:3000) to view the application.
 - Inspection booking modal
 - Direct application link
 
-### Rental Application Page (/apply/[codename])
+### Rental Application Page (/listings/apply/[codename])
 - Multi-step application form:
   - Bio & Current Residency
   - Financial & Employment

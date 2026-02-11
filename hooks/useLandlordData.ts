@@ -63,7 +63,7 @@ export const useLandlordData = (user: any, token: string | null) => {
         const data = await response.json();
         const allListings = data.data || data || [];
         const landlordProperties = allListings.filter(
-          (property: any) => property.landlord?.id === user?.id
+          (property: any) => property.landlord?.id === user?.id,
         );
         setProperties(landlordProperties);
       } else {
@@ -81,36 +81,38 @@ export const useLandlordData = (user: any, token: string | null) => {
     }
   }, [token, user?.id, toast]);
 
-  const fetchApplications = useCallback(async (currentProperties: any[]) => {
-    if (!token || currentProperties.length === 0) {
-      setApplications([]);
-      return;
-    }
-
-    try {
-      setLoading((prev) => ({ ...prev, applications: true }));
-      const response = await fetch(`${API_BASE_URL}/applications`, {
-        headers: {
-          Accept: "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        const allApplications = data.data || data || [];
-        const landlordApplications = allApplications.filter(
-          (app: any) =>
-            currentProperties.some((prop) => prop.id === app.property_id)
-        );
-        setApplications(landlordApplications);
+  const fetchApplications = useCallback(
+    async (currentProperties: any[]) => {
+      if (!token || currentProperties.length === 0) {
+        setApplications([]);
+        return;
       }
-    } catch (error) {
-      console.error("Error fetching applications:", error);
-    } finally {
-      setLoading((prev) => ({ ...prev, applications: false }));
-    }
-  }, [token]);
+
+      try {
+        setLoading((prev) => ({ ...prev, applications: true }));
+        const response = await fetch(`${API_BASE_URL}/applications/apply`, {
+          headers: {
+            Accept: "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          const allApplications = data.data || data || [];
+          const landlordApplications = allApplications.filter((app: any) =>
+            currentProperties.some((prop) => prop.id === app.property_id),
+          );
+          setApplications(landlordApplications);
+        }
+      } catch (error) {
+        console.error("Error fetching applications:", error);
+      } finally {
+        setLoading((prev) => ({ ...prev, applications: false }));
+      }
+    },
+    [token],
+  );
 
   useEffect(() => {
     if (token && user?.id) {

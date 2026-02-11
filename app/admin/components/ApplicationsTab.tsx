@@ -38,21 +38,50 @@ import {
   AlertCircle,
   Mail,
   Phone,
+  FileText,
+  User,
+  Briefcase,
+  MapPin,
+  Calendar,
+  DollarSign,
+  Link as LinkIcon,
+  CheckCircle,
+  XCircle,
 } from "lucide-react";
 
 interface Application {
   id: string;
-  property_id: string;
+  unique_id: string;
   status: string;
-  payment_plan_preference: string;
+  tenant_package: string;
+  listing_id: string;
+  user_id: string | null;
+  full_name: string;
+  email: string;
+  phone: string;
+  current_address: string;
+  current_landlord_name: string;
+  current_landlord_contact: string;
+  reason_for_leaving: string;
+  duration_of_stay: string;
+  company_name: string;
+  job_title: string;
+  monthly_income: number;
+  hr_contact: string;
+  desired_start_date: string;
+  payment_plan: string;
+  emergency_contact_name: string;
+  emergency_contact_phone: string;
+  bank_statement_path: string;
+  government_id_path: string;
+  live_photo_path: string;
+  verification_video_path: string;
   created_at: string;
+  updated_at: string;
   properties?: {
     code_name: string;
     typology: string;
   };
-  full_name?: string;
-  email?: string;
-  phone?: string;
 }
 
 interface ApplicationsTabProps {
@@ -67,7 +96,8 @@ interface ApplicationsTabProps {
   getStatusBadge: (status: string) => JSX.Element;
   formatDate: (dateString: string) => string;
   fetchApplications: () => void;
-  updateApplicationStatus: (id: string, status: string) => void;
+  approveApplication: (id: string) => void;
+  rejectApplication: (id: string) => void;
 }
 
 export default function ApplicationsTab({
@@ -80,7 +110,8 @@ export default function ApplicationsTab({
   getStatusBadge,
   formatDate,
   fetchApplications,
-  updateApplicationStatus,
+  approveApplication,
+  rejectApplication,
 }: ApplicationsTabProps) {
   const filteredApplications = applications.filter((app) => {
     const matchesSearch =
@@ -96,8 +127,10 @@ export default function ApplicationsTab({
         .includes(searchTerm.toLowerCase()) ||
       (app.phone?.toString() || "")
         .toLowerCase()
+        .includes(searchTerm.toLowerCase()) ||
+      (app.unique_id?.toString() || "")
+        .toLowerCase()
         .includes(searchTerm.toLowerCase());
-
     const matchesStatus = statusFilter === "all" || app.status === statusFilter;
 
     return matchesSearch && matchesStatus;
@@ -128,7 +161,7 @@ export default function ApplicationsTab({
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
             <Input
-              placeholder="Search applications by property, applicant name, or email..."
+              placeholder="Search applications by ID, applicant name, or email..."
               className="pl-10"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
@@ -141,6 +174,7 @@ export default function ApplicationsTab({
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Applications</SelectItem>
+              <SelectItem value="pending">Pending</SelectItem>
               <SelectItem value="submitted">Submitted</SelectItem>
               <SelectItem value="vetting_pending">Vetting Pending</SelectItem>
               <SelectItem value="approved">Approved</SelectItem>
@@ -168,11 +202,10 @@ export default function ApplicationsTab({
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Property</TableHead>
                   <TableHead>Applicant</TableHead>
                   <TableHead>Contact</TableHead>
+                  <TableHead>Package & Plan</TableHead>
                   <TableHead>Application Date</TableHead>
-                  <TableHead>Payment Plan</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Actions</TableHead>
                 </TableRow>
@@ -182,19 +215,9 @@ export default function ApplicationsTab({
                   <TableRow key={app.id}>
                     <TableCell>
                       <div>
-                        <p className="font-medium">
-                          {app.properties?.code_name || "N/A"}
-                        </p>
-                        <p className="text-xs text-gray-600">
-                          {app.properties?.typology}
-                        </p>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div>
                         <p className="font-medium">{app.full_name || "N/A"}</p>
-                        <p className="text-xs text-gray-600">
-                          ID: {(app.id?.toString() || "").substring(0, 8)}
+                        <p className="text-xs text-gray-600 font-mono">
+                          ID: {app.id}
                         </p>
                       </div>
                     </TableCell>
@@ -210,13 +233,21 @@ export default function ApplicationsTab({
                         </div>
                       </div>
                     </TableCell>
-                    <TableCell>{formatDate(app.created_at)}</TableCell>
                     <TableCell>
-                      <Badge variant="outline">
-                        {app.payment_plan_preference === "ez_anchor"
-                          ? "EZ-Anchor"
-                          : "EZ-Ascend"}
-                      </Badge>
+                      <div className="space-y-1">
+                        <Badge variant="outline" className="capitalize">
+                          {app.tenant_package || "N/A"}
+                        </Badge>
+                        <div className="text-[10px] text-gray-500 uppercase font-bold">
+                          {app.payment_plan || "N/A"}
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <p className="text-sm">{formatDate(app.created_at)}</p>
+                      <p className="text-xs text-gray-500">
+                        Listing: {app.listing_id.substring(0, 8)}...
+                      </p>
                     </TableCell>
                     <TableCell>{getStatusBadge(app.status)}</TableCell>
                     <TableCell>
@@ -227,73 +258,319 @@ export default function ApplicationsTab({
                               Review
                             </Button>
                           </DialogTrigger>
-                          <DialogContent className="max-w-2xl">
+                          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
                             <DialogHeader>
-                              <DialogTitle>Application Review</DialogTitle>
+                              <DialogTitle className="text-2xl font-bold">
+                                Tenant Application Review - {app.id}
+                              </DialogTitle>
                             </DialogHeader>
-                            <div className="space-y-4">
-                              <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                  <Label className="text-sm font-semibold">
-                                    Applicant
-                                  </Label>
-                                  <p>{app.full_name}</p>
-                                </div>
-                                <div>
-                                  <Label className="text-sm font-semibold">
-                                    Property
-                                  </Label>
-                                  <p>{app.properties?.code_name}</p>
-                                </div>
-                                <div>
-                                  <Label className="text-sm font-semibold">
-                                    Email
-                                  </Label>
-                                  <p>{app.email}</p>
-                                </div>
-                                <div>
-                                  <Label className="text-sm font-semibold">
-                                    Phone
-                                  </Label>
-                                  <p>{app.phone}</p>
-                                </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 py-4">
+                              {/* Left Column: Personal & Landlord Info */}
+                              <div className="space-y-6">
+                                <section>
+                                  <h3 className="text-lg font-semibold flex items-center gap-2 mb-3 text-primary">
+                                    <User className="h-5 w-5" /> Personal
+                                    Details
+                                  </h3>
+                                  <div className="bg-gray-50 p-4 rounded-lg space-y-3">
+                                    <div>
+                                      <Label className="text-xs text-gray-500">
+                                        Full Name
+                                      </Label>
+                                      <p className="font-medium">
+                                        {app.full_name}
+                                      </p>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-4">
+                                      <div>
+                                        <Label className="text-xs text-gray-500">
+                                          Email
+                                        </Label>
+                                        <p className="text-sm">{app.email}</p>
+                                      </div>
+                                      <div>
+                                        <Label className="text-xs text-gray-500">
+                                          Phone
+                                        </Label>
+                                        <p className="text-sm">{app.phone}</p>
+                                      </div>
+                                    </div>
+                                    <div>
+                                      <Label className="text-xs text-gray-500">
+                                        Current Address
+                                      </Label>
+                                      <p className="text-sm">
+                                        {app.current_address}
+                                      </p>
+                                    </div>
+                                  </div>
+                                </section>
+
+                                <section>
+                                  <h3 className="text-lg font-semibold flex items-center gap-2 mb-3 text-primary">
+                                    <MapPin className="h-5 w-5" /> Current
+                                    Landlord Info
+                                  </h3>
+                                  <div className="bg-gray-50 p-4 rounded-lg space-y-3">
+                                    <div className="grid grid-cols-2 gap-4">
+                                      <div>
+                                        <Label className="text-xs text-gray-500">
+                                          Landlord Name
+                                        </Label>
+                                        <p className="text-sm">
+                                          {app.current_landlord_name}
+                                        </p>
+                                      </div>
+                                      <div>
+                                        <Label className="text-xs text-gray-500">
+                                          Contact
+                                        </Label>
+                                        <p className="text-sm">
+                                          {app.current_landlord_contact}
+                                        </p>
+                                      </div>
+                                    </div>
+                                    <div>
+                                      <Label className="text-xs text-gray-500">
+                                        Duration of Stay
+                                      </Label>
+                                      <p className="text-sm">
+                                        {app.duration_of_stay}
+                                      </p>
+                                    </div>
+                                    <div>
+                                      <Label className="text-xs text-gray-500">
+                                        Reason for leaving
+                                      </Label>
+                                      <p className="text-sm italic">
+                                        {app.reason_for_leaving}
+                                      </p>
+                                    </div>
+                                  </div>
+                                </section>
+
+                                <section>
+                                  <h3 className="text-lg font-semibold flex items-center gap-2 mb-3 text-primary">
+                                    <AlertCircle className="h-5 w-5" />{" "}
+                                    Emergency Contact
+                                  </h3>
+                                  <div className="bg-gray-50 p-4 rounded-lg">
+                                    <div className="grid grid-cols-2 gap-4">
+                                      <div>
+                                        <Label className="text-xs text-gray-500">
+                                          Name
+                                        </Label>
+                                        <p className="text-sm">
+                                          {app.emergency_contact_name}
+                                        </p>
+                                      </div>
+                                      <div>
+                                        <Label className="text-xs text-gray-500">
+                                          Phone
+                                        </Label>
+                                        <p className="text-sm">
+                                          {app.emergency_contact_phone}
+                                        </p>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </section>
                               </div>
-                              <div>
-                                <Label>Payment Plan Preference</Label>
-                                <p className="font-medium">
-                                  {app.payment_plan_preference === "ez_anchor"
-                                    ? "EZ-Anchor (Pay monthly)"
-                                    : "EZ-Ascend (Pay annually)"}
+
+                              {/* Right Column: Employment & Documents */}
+                              <div className="space-y-6">
+                                <section>
+                                  <h3 className="text-lg font-semibold flex items-center gap-2 mb-3 text-primary">
+                                    <Briefcase className="h-5 w-5" /> Employment
+                                    Info
+                                  </h3>
+                                  <div className="bg-gray-50 p-4 rounded-lg space-y-3">
+                                    <div>
+                                      <Label className="text-xs text-gray-500">
+                                        Company Name
+                                      </Label>
+                                      <p className="text-sm font-medium">
+                                        {app.company_name}
+                                      </p>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-4">
+                                      <div>
+                                        <Label className="text-xs text-gray-500">
+                                          Job Title
+                                        </Label>
+                                        <p className="text-sm">
+                                          {app.job_title}
+                                        </p>
+                                      </div>
+                                      <div>
+                                        <Label className="text-xs text-gray-500">
+                                          Monthly Income
+                                        </Label>
+                                        <p className="text-sm font-semibold text-green-700">
+                                          ₦{app.monthly_income.toLocaleString()}
+                                        </p>
+                                      </div>
+                                    </div>
+                                    <div>
+                                      <Label className="text-xs text-gray-500">
+                                        HR Contact
+                                      </Label>
+                                      <p className="text-sm">
+                                        {app.hr_contact}
+                                      </p>
+                                    </div>
+                                  </div>
+                                </section>
+
+                                <section>
+                                  <h3 className="text-lg font-semibold flex items-center gap-2 mb-3 text-primary">
+                                    <FileText className="h-5 w-5" /> Application
+                                    Details
+                                  </h3>
+                                  <div className="bg-gray-50 p-4 rounded-lg space-y-3">
+                                    <div className="grid grid-cols-2 gap-4">
+                                      <div>
+                                        <Label className="text-xs text-gray-500">
+                                          Package
+                                        </Label>
+                                        <Badge
+                                          variant="outline"
+                                          className="capitalize"
+                                        >
+                                          {app.tenant_package}
+                                        </Badge>
+                                      </div>
+                                      <div>
+                                        <Label className="text-xs text-gray-500">
+                                          Payment Plan
+                                        </Label>
+                                        <Badge className="bg-blue-100 text-blue-800 border-none capitalize">
+                                          {app.payment_plan}
+                                        </Badge>
+                                      </div>
+                                    </div>
+                                    <div>
+                                      <Label className="text-xs text-gray-500">
+                                        Desired Start Date
+                                      </Label>
+                                      <div className="flex items-center gap-2 text-sm font-medium">
+                                        <Calendar className="h-4 w-4 text-gray-400" />
+                                        {formatDate(app.desired_start_date)}
+                                      </div>
+                                    </div>
+                                  </div>
+                                </section>
+
+                                <section>
+                                  <h3 className="text-lg font-semibold flex items-center gap-2 mb-3 text-primary">
+                                    <LinkIcon className="h-5 w-5" />{" "}
+                                    Verification Documents
+                                  </h3>
+                                  <div className="grid grid-cols-1 gap-2">
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      className="justify-start"
+                                      asChild
+                                    >
+                                      <a
+                                        href={app.bank_statement_path}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                      >
+                                        <FileText className="h-4 w-4 mr-2" />{" "}
+                                        Bank Statement
+                                      </a>
+                                    </Button>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      className="justify-start"
+                                      asChild
+                                    >
+                                      <a
+                                        href={app.government_id_path}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                      >
+                                        <FileText className="h-4 w-4 mr-2" />{" "}
+                                        Government ID
+                                      </a>
+                                    </Button>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      className="justify-start"
+                                      asChild
+                                    >
+                                      <a
+                                        href={app.live_photo_path}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                      >
+                                        <FileText className="h-4 w-4 mr-2" />{" "}
+                                        Live Photo/Selfie
+                                      </a>
+                                    </Button>
+                                    {app.verification_video_path && (
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        className="justify-start"
+                                        asChild
+                                      >
+                                        <a
+                                          href={app.verification_video_path}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                        >
+                                          <FileText className="h-4 w-4 mr-2" />{" "}
+                                          Verification Video
+                                        </a>
+                                      </Button>
+                                    )}
+                                  </div>
+                                </section>
+                              </div>
+                            </div>
+
+                            <div className="mt-8 pt-6 border-t flex flex-col sm:flex-row justify-between items-center gap-4">
+                              <div className="flex items-center gap-2">
+                                <Label>Current Status:</Label>
+                                {getStatusBadge(app.status)}
+                              </div>
+
+                              {app.status === "pending" ||
+                              app.status === "submitted" ||
+                              app.status === "vetting_pending" ? (
+                                <div className="flex gap-3">
+                                  <Button
+                                    className="bg-green-600 hover:bg-green-700 text-white min-w-[120px]"
+                                    onClick={() =>
+                                      approveApplication(app.unique_id)
+                                    }
+                                  >
+                                    <CheckCircle className="h-4 w-4 mr-2" />
+                                    Approve
+                                  </Button>
+                                  <Button
+                                    variant="destructive"
+                                    className="min-w-[120px]"
+                                    onClick={() =>
+                                      rejectApplication(app.unique_id)
+                                    }
+                                  >
+                                    <XCircle className="h-4 w-4 mr-2" />
+                                    Reject
+                                  </Button>
+                                </div>
+                              ) : (
+                                <p className="text-sm text-gray-500 italic">
+                                  This application has already been processed (
+                                  {app.status}).
                                 </p>
-                              </div>
-                              <div>
-                                <Label>Update Status</Label>
-                                <Select
-                                  defaultValue={app.status}
-                                  onValueChange={(value) =>
-                                    updateApplicationStatus(app.id, value)
-                                  }
-                                >
-                                  <SelectTrigger>
-                                    <SelectValue placeholder="Select status" />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value="vetting_pending">
-                                      Vetting Pending
-                                    </SelectItem>
-                                    <SelectItem value="approved">
-                                      Approve
-                                    </SelectItem>
-                                    <SelectItem value="rejected">
-                                      Reject
-                                    </SelectItem>
-                                  </SelectContent>
-                                </Select>
-                              </div>
-                              <div>
-                                <Label>Admin Notes</Label>
-                                <Textarea placeholder="Add notes about this application..." />
-                              </div>
+                              )}
                             </div>
                           </DialogContent>
                         </Dialog>

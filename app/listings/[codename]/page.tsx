@@ -762,7 +762,7 @@ export default function PropertyDetailsPage() {
                       </Dialog>
 
                       <Link
-                        href={`/apply/${property.code_name || property.id}`}
+                        href={`/listings/apply/${property.code_name || property.id}`}
                       >
                         <Button className="w-full bg-secondary hover:bg-secondary/90 font-montserrat text-lg py-6">
                           Start Application

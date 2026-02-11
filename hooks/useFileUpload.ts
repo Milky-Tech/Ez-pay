@@ -12,6 +12,8 @@ export interface UploadedFile {
   url: string | null;
   uploading: boolean;
   error: string | null;
+  aiValidated?: boolean; // Track if AI confirmed the contents
+  aiMetadata?: any; // Detailed AI validation results (detected objects, confidence, missing)
   type:
     | "compound_road"
     | "power_system"
@@ -21,6 +23,12 @@ export interface UploadedFile {
     | "bedroom"
     | "kitchen"
     | "rest_room"
+    | "cac_cert"
+    | "c_of_o"
+    | "bank_statements"
+    | "govt_id"
+    | "live_photo"
+    | "live_video"
     | "others";
 }
 
@@ -45,15 +53,23 @@ export const useFileUpload = (token: string | null) => {
       "bedroom",
       "kitchen",
       "rest_room",
+      "live_photo",
+      "govt_id",
       "others",
     ];
-    const apiType = imageTypes.includes(type) ? "image" : "document";
+    let apiType = "document";
+    if (type === "live_video") {
+      apiType = "video";
+    } else if (imageTypes.includes(type)) {
+      apiType = "image";
+    }
     formData.append("type", apiType);
 
     const response = await fetch(`${API_BASE_URL}/${endpoint}`, {
       method: "POST",
       headers: {
         Accept: "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
       body: formData,
     });
@@ -69,7 +85,7 @@ export const useFileUpload = (token: string | null) => {
       data.filePath || 
       data.data?.url || 
       data.data?.path || 
-      `/storage/uploads/${apiType === "image" ? "images" : "documents"}/${file.name}`
+      `/storage/uploads/${apiType === "image" ? "images" : apiType === "video" ? "videos" : "documents"}/${file.name}`
     );
   };
 
@@ -104,7 +120,10 @@ export const useFileUpload = (token: string | null) => {
     file: File,
     type: UploadedFile["type"],
     isMultiple: boolean = false,
-    onSuccess?: (url: string) => void
+    onSuccess?: (url: string) => void,
+    aiValidated: boolean = false,
+    aiMetadata?: any,
+    endpoint?: string
   ) => {
     const id = `${type}_${Date.now()}_${Math.random()
       .toString(36)
@@ -117,6 +136,8 @@ export const useFileUpload = (token: string | null) => {
       uploading: true,
       error: null,
       type,
+      aiValidated,
+      aiMetadata,
     };
 
     if (!isMultiple) {
@@ -126,7 +147,7 @@ export const useFileUpload = (token: string | null) => {
     setUploadedFiles((prev) => [...prev, newFile]);
 
     try {
-      const url = await uploadFile(file, type);
+      const url = await uploadFile(file, type, endpoint);
 
       setUploadedFiles((prev) =>
         prev.map((f) => (f.id === id ? { ...f, url, uploading: false } : f))
@@ -136,7 +157,7 @@ export const useFileUpload = (token: string | null) => {
 
       toast({
         title: "Upload Successful",
-        description: "File uploaded successfully",
+        description: aiValidated ? "AI Validated! File uploaded successfully" : "File uploaded successfully",
       });
       return url;
     } catch (error) {

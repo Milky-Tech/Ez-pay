@@ -21,7 +21,9 @@ import {
   Shield,
   TrendingUp,
   AlertCircle,
+  ImageIcon as LucideImageIcon,
 } from "lucide-react";
+import { useAI } from "@/context/aicontext";
 
 // API Base URL
 const API_BASE_URL =
@@ -973,13 +975,42 @@ export default function PropertyScoringEngine({
   propertyData,
   onScoreUpdate,
 }: PropertyScoringEngineProps) {
+  const { model } = useAI();
   const [scores, setScores] = useState<PropertyScores | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Image quality verification
+  // Helper for blur detection (Laplacian variance)
+  const detectBlur = (canvas: HTMLCanvasElement): boolean => {
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return false;
+    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const data = imageData.data;
+    const width = imageData.width;
+    const height = imageData.height;
+
+    let totalVariance = 0;
+    for (let y = 1; y < height - 1; y++) {
+      for (let x = 1; x < width - 1; x++) {
+        const idx = (y * width + x) * 4;
+        const center = data[idx];
+        const laplacian = 
+          -4 * center +
+          data[idx - 4] +
+          data[idx + 4] +
+          data[idx - width * 4] +
+          data[idx + width * 4];
+        totalVariance += laplacian * laplacian;
+      }
+    }
+    const variance = totalVariance / (width * height);
+    return variance < 100; // Threshold for blur
+  };
+
+  // Image quality verification with AI
   const checkImageQuality = async (
     imageUrl: string,
-    category: string
+    category: "exterior" | "interior" | "compound" | "road",
+    type?: string
   ): Promise<ImageQualityScore> => {
     const score: ImageQualityScore = {
       score: 0,
@@ -1015,27 +1046,65 @@ export default function PropertyScoringEngine({
       score.exists = true;
       score.fileSize = parseInt(response.headers.get("content-length") || "0");
 
-      // Basic file size check (should be reasonable for property images)
-      if (score.fileSize && score.fileSize < 50000) {
-        // Less than 50KB
-        score.issues.push("Image file size too small");
-      } else if (score.fileSize && score.fileSize > 10000000) {
-        // More than 10MB
-        score.issues.push("Image file size too large");
+      // Load image into canvas for analysis
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      img.src = fullImageUrl;
+      await new Promise((resolve) => (img.onload = resolve));
+
+      const canvas = document.createElement("canvas");
+      canvas.width = img.width;
+      canvas.height = img.height;
+      const ctx = canvas.getContext("2d");
+      if (ctx) {
+        ctx.drawImage(img, 0, 0);
+        
+        // 1. Blur Detection
+        const isBlurred = detectBlur(canvas);
+        score.isBlurred = isBlurred;
+        if (isBlurred) score.issues.push(`Image appears blurry (${category})`);
+
+        // 2. Object Detection with AI
+        if (model) {
+          const predictions = await model.detect(img);
+          const labels = predictions.map(p => p.class.toLowerCase());
+          
+          let matchFound = false;
+          if (type === "kitchen") {
+            const kitchenObjects = ["sink", "refrigerator", "microwave", "oven", "toaster", "dining table", "bottle", "cup", "bowl", "chair"];
+            matchFound = predictions.some(p => kitchenObjects.includes(p.class.toLowerCase()));
+            if (!matchFound) score.issues.push("No kitchen fixtures detected (sink, fridge, etc)");
+          } else if (type === "rest_room") {
+            const toiletObjects = ["toilet", "sink"];
+            matchFound = predictions.some(p => toiletObjects.includes(p.class.toLowerCase()));
+            if (!matchFound) score.issues.push("No restroom fixtures detected (toilet, sink)");
+          } else if (category === "road") {
+            const roadObjects = ["car", "truck", "bus", "traffic light", "bench", "bicycle", "motorcycle", "person"];
+            matchFound = predictions.some(p => roadObjects.includes(p.class.toLowerCase()));
+            if (!matchFound) score.issues.push("Road/Driveway context not clearly detected");
+          } else if (category === "compound" || category === "exterior") {
+            const extObjects = ["car", "truck", "bus", "house", "building", "person", "tree"];
+            matchFound = predictions.some(p => extObjects.includes(p.class.toLowerCase()));
+            if (!matchFound) score.issues.push("Exterior/Compound context missing building/outdoor elements");
+          } else {
+            // default match
+            matchFound = true;
+          }
+          score.categoryMatch = matchFound;
+        }
       }
 
-      // For now, we'll assume minimum resolution and no blur detection
-      // In a real implementation, you'd use canvas API or a backend service
-      score.resolution = { width: 1024, height: 768 }; // Placeholder
+      score.resolution = { width: img.width, height: img.height };
 
       // Calculate score based on available checks
       let qualityScore = 100;
-      if (score.issues.length > 0) {
-        qualityScore -= score.issues.length * 20;
-      }
+      if (score.isBlurred) qualityScore -= 30;
+      if (!score.categoryMatch && model) qualityScore -= 40;
+      if (score.issues.length > 0) qualityScore -= score.issues.length * 10;
+      
       score.score = Math.max(0, qualityScore);
     } catch (error) {
-      score.issues.push("Failed to verify image");
+      score.issues.push(`Failed to analyze ${category} image`);
     }
 
     return score;
@@ -1226,20 +1295,31 @@ export default function PropertyScoringEngine({
   const calculateScores = async (): Promise<PropertyScores> => {
     const imageQualityPromises = [];
 
-    // Check exterior shot
-    if (propertyData.exteriorShot) {
+    // 1. Check Exterior Shot
+    if (propertyData.exterior_shot || propertyData.exteriorShot) {
       imageQualityPromises.push(
-        checkImageQuality(propertyData.exteriorShot, "exterior")
+        checkImageQuality((propertyData.exterior_shot || propertyData.exteriorShot)!, "exterior")
       );
     }
 
-    // Check interior rooms (assuming array)
-    if (
-      propertyData.interiorRooms &&
-      Array.isArray(propertyData.interiorRooms)
-    ) {
-      propertyData.interiorRooms.forEach((url) => {
-        imageQualityPromises.push(checkImageQuality(url, "interior"));
+    // 2. Check Compound/Road
+    if (propertyData.compound_road || propertyData.compoundRoad) {
+      imageQualityPromises.push(
+        checkImageQuality((propertyData.compound_road || propertyData.compoundRoad)!, "road")
+      );
+    }
+
+    // 3. Check Interior Rooms (identify room types from labels if possible, or use standard)
+    if (propertyData.interior_rooms && Array.isArray(propertyData.interior_rooms)) {
+      propertyData.interior_rooms.forEach((room: any) => {
+        const url = typeof room === 'string' ? room : room.url;
+        const label = room.label?.toLowerCase() || "";
+        
+        let roomType: string | undefined;
+        if (label.includes("kitchen")) roomType = "kitchen";
+        else if (label.includes("rest") || label.includes("bath") || label.includes("toilet")) roomType = "rest_room";
+        
+        imageQualityPromises.push(checkImageQuality(url, "interior", roomType));
       });
     }
 

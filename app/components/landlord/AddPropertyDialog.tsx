@@ -38,6 +38,7 @@ import {
   AlertTriangle,
   Info,
   Home,
+  File,
 } from "lucide-react";
 import { Badge } from "@/app/components/ui/badge";
 import {
@@ -107,6 +108,7 @@ export const AddPropertyDialog = ({
     interior_rooms: [] as string[],
     exterior_shot: "",
     landlord_package: "prime",
+    c_of_o: "",
   });
 
   const {
@@ -139,7 +141,8 @@ export const AddPropertyDialog = ({
       toast({
         variant: "destructive",
         title: "Missing Information",
-        description: "Please fill in all required fields in the Basic Information section.",
+        description:
+          "Please fill in all required fields in the Basic Information section.",
       });
       return false;
     }
@@ -162,6 +165,7 @@ export const AddPropertyDialog = ({
       interior_rooms: [],
       exterior_shot: "",
       landlord_package: "prime",
+      c_of_o: "",
     });
     setConsentGiven(false);
   };
@@ -183,11 +187,12 @@ export const AddPropertyDialog = ({
     }
 
     const compoundRoadUrl = getFileByType("compound_road")?.url;
-    const powerSystemUrl = getFileByType("power_system")?.url;
+    const powerFiles = getFilesByType("power_system");
+    const powerSystemUrl = powerFiles[0]?.url; // Use first one as main if needed by API
     const exteriorShotUrl = getFileByType("exterior_shot")?.url;
-    
+
     // Enforce power picture if Prime
-    if (isPrime && !powerSystemUrl) {
+    if (isPrime && powerFiles.length === 0) {
       toast({
         variant: "destructive",
         title: "Missing Requirement",
@@ -205,16 +210,25 @@ export const AddPropertyDialog = ({
       toast({
         variant: "destructive",
         title: "Missing Files",
-        description: "Please upload required property images (Compound and Exterior Shot)",
+        description:
+          "Please upload required property images (Compound and Exterior Shot)",
       });
       return;
     }
 
-    if (interiorUrls.length === 0) {
+    const kitchenFiles = getFilesByType("kitchen");
+    const bathFiles = getFilesByType("rest_room");
+
+    const unvalidatedKitchen = kitchenFiles.some((f) => !f.aiValidated);
+    const unvalidatedBath = bathFiles.some((f) => !f.aiValidated);
+    const unvalidatedExterior = !getFileByType("exterior_shot")?.aiValidated;
+
+    if (unvalidatedKitchen || unvalidatedBath || unvalidatedExterior) {
       toast({
         variant: "destructive",
-        title: "Missing Interior Photos",
-        description: "Please upload at least one interior room photo (e.g., Living Room, Bedroom)",
+        title: "AI Quality Check Failed",
+        description:
+          "One or more required photos (Kitchen, Bath, or Exterior) were not validated by AI. Please retake them with better guidance.",
       });
       return;
     }
@@ -232,6 +246,7 @@ export const AddPropertyDialog = ({
         lead_image_url: exteriorShotUrl, // Fix: Use exterior shot as lead image
         interior_rooms: interiorUrls,
         landlord_package: formData.landlord_package, // Default package
+        c_of_o: getFileByType("c_of_o")?.url || "",
       };
 
       const response = await fetch(`${API_BASE_URL}/listings`, {
@@ -282,11 +297,17 @@ export const AddPropertyDialog = ({
         <DialogHeader>
           <div className="flex items-center justify-between">
             <DialogTitle className="text-xl sm:text-2xl font-raleway font-bold text-primary">
-              {formStep === 0 ? "Step 1: Property Details" : "Step 2: Property Imagery"}
+              {formStep === 0
+                ? "Step 1: Property Details"
+                : "Step 2: Property Imagery"}
             </DialogTitle>
             <div className="flex gap-2">
-              <div className={`h-2 w-12 rounded-full ${formStep === 0 ? "bg-primary" : "bg-gray-200"}`}></div>
-              <div className={`h-2 w-12 rounded-full ${formStep === 1 ? "bg-primary" : "bg-gray-200"}`}></div>
+              <div
+                className={`h-2 w-12 rounded-full ${formStep === 0 ? "bg-primary" : "bg-gray-200"}`}
+              ></div>
+              <div
+                className={`h-2 w-12 rounded-full ${formStep === 1 ? "bg-primary" : "bg-gray-200"}`}
+              ></div>
             </div>
           </div>
         </DialogHeader>
@@ -301,262 +322,265 @@ export const AddPropertyDialog = ({
                     Basic Information
                   </h3>
                 </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-              <div className="sm:col-span-2">
-                <Label htmlFor="property_address" className="text-sm">
-                  Property Address *
-                </Label>
-                <Input
-                  id="property_address"
-                  value={formData.property_address}
-                  onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      property_address: e.target.value,
-                    })
-                  }
-                  placeholder="123 Main St"
-                  required
-                />
-              </div>
-              <div>
-                <Label htmlFor="state" className="text-sm">
-                  State *
-                </Label>
-                <Select
-                  value={formData.state}
-                  onValueChange={(v) =>
-                    setFormData({ ...formData, state: v, area: "" })
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select state" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {Object.keys(NIGERIAN_STATES_LGAS).map((state) => (
-                      <SelectItem key={state} value={state}>
-                        {state}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label htmlFor="area" className="text-sm">
-                  Local Government (Area) *
-                </Label>
-                <Select
-                  value={formData.area}
-                  onValueChange={(v) => setFormData({ ...formData, area: v })}
-                  disabled={!formData.state}
-                >
-                  <SelectTrigger>
-                    <SelectValue
-                      placeholder={
-                        formData.state ? "Select LGA" : "Select state first"
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                  <div className="sm:col-span-2">
+                    <Label htmlFor="property_address" className="text-sm">
+                      Property Address *
+                    </Label>
+                    <Input
+                      id="property_address"
+                      value={formData.property_address}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          property_address: e.target.value,
+                        })
+                      }
+                      placeholder="123 Main St"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="state" className="text-sm">
+                      State *
+                    </Label>
+                    <Select
+                      value={formData.state}
+                      onValueChange={(v) =>
+                        setFormData({ ...formData, state: v, area: "" })
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select state" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {Object.keys(NIGERIAN_STATES_LGAS).map((state) => (
+                          <SelectItem key={state} value={state}>
+                            {state}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label htmlFor="area" className="text-sm">
+                      Local Government (Area) *
+                    </Label>
+                    <Select
+                      value={formData.area}
+                      onValueChange={(v) =>
+                        setFormData({ ...formData, area: v })
+                      }
+                      disabled={!formData.state}
+                    >
+                      <SelectTrigger>
+                        <SelectValue
+                          placeholder={
+                            formData.state ? "Select LGA" : "Select state first"
+                          }
+                        />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {formData.state &&
+                          NIGERIAN_STATES_LGAS[formData.state]?.map((lga) => (
+                            <SelectItem key={lga} value={lga}>
+                              {lga}
+                            </SelectItem>
+                          ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label htmlFor="typology" className="text-sm">
+                      Property Type *
+                    </Label>
+                    <Select
+                      value={formData.typology}
+                      onValueChange={(v) =>
+                        setFormData({ ...formData, typology: v })
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {[
+                          "1 Bedroom",
+                          "2 Bedroom",
+                          "3 Bedroom",
+                          "4 Bedroom",
+                          "5 Bedroom",
+                          "Duplex",
+                          "Apartment",
+                          "Villa",
+                        ].map((t) => (
+                          <SelectItem key={t} value={t}>
+                            {t}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label htmlFor="typology" className="text-sm">
+                      Package *
+                    </Label>
+                    <Select
+                      value={formData.landlord_package}
+                      onValueChange={(v) =>
+                        setFormData({ ...formData, landlord_package: v })
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select package" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {["prime", "vantage"].map((t) => (
+                          <SelectItem key={t} value={t}>
+                            {t}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label htmlFor="number_of_units" className="text-sm">
+                      Units *
+                    </Label>
+                    <Input
+                      id="number_of_units"
+                      type="number"
+                      value={formData.number_of_units}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          number_of_units: e.target.value,
+                        })
                       }
                     />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {formData.state &&
-                      NIGERIAN_STATES_LGAS[formData.state]?.map((lga) => (
-                        <SelectItem key={lga} value={lga}>
-                          {lga}
-                        </SelectItem>
-                      ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label htmlFor="typology" className="text-sm">
-                  Property Type *
-                </Label>
-                <Select
-                  value={formData.typology}
-                  onValueChange={(v) =>
-                    setFormData({ ...formData, typology: v })
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {[
-                      "1 Bedroom",
-                      "2 Bedroom",
-                      "3 Bedroom",
-                      "4 Bedroom",
-                      "5 Bedroom",
-                      "Duplex",
-                      "Apartment",
-                      "Villa",
-                    ].map((t) => (
-                      <SelectItem key={t} value={t}>
-                        {t}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label htmlFor="typology" className="text-sm">
-                  Package *
-                </Label>
-                <Select
-                  value={formData.landlord_package}
-                  onValueChange={(v) =>
-                    setFormData({ ...formData, landlord_package: v })
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select package" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {["prime", "vantage"].map((t) => (
-                      <SelectItem key={t} value={t}>
-                        {t}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label htmlFor="number_of_units" className="text-sm">
-                  Units *
-                </Label>
-                <Input
-                  id="number_of_units"
-                  type="number"
-                  value={formData.number_of_units}
-                  onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      number_of_units: e.target.value,
-                    })
-                  }
-                />
-              </div>
-                <div>
-                  <Label htmlFor="rent" className="text-sm">
-                    Monthly Rent (₦) *
-                  </Label>
-                  <Input
-                    id="rent"
-                    type="number"
-                    value={formData.rent}
-                    onChange={(e) =>
-                      setFormData({ ...formData, rent: e.target.value })
-                    }
-                  />
+                  </div>
+                  <div>
+                    <Label htmlFor="rent" className="text-sm">
+                      Monthly Rent (₦) *
+                    </Label>
+                    <Input
+                      id="rent"
+                      type="number"
+                      value={formData.rent}
+                      onChange={(e) =>
+                        setFormData({ ...formData, rent: e.target.value })
+                      }
+                    />
+                  </div>
                 </div>
               </div>
-            </div>
 
-            {formData.landlord_package !== "vantage" && (
-              <Card className="border-primary/20 bg-primary/5">
-                <CardHeader className="pb-2">
-                  <CardTitle className="font-raleway text-xl flex items-center gap-2 text-primary">
-                    <Shield className="h-5 w-5" />
-                    The ACCESSS Standard
-                  </CardTitle>
-                  <p className="text-gray-600 text-sm">
-                    We only manage assets that deliver House Serenity.
-                  </p>
-                </CardHeader>
-                <CardContent className="space-y-4 pt-0">
-                  <AccordionItem
-                    title="A. Aesthetics & Finishing"
-                    icon={Wrench}
-                    isOpen={expandedSections.aesthetics}
-                    onToggle={() => toggleSection("aesthetics")}
-                    content={
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                        <StandardDetail
-                          title="Paint & Walls"
-                          text="Newly painted with premium washable matte finish."
-                        />
-                        <StandardDetail
-                          title="Flooring"
-                          text="High-grade ceramic/porcelain tiles (min. 60x60cm)."
-                        />
-                      </div>
-                    }
-                  />
-                  <AccordionItem
-                    title="B. Power Systems"
-                    icon={Zap}
-                    isOpen={expandedSections.power}
-                    onToggle={() => toggleSection("power")}
-                    content={
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <StandardDetail
-                          title="Guaranteed Supply"
-                          text="10 Hours Night: 7PM-5AM; 5 Hours Day: 10AM-3PM."
-                        />
-                        <StandardDetail
-                          title="Systems"
-                          text="Solar/Inverter preferred. Silent generators required."
-                        />
-                      </div>
-                    }
-                  />
-                  <AccordionItem
-                    title="C. Comfort & Space"
-                    icon={Thermometer}
-                    isOpen={expandedSections.comfort}
-                    onToggle={() => toggleSection("comfort")}
-                    content={
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <StandardDetail
-                          title="Ventilation"
-                          text="Min. 15% window-to-wall ratio. Cross-ventilation."
-                        />
-                        <StandardDetail
-                          title="A/C"
-                          text="Mandatory split units in all major areas."
-                        />
-                      </div>
-                    }
-                  />
-                  <AccordionItem
-                    title="D. Compound & Environment"
-                    icon={Droplets}
-                    isOpen={expandedSections.compound}
-                    onToggle={() => toggleSection("compound")}
-                    content={
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <StandardDetail
-                          title="Access"
-                          text="Paved road. Internal compound interlocked."
-                        />
-                        <StandardDetail
-                          title="Security"
-                          text="Secured walls (min 2.4m) with electric fence."
-                        />
-                      </div>
-                    }
-                  />
-                </CardContent>
-              </Card>
-            )}
+              {formData.landlord_package !== "vantage" && (
+                <Card className="border-primary/20 bg-primary/5">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="font-raleway text-xl flex items-center gap-2 text-primary">
+                      <Shield className="h-5 w-5" />
+                      The ACCESSS Standard
+                    </CardTitle>
+                    <p className="text-gray-600 text-sm">
+                      We only manage assets that deliver House Serenity.
+                    </p>
+                  </CardHeader>
+                  <CardContent className="space-y-4 pt-0">
+                    <AccordionItem
+                      title="A. Aesthetics & Finishing"
+                      icon={Wrench}
+                      isOpen={expandedSections.aesthetics}
+                      onToggle={() => toggleSection("aesthetics")}
+                      content={
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          <StandardDetail
+                            title="Paint & Walls"
+                            text="Newly painted with premium washable matte finish."
+                          />
+                          <StandardDetail
+                            title="Flooring"
+                            text="High-grade ceramic/porcelain tiles (min. 60x60cm)."
+                          />
+                        </div>
+                      }
+                    />
+                    <AccordionItem
+                      title="B. Power Systems"
+                      icon={Zap}
+                      isOpen={expandedSections.power}
+                      onToggle={() => toggleSection("power")}
+                      content={
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <StandardDetail
+                            title="Guaranteed Supply"
+                            text="10 Hours Night: 7PM-5AM; 5 Hours Day: 10AM-3PM."
+                          />
+                          <StandardDetail
+                            title="Systems"
+                            text="Solar/Inverter preferred. Silent generators required."
+                          />
+                        </div>
+                      }
+                    />
+                    <AccordionItem
+                      title="C. Comfort & Space"
+                      icon={Thermometer}
+                      isOpen={expandedSections.comfort}
+                      onToggle={() => toggleSection("comfort")}
+                      content={
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <StandardDetail
+                            title="Ventilation"
+                            text="Min. 15% window-to-wall ratio. Cross-ventilation."
+                          />
+                          <StandardDetail
+                            title="A/C"
+                            text="Mandatory split units in all major areas."
+                          />
+                        </div>
+                      }
+                    />
+                    <AccordionItem
+                      title="D. Compound & Environment"
+                      icon={Droplets}
+                      isOpen={expandedSections.compound}
+                      onToggle={() => toggleSection("compound")}
+                      content={
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <StandardDetail
+                            title="Access"
+                            text="Paved road. Internal compound interlocked."
+                          />
+                          <StandardDetail
+                            title="Security"
+                            text="Secured walls (min 2.4m) with electric fence."
+                          />
+                        </div>
+                      }
+                    />
+                  </CardContent>
+                </Card>
+              )}
 
-            {formData.landlord_package !== "vantage" && (
-              <div className="flex items-start space-x-2 p-4 border rounded-lg bg-blue-50">
-                <Checkbox
-                  id="consent"
-                  checked={consentGiven}
-                  onCheckedChange={(c) => setConsentGiven(!!c)}
-                />
-                <div className="grid gap-1.5 leading-none">
-                  <Label htmlFor="consent" className="text-sm font-medium">
-                    Compliance Confirmation
-                  </Label>
-                  <p className="text-xs text-gray-600">
-                    I confirm my property meets ACCESSS standards. Missing criteria may lead to rejection.
-                  </p>
+              {formData.landlord_package !== "vantage" && (
+                <div className="flex items-start space-x-2 p-4 border rounded-lg bg-blue-50">
+                  <Checkbox
+                    id="consent"
+                    checked={consentGiven}
+                    onCheckedChange={(c) => setConsentGiven(!!c)}
+                  />
+                  <div className="grid gap-1.5 leading-none">
+                    <Label htmlFor="consent" className="text-sm font-medium">
+                      Compliance Confirmation
+                    </Label>
+                    <p className="text-xs text-gray-600">
+                      I confirm my property meets ACCESSS standards. Missing
+                      criteria may lead to rejection.
+                    </p>
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
             </>
           ) : (
             <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-300">
@@ -566,19 +590,32 @@ export const AddPropertyDialog = ({
                   Property Imagery
                 </h3>
               </div>
-              
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
                   <div className="flex justify-between items-center">
-                    <Label className="text-sm font-bold">Compound/Road Image *</Label>
-                    <Badge variant="outline" className="text-[10px]">Required</Badge>
+                    <Label className="text-sm font-bold">
+                      Compound/Road Image *
+                    </Label>
+                    <Badge variant="outline" className="text-[10px]">
+                      Required
+                    </Badge>
                   </div>
-                  <p className="text-[10px] text-gray-500 italic">Criteria: Show the access road and compound entrance. Must be well-lit.</p>
+                  <p className="text-[10px] text-gray-500 italic">
+                    Criteria: Show the access road and compound entrance. Must
+                    be well-lit.
+                  </p>
                   <UploadBox
                     type="compound_road"
                     file={getFileByType("compound_road")}
                     onUpload={(f) => handleFileUpload(f, "compound_road")}
-                    onTrigger={() => setCameraConfig({ open: true, type: "compound_road", isMultiple: false })}
+                    onTrigger={() =>
+                      setCameraConfig({
+                        open: true,
+                        type: "compound_road",
+                        isMultiple: false,
+                      })
+                    }
                     onRemove={(id) => removeFile(id)}
                     instruction="Show clear view of the compound and access road."
                   />
@@ -586,134 +623,291 @@ export const AddPropertyDialog = ({
 
                 <div className="space-y-2">
                   <div className="flex justify-between items-center">
-                    <Label className="text-sm font-bold">Exterior Shot Image *</Label>
-                    <Badge variant="outline" className="text-[10px]">Main Photo</Badge>
+                    <Label className="text-sm font-bold">
+                      Exterior Shot Image *
+                    </Label>
+                    <Badge variant="outline" className="text-[10px]">
+                      Main Photo
+                    </Badge>
                   </div>
-                  <p className="text-[10px] text-gray-500 italic">Criteria: Full view of the building exterior. Best during daylight.</p>
+                  <p className="text-[10px] text-gray-500 italic">
+                    Criteria: Full view of the building exterior. Best during
+                    daylight.
+                  </p>
                   <UploadBox
                     type="exterior_shot"
                     file={getFileByType("exterior_shot")}
                     onUpload={(f) => handleFileUpload(f, "exterior_shot")}
-                    onTrigger={() => setCameraConfig({ open: true, type: "exterior_shot", isMultiple: false })}
+                    onTrigger={() =>
+                      setCameraConfig({
+                        open: true,
+                        type: "exterior_shot",
+                        isMultiple: false,
+                      })
+                    }
                     onRemove={(id) => removeFile(id)}
                     instruction="High-quality front view of the building."
                   />
                 </div>
 
-                <div className={`space-y-2 md:col-span-2 ${formData.landlord_package === 'prime' ? 'p-4 border border-amber-200 bg-amber-50 rounded-lg' : ''}`}>
+                <div
+                  className={`space-y-3 md:col-span-2 ${formData.landlord_package === "prime" ? "p-4 border border-amber-200 bg-amber-50 rounded-lg" : ""}`}
+                >
                   <div className="flex justify-between items-center">
-                    <Label className="text-sm font-bold">Power System Image {formData.landlord_package === 'prime' && '*'}</Label>
-                    {formData.landlord_package === 'prime' && <Badge className="bg-amber-500 text-[10px]">Compulsory for Prime</Badge>}
+                    <Label className="text-sm font-bold">
+                      Power System Image{" "}
+                      {formData.landlord_package === "prime" && "*"}
+                    </Label>
+                    <div className="flex gap-2">
+                      {formData.landlord_package === "prime" && (
+                        <Badge className="bg-amber-500 text-[10px]">
+                          Compulsory for Prime
+                        </Badge>
+                      )}
+                      <Badge variant="secondary" className="text-[10px]">
+                        {getFilesByType("power_system").length} photos
+                      </Badge>
+                    </div>
                   </div>
-                  <p className="text-[10px] text-gray-500 italic">Criteria: Show the generator, inverter, or solar setup currently in place.</p>
+                  <p className="text-[10px] text-gray-500 italic">
+                    Criteria: Show the generator, inverter, or solar setup
+                    currently in place.
+                  </p>
                   <UploadBox
                     type="power_system"
-                    file={getFileByType("power_system")}
-                    onUpload={(f) => handleFileUpload(f, "power_system")}
-                    onTrigger={() => setCameraConfig({ open: true, type: "power_system", isMultiple: false })}
+                    onUpload={(f) => handleFileUpload(f, "power_system", true)}
+                    onTrigger={() =>
+                      setCameraConfig({
+                        open: true,
+                        type: "power_system",
+                        isMultiple: true,
+                      })
+                    }
                     onRemove={(id) => removeFile(id)}
                     instruction="Clear shot of the operational power source."
+                    multi
                   />
-                  {formData.landlord_package === 'prime' && !getFileByType("power_system") && (
-                    <p className="text-[10px] text-red-500 flex items-center gap-1 mt-1">
-                      <AlertTriangle className="h-3 w-3" /> Mandatory for Prime package.
-                    </p>
-                  )}
+                  <StagingArea
+                    files={getFilesByType("power_system")}
+                    onRemove={removeFile}
+                  />
+                  {formData.landlord_package === "prime" &&
+                    getFilesByType("power_system").length === 0 && (
+                      <p className="text-[10px] text-red-500 flex items-center gap-1 mt-1">
+                        <AlertTriangle className="h-3 w-3" /> Mandatory for
+                        Prime package.
+                      </p>
+                    )}
+                </div>
+
+                <div className="space-y-2 md:col-span-2">
+                  <div className="flex justify-between items-center">
+                    <Label className="text-sm font-bold">
+                      C of O (Certificate of Occupancy)
+                    </Label>
+                    <Badge variant="outline" className="text-[10px]">
+                      Optional Document
+                    </Badge>
+                  </div>
+                  <p className="text-[10px] text-gray-500 italic">
+                    Criteria: Upload a clear scan or photo of the property's
+                    Certificate of Occupancy.
+                  </p>
+                  <UploadBox
+                    type="c_of_o"
+                    file={getFileByType("c_of_o")}
+                    onUpload={(f) => handleFileUpload(f, "c_of_o")}
+                    onRemove={(id) => removeFile(id)}
+                    instruction="Upload official property title document."
+                  />
                 </div>
               </div>
 
               <div className="space-y-6 pt-4">
                 <div className="flex items-center gap-2 border-b pb-2">
                   <Home className="h-4 w-4 text-primary" />
-                  <h4 className="font-bold text-base text-primary">Interior Details (Multiple Photos Allowed)</h4>
+                  <h4 className="font-bold text-base text-primary">
+                    Interior Details (Multiple Photos Allowed)
+                  </h4>
                 </div>
-                
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-3">
                     <div className="flex justify-between items-center">
                       <Label className="text-sm font-bold">Living Room</Label>
-                      <Badge variant="secondary" className="text-[10px]">{getFilesByType("living_room").length} photos</Badge>
+                      <Badge variant="secondary" className="text-[10px]">
+                        {getFilesByType("living_room").length} photos
+                      </Badge>
                     </div>
                     <UploadBox
                       type="living_room"
                       onUpload={(f) => handleFileUpload(f, "living_room", true)}
-                      onTrigger={() => setCameraConfig({ open: true, type: "living_room", isMultiple: true })}
+                      onTrigger={() =>
+                        setCameraConfig({
+                          open: true,
+                          type: "living_room",
+                          isMultiple: true,
+                        })
+                      }
+                      onRemove={(id) => removeFile(id)}
                       instruction="Capture the main living space from multiple angles."
                       multi
                     />
-                    <StagingArea files={getFilesByType("living_room")} onRemove={removeFile} />
+                    <StagingArea
+                      files={getFilesByType("living_room")}
+                      onRemove={removeFile}
+                    />
                   </div>
 
                   <div className="space-y-3">
                     <div className="flex justify-between items-center">
                       <Label className="text-sm font-bold">Bedrooms</Label>
-                      <Badge variant="secondary" className="text-[10px]">{getFilesByType("bedroom").length} photos</Badge>
+                      <Badge variant="secondary" className="text-[10px]">
+                        {getFilesByType("bedroom").length} photos
+                      </Badge>
                     </div>
                     <UploadBox
                       type="bedroom"
                       onUpload={(f) => handleFileUpload(f, "bedroom", true)}
-                      onTrigger={() => setCameraConfig({ open: true, type: "bedroom", isMultiple: true })}
+                      onTrigger={() =>
+                        setCameraConfig({
+                          open: true,
+                          type: "bedroom",
+                          isMultiple: true,
+                        })
+                      }
+                      onRemove={(id) => removeFile(id)}
                       instruction="Show each bedroom clearly including closets."
                       multi
                     />
-                    <StagingArea files={getFilesByType("bedroom")} onRemove={removeFile} />
+                    <StagingArea
+                      files={getFilesByType("bedroom")}
+                      onRemove={removeFile}
+                    />
                   </div>
 
                   <div className="space-y-3">
                     <div className="flex justify-between items-center">
                       <Label className="text-sm font-bold">Kitchen</Label>
-                      <Badge variant="secondary" className="text-[10px]">{getFilesByType("kitchen").length} photos</Badge>
+                      <Badge variant="secondary" className="text-[10px]">
+                        {getFilesByType("kitchen").length} photos
+                      </Badge>
                     </div>
                     <UploadBox
                       type="kitchen"
                       onUpload={(f) => handleFileUpload(f, "kitchen", true)}
-                      onTrigger={() => setCameraConfig({ open: true, type: "kitchen", isMultiple: true })}
+                      onTrigger={() =>
+                        setCameraConfig({
+                          open: true,
+                          type: "kitchen",
+                          isMultiple: true,
+                        })
+                      }
+                      onRemove={(id) => removeFile(id)}
                       instruction="Focus on cabinets, sink, and workspace."
                       multi
                     />
-                    <StagingArea files={getFilesByType("kitchen")} onRemove={removeFile} />
+                    <StagingArea
+                      files={getFilesByType("kitchen")}
+                      onRemove={removeFile}
+                    />
                   </div>
 
                   <div className="space-y-3">
                     <div className="flex justify-between items-center">
                       <Label className="text-sm font-bold">Rest Rooms</Label>
-                      <Badge variant="secondary" className="text-[10px]">{getFilesByType("rest_room").length} photos</Badge>
+                      <Badge variant="secondary" className="text-[10px]">
+                        {getFilesByType("rest_room").length} photos
+                      </Badge>
                     </div>
                     <UploadBox
                       type="rest_room"
                       onUpload={(f) => handleFileUpload(f, "rest_room", true)}
-                      onTrigger={() => setCameraConfig({ open: true, type: "rest_room", isMultiple: true })}
+                      onTrigger={() =>
+                        setCameraConfig({
+                          open: true,
+                          type: "rest_room",
+                          isMultiple: true,
+                        })
+                      }
+                      onRemove={(id) => removeFile(id)}
                       instruction="Capture toilets, showers, and tiling."
                       multi
                     />
-                    <StagingArea files={getFilesByType("rest_room")} onRemove={removeFile} />
+                    <StagingArea
+                      files={getFilesByType("rest_room")}
+                      onRemove={removeFile}
+                    />
                   </div>
 
                   <div className="space-y-3 md:col-span-2">
                     <div className="flex justify-between items-center">
-                      <Label className="text-sm font-bold">Others (Balconies, Backyards, etc.)</Label>
-                      <Badge variant="secondary" className="text-[10px]">{getFilesByType("others").length} photos</Badge>
+                      <Label className="text-sm font-bold">
+                        Others (Balconies, Backyards, etc.)
+                      </Label>
+                      <Badge variant="secondary" className="text-[10px]">
+                        {getFilesByType("others").length} photos
+                      </Badge>
                     </div>
                     <UploadBox
                       type="others"
                       onUpload={(f) => handleFileUpload(f, "others", true)}
-                      onTrigger={() => setCameraConfig({ open: true, type: "others", isMultiple: true })}
+                      onTrigger={() =>
+                        setCameraConfig({
+                          open: true,
+                          type: "others",
+                          isMultiple: true,
+                        })
+                      }
+                      onRemove={(id) => removeFile(id)}
                       instruction="Show any additional features or amenities."
                       multi
                     />
-                    <StagingArea files={getFilesByType("others")} onRemove={removeFile} />
+                    <StagingArea
+                      files={getFilesByType("others")}
+                      onRemove={removeFile}
+                    />
                   </div>
                 </div>
               </div>
 
-              <div className="p-4 bg-red-50 border border-red-100 rounded-lg flex items-start gap-3">
-                <AlertTriangle className="h-5 w-5 text-red-500 mt-0.5" />
-                <div>
-                  <h5 className="text-sm font-bold text-red-700">Rejection Warning</h5>
-                  <p className="text-xs text-red-600">
-                    Images not meeting the specified criteria (blurriness, poor lighting, or missing key areas) will lead to the immediate rejection of your listing application.
-                  </p>
+              <div className="p-4 bg-red-50 border border-red-100 rounded-lg flex flex-col gap-3">
+                <div className="flex items-start gap-3">
+                  <AlertTriangle className="h-5 w-5 text-red-500 mt-0.5" />
+                  <div>
+                    <h5 className="text-sm font-bold text-red-700">
+                      Rejection Warning
+                    </h5>
+                    <p className="text-xs text-red-600">
+                      Images not meeting the specified criteria (blurriness,
+                      poor lighting, or missing key areas) will lead to the
+                      immediate rejection of your listing application.
+                    </p>
+                  </div>
                 </div>
+
+                {formData.landlord_package === "vantage" &&
+                  uploadedFiles.some((f) => f.aiMetadata && !f.aiValidated) && (
+                    <div className="mt-2 border-t pt-2">
+                      <h6 className="text-[10px] font-bold text-amber-700 uppercase">
+                        AI Detected Gaps (Vantage Review)
+                      </h6>
+                      <ul className="text-[10px] text-amber-600 list-disc list-inside mt-1">
+                        {uploadedFiles
+                          .filter((f) => f.aiMetadata && !f.aiValidated)
+                          .map((f, i) => (
+                            <li key={i}>
+                              {f.type.replace("_", " ")}: Missing{" "}
+                              {f.aiMetadata.missing_objects.join(", ")}
+                            </li>
+                          ))}
+                      </ul>
+                      <p className="text-[10px] text-amber-500 italic mt-1 font-medium">
+                        Note: These gaps may delay secondary review. Improved
+                        captures are recommended.
+                      </p>
+                    </div>
+                  )}
               </div>
             </div>
           )}
@@ -722,11 +916,15 @@ export const AddPropertyDialog = ({
         <DialogFooter className="flex flex-col sm:flex-row gap-3 pt-6 border-t">
           {formStep === 0 ? (
             <>
-              <Button variant="outline" onClick={handleClose} disabled={isAddingProperty}>
+              <Button
+                variant="outline"
+                onClick={handleClose}
+                disabled={isAddingProperty}
+              >
                 Cancel
               </Button>
-              <Button 
-                onClick={() => validateStep0() && setFormStep(1)} 
+              <Button
+                onClick={() => validateStep0() && setFormStep(1)}
                 className="bg-primary hover:bg-primary/90 min-w-[120px]"
               >
                 Next Step
@@ -734,7 +932,11 @@ export const AddPropertyDialog = ({
             </>
           ) : (
             <>
-              <Button variant="outline" onClick={() => setFormStep(0)} disabled={isAddingProperty}>
+              <Button
+                variant="outline"
+                onClick={() => setFormStep(0)}
+                disabled={isAddingProperty}
+              >
                 Previous Step
               </Button>
               <Button
@@ -752,15 +954,29 @@ export const AddPropertyDialog = ({
           )}
         </DialogFooter>
 
-        <LiveCameraModal 
+        <LiveCameraModal
           open={cameraConfig.open}
-          onOpenChange={(open) => setCameraConfig(prev => ({ ...prev, open }))}
-          onCapture={(file) => {
+          onOpenChange={(open) =>
+            setCameraConfig((prev) => ({ ...prev, open }))
+          }
+          onCapture={(file, isValidated, aiMetadata) => {
             if (cameraConfig.type) {
-              handleFileUpload(file, cameraConfig.type, cameraConfig.isMultiple);
+              handleFileUpload(
+                file,
+                cameraConfig.type,
+                cameraConfig.isMultiple,
+                undefined,
+                isValidated,
+                aiMetadata,
+              );
             }
           }}
-          title={`Capture ${cameraConfig.type?.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}`}
+          title={`Capture ${cameraConfig.type
+            ?.split("_")
+            .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+            .join(" ")}`}
+          type={cameraConfig.type}
+          packageType={formData.landlord_package as "prime" | "vantage"}
         />
       </DialogContent>
     </Dialog>
@@ -777,26 +993,40 @@ interface UploadBoxProps {
   multi?: boolean;
 }
 
-const UploadBox = ({ type, file, onUpload, onTrigger, onRemove, instruction, multi }: UploadBoxProps) => {
+const UploadBox = ({
+  type,
+  file,
+  onUpload,
+  onTrigger,
+  onRemove,
+  instruction,
+  multi,
+}: UploadBoxProps) => {
   if (file && !multi) {
     return (
       <div className="border border-primary/20 bg-primary/5 rounded-lg p-3 flex items-center justify-between animate-in zoom-in-95 duration-200">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 bg-white rounded border flex items-center justify-center overflow-hidden">
-            {file.url ? (
-              <img src={file.url} alt="Uploaded" className="w-full h-full object-cover" />
+            {file.url && type !== "c_of_o" ? (
+              <img
+                src={file.url}
+                alt="Uploaded"
+                className="w-full h-full object-cover"
+              />
             ) : (
-              <ImageIcon className="h-4 w-4 text-gray-400" />
+              <File className="h-4 w-4 text-primary" />
             )}
           </div>
           <div className="min-w-0">
-            <p className="font-medium text-xs truncate max-w-[150px]">{file.file.name}</p>
+            <p className="font-medium text-xs truncate max-w-[150px]">
+              {file.file.name}
+            </p>
             <p className="text-[10px] text-gray-500">
               {file.uploading
                 ? "Uploading..."
                 : file.error
-                ? "Error"
-                : "Uploaded ✓"}
+                  ? "Error"
+                  : "Uploaded ✓"}
             </p>
           </div>
         </div>
@@ -815,34 +1045,53 @@ const UploadBox = ({ type, file, onUpload, onTrigger, onRemove, instruction, mul
     <div className="border-2 border-dashed border-gray-200 rounded-lg p-6 text-center hover:border-primary/50 transition-colors group bg-slate-50/50">
       <div className="flex flex-col items-center">
         <div className="w-12 h-12 bg-white shadow-sm rounded-full flex items-center justify-center mb-3 group-hover:scale-110 transition-transform text-primary">
-          <Camera className="h-6 w-6" />
+          {type === "c_of_o" ? (
+            <File className="h-6 w-6" />
+          ) : (
+            <Camera className="h-6 w-6" />
+          )}
         </div>
         <p className="text-sm font-bold text-gray-700 mb-1">
-          Capture Live Photo
+          {type === "c_of_o" ? "Upload Document" : "Capture Live Photo"}
         </p>
         <p className="text-[10px] text-gray-500 mb-4">{instruction}</p>
-        
+
         <div className="flex flex-wrap justify-center gap-3">
-          <Button 
-            onClick={onTrigger}
-            className="border-2 border-primary bg-primary text-white hover:bg-primary/90 h-10 px-6 shadow-md font-bold"
-          >
-            <Camera className="h-4 w-4 mr-2" /> Open Camera
-          </Button>
+          {onTrigger && (
+            <Button
+              onClick={onTrigger}
+              className="border-2 border-primary bg-primary text-white hover:bg-primary/90 h-10 px-6 shadow-md font-bold"
+            >
+              <Camera className="h-4 w-4 mr-2" /> Open Camera
+            </Button>
+          )}
         </div>
       </div>
     </div>
   );
 };
 
-const StagingArea = ({ files, onRemove }: { files: UploadedFile[], onRemove: (id: string) => void }) => {
+const StagingArea = ({
+  files,
+  onRemove,
+}: {
+  files: UploadedFile[];
+  onRemove: (id: string) => void;
+}) => {
   if (files.length === 0) return null;
   return (
     <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 mt-2 p-2 bg-slate-100/50 rounded-lg border border-slate-200 max-h-48 overflow-y-auto">
       {files.map((file) => (
-        <div key={file.id} className="relative aspect-square bg-white rounded border overflow-hidden group shadow-sm">
+        <div
+          key={file.id}
+          className="relative aspect-square bg-white rounded border overflow-hidden group shadow-sm"
+        >
           {file.url ? (
-            <img src={file.url} alt="Staged" className="w-full h-full object-cover" />
+            <img
+              src={file.url}
+              alt="Staged"
+              className="w-full h-full object-cover"
+            />
           ) : (
             <div className="w-full h-full flex items-center justify-center">
               {file.uploading ? (

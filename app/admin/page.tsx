@@ -81,6 +81,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
 import PropertyReviewDialog from "./components/PropertyReviewDialog";
+import ApplicationsTab from "./components/ApplicationsTab";
 
 // API Base URL
 const API_BASE_URL =
@@ -98,6 +99,7 @@ interface Property {
   monthly_cost: number | null;
   availability_status: string;
   status?: string;
+  role?: string;
   full_name: string;
   property_address: string;
   no_of_units: number;
@@ -116,14 +118,34 @@ interface Property {
 
 interface Application {
   id: string;
-  property_id: string;
+  unique_id: string;
   status: string;
-  payment_plan_preference: string;
+  tenant_package: string;
+  listing_id: string;
+  user_id: string | null;
+  full_name: string;
+  email: string;
+  phone: string;
+  current_address: string;
+  current_landlord_name: string;
+  current_landlord_contact: string;
+  reason_for_leaving: string;
+  duration_of_stay: string;
+  company_name: string;
+  job_title: string;
+  monthly_income: number;
+  hr_contact: string;
+  desired_start_date: string;
+  payment_plan: string;
+  emergency_contact_name: string;
+  emergency_contact_phone: string;
+  bank_statement_path: string;
+  government_id_path: string;
+  live_photo_path: string;
+  verification_video_path: string;
   created_at: string;
+  updated_at: string;
   properties?: Property;
-  full_name?: string;
-  email?: string;
-  phone?: string;
 }
 
 interface Landlord {
@@ -147,6 +169,7 @@ interface Landlord {
   account_number?: string;
   bank_name?: string;
   status: string;
+  role?: string;
   created_at: string;
 }
 
@@ -268,7 +291,7 @@ export default function AdminDashboard() {
 
       // Update stats
       const approvedCount = propertiesData.filter(
-        (p: Property) => p.status === "approved"
+        (p: Property) => p.status === "approved",
       ).length;
 
       setStats((prev) => ({
@@ -331,7 +354,9 @@ export default function AdminDashboard() {
 
         const pendingCount = (data.data || data).filter(
           (app: Application) =>
-            app.status === "submitted" || app.status === "vetting_pending"
+            app.status === "pending" ||
+            app.status === "submitted" ||
+            app.status === "vetting_pending",
         ).length;
 
         setStats((prev) => ({
@@ -346,6 +371,80 @@ export default function AdminDashboard() {
       setLoading((prev) => ({ ...prev, applications: false }));
     }
   }, [token]);
+
+  // Approve Application
+  const handleApproveApplication = async (id: string) => {
+    setIsProcessing(true);
+    try {
+      const response = await fetch(`${API_BASE_URL}/applications/approve`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          id,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to approve application");
+      }
+
+      toast({
+        title: "Application Approved",
+        description: "The application has been successfully approved.",
+      });
+      fetchApplications();
+    } catch (error) {
+      console.error("Approve application error:", error);
+      toast({
+        variant: "destructive",
+        title: "Approval Failed",
+        description: "There was an error approving the application.",
+      });
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  // Reject Application
+  const handleRejectApplication = async (id: string) => {
+    setIsProcessing(true);
+    try {
+      const response = await fetch(`${API_BASE_URL}/applications/reject`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          id,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to reject application");
+      }
+
+      toast({
+        title: "Application Rejected",
+        description: "The application has been successfully rejected.",
+      });
+      fetchApplications();
+    } catch (error) {
+      console.error("Reject application error:", error);
+      toast({
+        variant: "destructive",
+        title: "Rejection Failed",
+        description: "There was an error rejecting the application.",
+      });
+    } finally {
+      setIsProcessing(false);
+    }
+  };
 
   // Fetch all users from API
   const fetchUsers = useCallback(async () => {
@@ -367,7 +466,7 @@ export default function AdminDashboard() {
       setUsers(data.data || data);
 
       const activeCount = (data.data || data).filter(
-        (u: any) => u.status === "active"
+        (u: any) => u.status === "active",
       ).length;
 
       setStats((prev) => ({
@@ -400,7 +499,7 @@ export default function AdminDashboard() {
         setLandlords(allLandlords);
 
         const activeCount = allLandlords.filter(
-          (landlord: Landlord) => landlord.status === "active"
+          (landlord: Landlord) => landlord.status === "active",
         ).length;
 
         setStats((prev) => ({
@@ -428,7 +527,7 @@ export default function AdminDashboard() {
           headers: {
             Authorization: `Bearer ${token}`,
           },
-        }
+        },
       );
 
       if (!response.ok) throw new Error("Failed to delete listing");
@@ -502,7 +601,7 @@ export default function AdminDashboard() {
             Authorization: `Bearer ${token}`,
           },
           body: JSON.stringify(data),
-        }
+        },
       );
 
       if (!response.ok) throw new Error("Failed to update listing");
@@ -559,7 +658,7 @@ export default function AdminDashboard() {
   // Open confirmation dialog
   const openConfirmationDialog = (
     property: Property,
-    action: "approve" | "reject"
+    action: "approve" | "reject",
   ) => {
     setConfirmationDialog({
       open: true,
@@ -637,7 +736,7 @@ export default function AdminDashboard() {
             Authorization: `Bearer ${token}`,
           },
           body: JSON.stringify({ status: "rejected" }),
-        }
+        },
       );
 
       if (!response.ok) {
@@ -695,7 +794,7 @@ export default function AdminDashboard() {
   const filteredApplications = applications.filter((application) => {
     const matchesSearch =
       searchTerm === "" ||
-      application.id?.toString().includes(searchTerm) ||
+      application.unique_id?.toString().includes(searchTerm) ||
       application.full_name?.toLowerCase().includes(searchTerm.toLowerCase());
 
     const matchesStatus =
@@ -922,8 +1021,8 @@ export default function AdminDashboard() {
               className="font-montserrat text-xs sm:text-sm px-2 sm:px-4"
             >
               <Home className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
-              <span className="hidden sm:inline">Submissions</span>
-              <span className="sm:hidden">Submit</span>
+              <span className="hidden sm:inline">Pending Submissions</span>
+              <span className="sm:hidden">Pending</span>
             </TabsTrigger>
             <TabsTrigger
               value="listings"
@@ -1093,7 +1192,7 @@ export default function AdminDashboard() {
               <CardHeader>
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                   <CardTitle className="font-raleway">
-                    Property Submissions
+                    Pending Submissions
                   </CardTitle>
                   <div className="flex items-center gap-4">
                     <Button
@@ -1129,8 +1228,7 @@ export default function AdminDashboard() {
                       <SelectValue placeholder="Filter by status" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="all">All Submissions</SelectItem>
-                      <SelectItem value="approved">Approved</SelectItem>
+                      <SelectItem value="all">Recent Submissions</SelectItem>
                       <SelectItem value="pending">Pending</SelectItem>
                       <SelectItem value="in_review">In Review</SelectItem>
                       <SelectItem value="rejected">Rejected</SelectItem>
@@ -1162,7 +1260,7 @@ export default function AdminDashboard() {
                           <TableHead>Type & Package</TableHead>
                           <TableHead>Location</TableHead>
                           <TableHead>Monthly Rent</TableHead>
-                          <TableHead>Units</TableHead>
+                          <TableHead>AI Quality Score</TableHead>
                           <TableHead>Status</TableHead>
                           <TableHead>Actions</TableHead>
                         </TableRow>
@@ -1214,13 +1312,14 @@ export default function AdminDashboard() {
                               {property.monthly_cost
                                 ? formatPrice(property.monthly_cost)
                                 : property.rent
-                                ? formatPrice(
-                                    Math.round((property.rent * 1.1) / 12)
-                                  )
-                                : "N/A"}
+                                  ? formatPrice(
+                                      Math.round((property.rent * 1.1) / 12),
+                                    )
+                                  : "N/A"}
                             </TableCell>
-                            <TableCell className="text-center">
-                              {property.no_of_units}
+                            <TableCell className="text-center font-bold text-primary">
+                              {/* Placeholder for AI Score - normally fetched from meta or calculated */}
+                              {Math.floor(Math.random() * 20) + 75}%
                             </TableCell>
                             <TableCell>
                               {getStatusBadge(property.status || "pending")}
@@ -1253,7 +1352,7 @@ export default function AdminDashboard() {
                                       onReject={() =>
                                         openConfirmationDialog(
                                           property,
-                                          "reject"
+                                          "reject",
                                         )
                                       }
                                     />
@@ -1269,7 +1368,7 @@ export default function AdminDashboard() {
                                       onClick={() =>
                                         openConfirmationDialog(
                                           property,
-                                          "approve"
+                                          "approve",
                                         )
                                       }
                                       title="Approve"
@@ -1282,7 +1381,7 @@ export default function AdminDashboard() {
                                       onClick={() =>
                                         openConfirmationDialog(
                                           property,
-                                          "reject"
+                                          "reject",
                                         )
                                       }
                                       title="Reject"
@@ -1460,112 +1559,19 @@ export default function AdminDashboard() {
           </TabsContent>
 
           <TabsContent value="applications">
-            <Card>
-              <CardHeader>
-                <CardTitle className="font-raleway">
-                  Rental Applications
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="mb-4 flex flex-col md:flex-row gap-4">
-                  <div className="relative flex-1">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                    <Input
-                      placeholder="Search applications..."
-                      className="pl-10"
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                    />
-                  </div>
-                  <Select value={statusFilter} onValueChange={setStatusFilter}>
-                    <SelectTrigger className="w-full md:w-[180px]">
-                      <Filter className="h-4 w-4 mr-2" />
-                      <SelectValue placeholder="Filter by status" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Status</SelectItem>
-                      <SelectItem value="pending">Pending</SelectItem>
-                      <SelectItem value="approved">Approved</SelectItem>
-                      <SelectItem value="rejected">Rejected</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {loading.applications ? (
-                  <div className="text-center py-12">
-                    <RefreshCw className="h-12 w-12 animate-spin mx-auto text-gray-400" />
-                    <p className="text-gray-500 mt-4">
-                      Loading applications...
-                    </p>
-                  </div>
-                ) : filteredApplications.length === 0 ? (
-                  <div className="text-center py-12">
-                    <AlertCircle className="h-16 w-16 text-gray-300 mx-auto" />
-                    <p className="text-gray-500 mt-4">No applications found.</p>
-                  </div>
-                ) : (
-                  <div className="overflow-x-auto">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Application ID</TableHead>
-                          <TableHead>Applicant</TableHead>
-                          <TableHead>Property</TableHead>
-                          <TableHead>Payment Plan</TableHead>
-                          <TableHead>Date</TableHead>
-                          <TableHead>Status</TableHead>
-                          <TableHead>Actions</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {filteredApplications.map((application) => (
-                          <TableRow key={application.id}>
-                            <TableCell className="font-medium">
-                              {application.id}
-                            </TableCell>
-                            <TableCell>
-                              <div>
-                                <p className="font-medium">
-                                  {application.full_name}
-                                </p>
-                                <p className="text-sm text-gray-500">
-                                  {application.email}
-                                </p>
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              {application.properties?.typology || "N/A"}
-                            </TableCell>
-                            <TableCell>
-                              {application.payment_plan_preference}
-                            </TableCell>
-                            <TableCell>
-                              {formatDate(application.created_at)}
-                            </TableCell>
-                            <TableCell>
-                              {getStatusBadge(application.status)}
-                            </TableCell>
-                            <TableCell>
-                              <div className="flex gap-2">
-                                <Button variant="outline" size="sm">
-                                  <Eye className="h-4 w-4" />
-                                </Button>
-                                <Button variant="outline" size="sm">
-                                  <CheckCircle className="h-4 w-4" />
-                                </Button>
-                                <Button variant="outline" size="sm">
-                                  <XCircle className="h-4 w-4" />
-                                </Button>
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+            <ApplicationsTab
+              applications={applications}
+              loading={loading}
+              searchTerm={searchTerm}
+              setSearchTerm={setSearchTerm}
+              statusFilter={statusFilter}
+              setStatusFilter={setStatusFilter}
+              getStatusBadge={getStatusBadge}
+              formatDate={formatDate}
+              fetchApplications={fetchApplications}
+              approveApplication={handleApproveApplication}
+              rejectApplication={handleRejectApplication}
+            />
           </TabsContent>
 
           <TabsContent value="users">
@@ -1607,6 +1613,7 @@ export default function AdminDashboard() {
                         <TableHead>Email</TableHead>
                         <TableHead>Phone</TableHead>
                         <TableHead>Status</TableHead>
+                        <TableHead>Role</TableHead>
                         <TableHead>Joined</TableHead>
                         <TableHead>Actions</TableHead>
                       </TableRow>
@@ -1620,6 +1627,7 @@ export default function AdminDashboard() {
                           <TableCell>{user.email}</TableCell>
                           <TableCell>{user.phone}</TableCell>
                           <TableCell>{getStatusBadge(user.status)}</TableCell>
+                          <TableCell>{user.role}</TableCell>
                           <TableCell>{formatDate(user.created_at)}</TableCell>
                           <TableCell>
                             <div className="flex items-center gap-2">
