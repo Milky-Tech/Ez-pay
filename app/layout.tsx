@@ -31,9 +31,40 @@ const greatVibes = Great_Vibes({
 });
 
 export const metadata: Metadata = {
-  title: "Bridgent HomeStep EZ-Pay - Your Path to Monthly Living",
+  title: "Bridgent HomeStep EZPAY - Your Path to Monthly Living",
   description:
     "End the stress of upfront yearly rent. Access verified, high-end homes with guaranteed power and predictable monthly payments.",
+  icons: {
+    icon: [
+      { url: "/images/EZPAY-15.png", sizes: "180x180", type: "image/png"},
+    ],
+    apple: [
+      { url: "/images/EZPAY-15.png", sizes: "180x180", type: "image/png" },
+    ],
+  },
+  openGraph: {
+    title: "Bridgent HomeStep EZPAY",
+    description:
+      "Your Path to Monthly Living. Access verified, high-end homes with guaranteed power.",
+    url: "https://ezpay.bridgenthomes.com",
+    siteName: "EZPAY",
+    images: [
+      {
+        url: "/images/EZPAY-15.png",
+        width: 800,
+        height: 600,
+      },
+    ],
+    locale: "en_US",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Bridgent HomeStep EZPAY",
+    description:
+      "Your Path to Monthly Living. Access verified, high-end homes with guaranteed power.",
+    images: ["/images/EZPAY-15.png"],
+  },
 };
 
 export default function RootLayout({

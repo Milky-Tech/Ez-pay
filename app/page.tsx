@@ -88,7 +88,7 @@ export default function LandingPage() {
                   size="lg"
                   className="w-full sm:w-auto border-2 border-primary/50 bg-primary/20 backdrop-blur-sm text-white rounded-[18px] hover:bg-[#C9A227] hover:text-white font-montserrat text-sm md:text-lg px-6 py-5 md:py-7"
                 >
-                  Become EZ-Landlord
+                  Become EZPAY Landlord
                 </Button>
               </Link>
             </div>
@@ -128,7 +128,7 @@ export default function LandingPage() {
           ABOUT US
         </div>
         <p className="text-left sm:text-center ml-8 sm:mx-auto text-gray-700 max-w-3xl mx-auto text-lg sm:text-xl md:text-2xl">
-          EZ-Pay{" "}
+          EZPAY{" "}
           <span className="text-gray-500">
             makes premium living more accessible by replacing yearly rent with
             simple monthly payments.
@@ -150,7 +150,7 @@ export default function LandingPage() {
         <div className="flex flex-col sm:flex-row justify-between mb-5">
           <div className="flex flex-col gap-0">
             <div className="max-w-3xl ml-20 sm:ml-0 w-32 px-2 sm:px-4 lg:px-6 bg-white shadow-lg shadow-primary/50 text-primary rounded-md py-2 text-center mb-4">
-              EZ-CLIENT
+              EZPAY CLIENT
             </div>
             <p className="text-4xl ml-8 sm:ml-0">
               Stability Meets <span className="text-primary">Luxury.</span>
@@ -212,7 +212,7 @@ export default function LandingPage() {
       <section className="py-10 sm:px-20 flex flex-col gap-12">
         <div className="flex flex-col gap-3 items-center text-center">
           <div className="bg-white shadow-lg shadow-primary/50 text-primary rounded-md py-2 px-6 mb-4">
-            EZ-LANDLORD
+            EZPAY LANDLORD
           </div>
 
           <h2 className="text-4xl font-semibold">

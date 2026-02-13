@@ -410,7 +410,7 @@ export default function AdminDashboard() {
   };
 
   // Reject Application
-  const handleRejectApplication = async (id: string) => {
+  const handleRejectApplication = async (id: string, comment?: string) => {
     setIsProcessing(true);
     try {
       const response = await fetch(`${API_BASE_URL}/applications/reject`, {
@@ -422,6 +422,7 @@ export default function AdminDashboard() {
         },
         body: JSON.stringify({
           id,
+          comment,
         }),
       });
 

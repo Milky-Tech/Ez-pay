@@ -437,7 +437,7 @@ export const AddPropertyDialog = ({
                       <SelectContent>
                         {["prime", "vantage"].map((t) => (
                           <SelectItem key={t} value={t}>
-                            {t}
+                            {t === "prime" ? "EZPAY PRIME" : "EZPAY VANTAGE"}
                           </SelectItem>
                         ))}
                       </SelectContent>

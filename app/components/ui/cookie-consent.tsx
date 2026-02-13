@@ -67,9 +67,7 @@ export default function CookieConsent() {
         <div className="flex-1 text-sm text-gray-800">
           <strong>We use cookies</strong>
           <p className="mt-1 text-xs text-gray-600">
-            We use cookies to improve your experience, analyze site usage, and
-            provide personalized content. By clicking "Accept" you consent to
-            our use of cookies. Manage preferences in your browser at any time.
+            EZPAY uses cookies to improve your experience on our platform. By continuing to use our site, you agree to our use of cookies.
           </p>
           <p className="mt-2 text-xs">
             <Link href="/privacy" className="text-primary underline">

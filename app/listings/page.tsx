@@ -155,9 +155,9 @@ export default function ListingsPage() {
       </section>
       <div className="pt-24 pb-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="sticky top-20 z-40 bg-gray-50 pb-4 w-1/3">
+          {/* <div className="sticky top-20 z-40 bg-gray-50 pb-4 w-1/3">
             <PropertyFilter maxPrice={maxPrice} setMaxPrice={setMaxPrice} />
-          </div>
+          </div> */}
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             {/* Listings */}
