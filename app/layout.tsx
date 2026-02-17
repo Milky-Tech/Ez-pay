@@ -3,7 +3,7 @@ import { AIProvider } from "@/context/aicontext";
 import CookieConsent from "@/app/components/ui/cookie-consent";
 import "./globals.css";
 import type { Metadata } from "next";
-import { Raleway, Open_Sans, Montserrat, Great_Vibes } from "next/font/google";
+import { Raleway, Open_Sans, Montserrat, Great_Vibes, Redressed } from "next/font/google";
 
 const raleway = Raleway({
   subsets: ["latin"],
@@ -30,16 +30,23 @@ const greatVibes = Great_Vibes({
   display: "swap",
 });
 
+const redressed = Redressed({
+  weight: "400",
+  subsets: ["latin"],
+  variable: "--font-redressed",
+  display: "swap",
+});
+
 export const metadata: Metadata = {
   title: "Bridgent HomeStep EZPAY - Your Path to Monthly Living",
   description:
     "End the stress of upfront yearly rent. Access verified, high-end homes with guaranteed power and predictable monthly payments.",
   icons: {
     icon: [
-      { url: "/images/EZPAY-15.png", sizes: "180x180", type: "image/png"},
+      { url: "/images/EZPAY-15.png", sizes: "any", type: "image/png" },
     ],
     apple: [
-      { url: "/images/EZPAY-15.png", sizes: "180x180", type: "image/png" },
+      { url: "/images/EZPAY-15.png", sizes: "any", type: "image/png" },
     ],
   },
   openGraph: {
@@ -75,7 +82,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${raleway.variable} ${openSans.variable} ${montserrat.variable} ${greatVibes.variable}`}
+      className={`${raleway.variable} ${openSans.variable} ${montserrat.variable} ${greatVibes.variable} ${redressed.variable}`}
     >
       <body className="font-open-sans antialiased">
         <AuthProvider>

@@ -48,14 +48,14 @@ interface Property {
   availability_status: string;
   status?: string;
   full_name: string;
-  property_address: string;
-  no_of_units: number;
+  property_address?: string;
+  no_of_units?: number;
   rent: number;
   compound_road?: string;
   interior_rooms?: string;
   exterior_shot?: string;
   created_at: string;
-  updated_at: string;
+  updated_at?: string;
 }
 
 interface PropertyReviewDialogProps {

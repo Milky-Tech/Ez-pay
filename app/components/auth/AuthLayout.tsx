@@ -18,9 +18,9 @@ interface AuthLayoutProps {
 
 export default function AuthLayout({
   children,
-  heroImage = "/images/authpic.jpg",
+  heroImage = "/images/auth-image.jpeg",
   heroTitle,
-  heroSubtitle = "Experience the future of property rentals with verified listings and seamless payments.",
+  heroSubtitle,
   formTitle,
   formSubtitle,
   showSteps = false,
@@ -28,107 +28,90 @@ export default function AuthLayout({
   totalSteps = 2,
 }: AuthLayoutProps) {
   return (
-    <div className="max-h-screen flex flex-col md:flex-row bg-white overflow-hidden min-h-screen">
-      {/* Left side - Hero Image and Text */}
-      <div className="hidden md:flex md:w-[55%] rotate-360 relative items-center justify-center bg-gray-900 group">
-        <div
-          className="absolute inset-0 bg-cover bg-center transition-transform duration-700 group-hover:scale-110"
-          style={{
-            backgroundImage: `url("${heroImage}")`,
-          }}
-        />
-        <div className="absolute inset-0 bg-black/40" />
-        <div className="relative z-10 px-12 lg:px-20 max-w-2xl">
-          <div className="mb-8 flex items-center gap-3">
-            <div className="p-2 bg-white/10 backdrop-blur-md rounded-lg border border-white/20">
-              <Home className="h-6 w-6 text-white" />
-            </div>
-            <span className="text-2xl font-bold font-raleway text-white tracking-wider">
-              EZ-Pay
-            </span>
-          </div>
+    <div
+      className="relative h-screen w-full overflow-hidden bg-cover bg-center font-sans"
+      style={{
+        backgroundImage: `url("${heroImage}")`,
+      }}
+    >
+      {/* Dark Overlay */}
+      <div className="absolute inset-0 bg-black/40" />
 
-          <div className="text-5xl lg:text-7xl font-bold text-white leading-[1.1] mb-6 drop-shadow-2xl">
+      {/* Content Container */}
+      <div className="relative z-10 flex h-full w-full flex-col px-6 md:flex-row md:px-12 lg:px-20">
+        
+        {/* Left Side - Hero Text */}
+        <div className="flex h-full w-full flex-col justify-center md:w-1/2">
+          <div className="mt-12">
+           
+          <Link href="/">   <img src="/images/EZPAY-16.png" className="h-28 mb-6 pl-[-5px]" />       </Link>       
+           
+
+          <div className="mb-2 text-5xl font-bold leading-tight text-white drop-shadow-xl lg:text-5xl">
             {heroTitle || (
               <>
-                Join Thousands Finding their{" "}
-                <span className="font-Redressed block text-[#C9A227] mt-2 drop-shadow-[0_2px_10px_rgba(0,0,0,0.5)]">
+                Join Thousands <br />
+                Finding their{" "}
+                <span className="mt-2 block font-Redressed text-[#bf9b30]">
                   Dream Homes
                 </span>
               </>
             )}
           </div>
-          <p className="text-white/80 text-lg lg:text-xl font-medium max-w-lg mb-8">
-            {heroSubtitle}
-          </p>
-        </div>
-
-        {/* Decorative elements */}
-        <div className="absolute bottom-10 left-12 right-12 flex justify-between items-center text-white/50 text-xs tracking-[0.2em] font-medium uppercase">
-          <span>Intelligent Home EZ-Pay</span>
-          <div className="flex gap-4">
-            <Link
-              href="/privacy"
-              className="hover:text-white transition-colors"
-            >
-              Privacy Policy
-            </Link>
-            <Link href="/terms" className="hover:text-white transition-colors">
-              Terms of Use
-            </Link>
+          
+           {heroSubtitle && (
+            <p className="mb-1 max-w-lg text-base font-medium text-white/80 lg:text-lg">
+              {heroSubtitle}
+            </p>
+          )}
           </div>
         </div>
-      </div>
 
-      {/* Right side - Form */}
-      <div className="flex-1 flex flex-col items-center justify-center p-6 md:p-12 lg:p-20 relative bg-[#f8f9fa] overflow-y-auto">
-        {/* Mobile Logo */}
-        <div className="md:hidden mb-8 flex items-center gap-2">
-          <Home className="h-6 w-6 text-primary" />
-          <span className="text-2xl font-bold font-raleway text-primary">
-            EZ-Pay
-          </span>
-        </div>
+        {/* Right Side - Glass Form */}
+        <div className="flex h-full w-full items-center justify-center md:w-1/2 md:justify-end md:py-6">
+          <div className="flex h-full max-h-[90vh] w-full max-w-[480px] flex-col overflow-hidden rounded-3xl border border-white/10 bg-white/10 shadow-2xl backdrop-blur-md md:max-h-full md:rounded-[2rem]">
+            <div className="flex h-full flex-col overflow-y-auto p-6 md:p-10 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-white/20 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-white/40">
+              <div className="mb-6">
+                <h2 className="mb-1 font-raleway text-xl font-bold text-white lg:text-2xl">
+                  {formTitle}
+                </h2>
 
-        <div className="w-full max-w-md relative">
-          <div className="absolute -top-24 -right-16 w-64 h-64 bg-primary/5 rounded-full blur-3xl" />
-          <div className="absolute -bottom-24 -left-16 w-64 h-64 bg-amber-500/5 rounded-full blur-3xl" />
+                {formSubtitle && (
+                  <div className="text-sm text-gray-200">{formSubtitle}</div>
+                )}
 
-          <div className="relative bg-white/60 backdrop-blur-xl border border-white/40 shadow-[0_8px_32px_rgba(0,0,0,0.12)] rounded-3xl p-8 lg:p-10">
-            <div className="mb-8">
-              <h2 className="text-3xl font-bold text-gray-900 font-raleway mb-2">
-                {formTitle}
-              </h2>
+                {showSteps && (
+                  <div className="mt-2 flex gap-2">
+                    {Array.from({ length: totalSteps }).map((_, i) => (
+                      <div
+                        key={i}
+                        className={`h-1.5 rounded-full transition-all duration-300 ${
+                          i + 1 === currentStep
+                            ? "w-12 bg-[#961f1f]"
+                            : i + 1 < currentStep
+                              ? "w-12 bg-[#961f1f]/60"
+                              : "w-3 bg-gray-400"
+                        }`}
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
 
-              {formSubtitle && (
-                <p className="text-gray-500 text-sm mt-1">{formSubtitle}</p>
-              )}
-
-              {showSteps && (
-                <div className="flex gap-2 mt-4">
-                  {Array.from({ length: totalSteps }).map((_, i) => (
-                    <div
-                      key={i}
-                      className={`h-1.5 rounded-full transition-all duration-300 ${
-                        i + 1 === currentStep
-                          ? "w-12 bg-[#961f1f]"
-                          : i + 1 < currentStep
-                            ? "w-12 bg-[#961f1f]/60"
-                            : "w-3 bg-gray-200"
-                      }`}
-                    />
-                  ))}
-                </div>
-              )}
-              {!showSteps && (
-                <div className="flex gap-2 mt-4">
-                  <div className="h-1.5 w-12 bg-[#961f1f] rounded-full" />
-                  <div className="h-1.5 w-3 bg-gray-200 rounded-full" />
-                </div>
-              )}
+              <div className="text-white my-3 flex-1 flex flex-col justify-center">
+                {children}
+              </div>
+              
+               <div className="mt-auto text-center text-xs text-gray-400">
+                  <div className="flex justify-center gap-2">
+                    <span>©Bridgent Home EZPay</span>
+                    <span>|</span>
+                    <Link href="/privacy" className="hover:text-white transition-colors">
+                      Privacy Policy
+                    </Link>
+                  </div>
+               </div>
             </div>
-
-            {children}
           </div>
         </div>
       </div>

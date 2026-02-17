@@ -190,8 +190,8 @@ export default function LandlordSignUpPage() {
     <AuthLayout
       heroTitle={
         <>
-          Secure your asset with{" "}
-          <span className="font-Redressed block text-[#C9A227] mt-2 drop-shadow-[0_2px_10px_rgba(0,0,0,0.5)]">
+          Secure your asset with
+          <span className="font-Redressed bg-opacity-90 block text-[#C9A227] mt-2 drop-shadow-[0_2px_10px_rgba(0,0,0,0.5)]">
             EZ-Pay Landlord
           </span>
         </>
@@ -209,9 +209,9 @@ export default function LandlordSignUpPage() {
       totalSteps={2}
     >
       {step === 1 ? (
-        <form onSubmit={handleSignUp} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="full_name" className="text-gray-700 font-semibold ml-1">
+        <form onSubmit={handleSignUp} className="max-h-[100vh]">
+          <div className="">
+            <Label htmlFor="full_name" className="font-semibold ml-1">
               Full Name *
             </Label>
             <div className="relative group">
@@ -219,7 +219,7 @@ export default function LandlordSignUpPage() {
               <Input
                 id="full_name"
                 placeholder="Enter your full name"
-                className="pl-12 h-14 bg-white border-gray-200 focus:border-[#961f1f] focus:ring-[#961f1f] rounded-xl transition-all"
+                className="pl-12 h-10 bg-transparent border-gray-200 focus:border-[#961f1f] focus:ring-[#961f1f] rounded-xl transition-all"
                 value={formData.full_name}
                 onChange={handleInputChange}
                 required
@@ -228,7 +228,7 @@ export default function LandlordSignUpPage() {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="email" className="text-gray-700 font-semibold ml-1">
+            <Label htmlFor="email" className="font-semibold ml-1">
               Email Address *
             </Label>
             <div className="relative group">
@@ -237,7 +237,7 @@ export default function LandlordSignUpPage() {
                 id="email"
                 type="email"
                 placeholder="Enter your email address"
-                className="pl-12 h-14 bg-white border-gray-200 focus:border-[#961f1f] focus:ring-[#961f1f] rounded-xl transition-all"
+                className="pl-12 h-10 bg-white border-gray-200 text-gray-900 focus:border-[#961f1f] focus:ring-[#961f1f] rounded-xl transition-all"
                 value={formData.email}
                 onChange={handleInputChange}
                 required
@@ -246,7 +246,7 @@ export default function LandlordSignUpPage() {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="phone" className="text-gray-700 font-semibold ml-1">
+            <Label htmlFor="phone" className="font-semibold ml-1">
               Phone Number *
             </Label>
             <div className="relative group">
@@ -254,7 +254,7 @@ export default function LandlordSignUpPage() {
               <Input
                 id="phone"
                 placeholder="Enter your phone number"
-                className="pl-12 h-14 bg-white border-gray-200 focus:border-[#961f1f] focus:ring-[#961f1f] rounded-xl transition-all"
+                className="pl-12 h-10 bg-white border-gray-200 text-gray-900 focus:border-[#961f1f] focus:ring-[#961f1f] rounded-xl transition-all"
                 value={formData.phone}
                 onChange={handleInputChange}
                 required
@@ -263,7 +263,7 @@ export default function LandlordSignUpPage() {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="password" title="password" className="text-gray-700 font-semibold ml-1">
+            <Label htmlFor="password" title="password" className="font-semibold ml-1">
               Password *
             </Label>
             <div className="relative group">
@@ -272,7 +272,7 @@ export default function LandlordSignUpPage() {
                 id="password"
                 type={showPassword ? "text" : "password"}
                 placeholder="Enter your password"
-                className="pl-12 pr-12 h-14 bg-white border-gray-200 focus:border-[#961f1f] focus:ring-[#961f1f] rounded-xl transition-all"
+                className="pl-12 pr-12 h-10 bg-white border-gray-200 text-gray-900 focus:border-[#961f1f] focus:ring-[#961f1f] rounded-xl transition-all"
                 value={formData.password}
                 onChange={handleInputChange}
                 required
@@ -290,7 +290,7 @@ export default function LandlordSignUpPage() {
           <div className="space-y-2">
             <Label
               htmlFor="password_confirmation"
-              className="text-gray-700 font-semibold ml-1"
+              className="font-semibold ml-1"
             >
               Confirm Password *
             </Label>
@@ -300,7 +300,7 @@ export default function LandlordSignUpPage() {
                 id="password_confirmation"
                 type={showPassword ? "text" : "password"}
                 placeholder="Confirm your password"
-                className="pl-12 pr-12 h-14 bg-white border-gray-200 focus:border-[#961f1f] focus:ring-[#961f1f] rounded-xl transition-all"
+                className="pl-12 pr-12 h-10 bg-white border-gray-200 text-gray-900 focus:border-[#961f1f] focus:ring-[#961f1f] rounded-xl transition-all"
                 value={formData.password_confirmation}
                 onChange={handleInputChange}
                 required
@@ -319,7 +319,7 @@ export default function LandlordSignUpPage() {
 
           <Button
             type="submit"
-            className="w-full h-14 bg-[#961f1f] hover:bg-[#7a1a1a] text-white font-bold text-lg rounded-xl shadow-lg shadow-red-900/10 transition-all flex items-center justify-center gap-2"
+            className="w-full h-10 mt-4 bg-[#961f1f] hover:bg-[#7a1a1a] text-white font-bold text-lg rounded-xl shadow-lg shadow-red-900/10 transition-all flex items-center justify-center gap-2"
             disabled={loading}
           >
             {loading ? (
@@ -331,9 +331,9 @@ export default function LandlordSignUpPage() {
             )}
           </Button>
 
-          <p className="text-center text-gray-600 text-sm mt-4">
+          <p className="text-center text-gray-200 text-sm mt-4">
             Already have an account?{" "}
-            <Link href="/signin" className="text-[#961f1f] font-bold hover:underline">
+            <Link href="/signin" className="text-white font-bold hover:underline">
               Log in
             </Link>
           </p>
@@ -372,7 +372,7 @@ export default function LandlordSignUpPage() {
           <div className="text-center space-y-4">
             <Button
               type="submit"
-              className="w-full h-14 bg-[#961f1f] hover:bg-[#7a1a1a] text-white font-bold text-lg rounded-xl shadow-lg shadow-red-900/10 transition-all flex items-center justify-center gap-2"
+              className="w-full h-10 bg-[#961f1f] hover:bg-[#7a1a1a] text-white font-bold text-lg rounded-xl shadow-lg shadow-red-900/10 transition-all flex items-center justify-center gap-2"
               disabled={loading}
             >
               {loading ? (

@@ -52,11 +52,11 @@ export default function SignInPage() {
     <AuthLayout
       formTitle="Log in to your account"
     >
-      <form onSubmit={handleSignIn} className="space-y-5">
+      <form onSubmit={handleSignIn} className="space-y-3">
         <div className="space-y-2">
           <Label
             htmlFor="email"
-            className="text-gray-700 font-semibold ml-1"
+            className="font-semibold ml-1"
           >
             Email Address *
           </Label>
@@ -66,7 +66,7 @@ export default function SignInPage() {
               id="email"
               type="email"
               placeholder="Enter your email address"
-              className="pl-12 h-14 bg-white border-gray-200 focus:border-[#961f1f] focus:ring-[#961f1f] rounded-xl transition-all"
+              className="pl-12 h-10 bg-white border-gray-200 text-gray-900 focus:border-[#961f1f] focus:ring-[#961f1f] rounded-xl transition-all"
               value={email}
               onChange={(e) => {
                 setEmail(e.target.value);
@@ -81,7 +81,7 @@ export default function SignInPage() {
           <div className="flex justify-between items-center ml-1">
             <Label
               htmlFor="password"
-              className="text-gray-700 font-semibold"
+              className="font-semibold"
             >
               Password *
             </Label>
@@ -98,7 +98,7 @@ export default function SignInPage() {
               id="password"
               type={showPassword ? "text" : "password"}
               placeholder="Enter your password"
-              className="pl-12 pr-12 h-14 bg-white border-gray-200 focus:border-[#961f1f] focus:ring-[#961f1f] rounded-xl transition-all"
+              className="pl-12 pr-12 h-10 bg-white border-gray-200 text-gray-900 focus:border-[#961f1f] focus:ring-[#961f1f] rounded-xl transition-all"
               value={password}
               onChange={(e) => {
                 setPassword(e.target.value);
@@ -131,7 +131,7 @@ export default function SignInPage() {
 
         <Button
           type="submit"
-          className="w-full h-14 bg-[#961f1f] hover:bg-[#7a1a1a] text-white font-bold text-lg rounded-xl shadow-lg shadow-red-900/10 transition-all flex items-center justify-center gap-2"
+          className="w-full h-10 bg-[#961f1f] hover:bg-[#7a1a1a] text-white font-bold text-lg rounded-xl shadow-lg shadow-red-900/10 transition-all flex items-center justify-center gap-2"
           disabled={loading}
         >
           {loading ? (
@@ -144,7 +144,7 @@ export default function SignInPage() {
         </Button>
       </form>
 
-      <div className="relative my-8">
+      <div className="relative my-6">
         <div className="absolute inset-0 flex items-center">
           <div className="w-full border-t border-gray-200"></div>
         </div>
@@ -155,8 +155,8 @@ export default function SignInPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-4 mb-4">
-        <button className="flex items-center justify-center gap-2 h-12 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors shadow-sm">
+      <div className="grid grid-cols-2 gap-4 mb-2">
+        <button className="flex items-center justify-center gap-2 h-10 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors shadow-sm">
           <img
             src="https://www.svgrepo.com/show/475656/google-color.svg"
             className="h-5 w-5"
@@ -164,7 +164,7 @@ export default function SignInPage() {
           />
           <span className="text-sm font-bold text-gray-700">Google</span>
         </button>
-        <button className="flex items-center justify-center gap-2 h-12 bg-black rounded-xl hover:bg-gray-900 transition-colors shadow-lg">
+        <button className="flex items-center justify-center gap-2 h-10 bg-black rounded-xl hover:bg-gray-900 transition-colors shadow-lg">
           <img
             src="https://www.svgrepo.com/show/303102/apple-black-logo.svg"
             className="h-5 w-5 invert"
@@ -174,9 +174,9 @@ export default function SignInPage() {
         </button>
       </div>
 
-      <p className="text-center text-gray-600 text-sm mt-8">
+      <p className="text-center text-gray-200 text-sm mt-8">
         Don't have an account?{" "}
-        <Link href="/landlord/signup" className="text-[#961f1f] font-bold hover:underline">
+        <Link href="/landlord/signup" className="text-white font-bold hover:underline">
           Sign up as Landlord
         </Link>
       </p>

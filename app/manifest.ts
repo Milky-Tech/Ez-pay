@@ -11,13 +11,8 @@ export default function manifest(): MetadataRoute.Manifest {
     theme_color: '#000000',
     icons: [
       {
-        src: '/images/EZPAY-16.png',
-        sizes: '180x180',
-        type: 'image/png',
-      },
-      {
-        src: '/images/EZPAY-16.png',
-        sizes: '512x512',
+        src: '/images/EZPAY-15.png',
+        sizes: 'any',
         type: 'image/png',
       },
     ],
