@@ -558,21 +558,31 @@ export default function PropertyDetailsPage() {
               {/* Enhanced Photo Gallery - 3 Column Grid */}
               <div className="mb-8">
                 <div className="grid grid-cols-3 gap-4">
-                  {allImages.slice(0, 6).map((url: string, idx: number) => (
-                    <div
-                      key={idx}
-                      className={`aspect-[4/3] rounded-xl overflow-hidden cursor-pointer transition-all ${
-                        currentImageIndex === idx ? "ring-4 ring-primary" : "hover:opacity-90"
-                      }`}
-                      onClick={() => api?.scrollTo(idx)}
-                    >
-                      <img
-                        src={getFullImageUrl(url)}
-                        className="w-full h-full object-cover"
-                        alt={`Property image ${idx + 1}`}
-                      />
-                    </div>
-                  ))}
+                  {allImages.slice(0, 6).map((url: string, idx: number) => {
+                    const isLast = idx === 5;
+                    const hasMore = allImages.length > 6;
+                    
+                    return (
+                      <div
+                        key={idx}
+                        className={`relative aspect-[4/3] rounded-xl overflow-hidden cursor-pointer transition-all ${
+                          currentImageIndex === idx ? "ring-4 ring-primary" : "hover:opacity-90"
+                        }`}
+                        onClick={() => api?.scrollTo(idx)}
+                      >
+                        <img
+                          src={getFullImageUrl(url)}
+                          className="w-full h-full object-cover"
+                          alt={`Property image ${idx + 1}`}
+                        />
+                        {isLast && hasMore && (
+                          <div className="absolute inset-0 bg-black/50 flex items-center justify-center text-white font-bold text-lg font-montserrat">
+                            +{allImages.length - 6} others
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
 

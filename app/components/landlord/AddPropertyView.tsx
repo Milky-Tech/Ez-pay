@@ -49,6 +49,7 @@ import { Checkbox } from "@/app/components/ui/checkbox";
 import { useFileUpload, UploadedFile } from "@/hooks/useFileUpload";
 import { NIGERIAN_STATES_LGAS } from "@/lib/nigerian-states";
 import { LiveCameraModal } from "@/app/components/ui/live-camera-modal";
+import Link from "next/link";
 
 interface AddPropertyViewProps {
   token: string | null;
@@ -225,11 +226,12 @@ export default function AddPropertyView({
         const errorData = await response.json();
         throw new Error(errorData.message || "Failed to add property");
       }
-    } catch (error: any) {
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "Failed to add property. Please try again.";
       toast({
         variant: "destructive",
         title: "Add Property Failed",
-        description: error.message || "Failed to add property. Please try again.",
+        description: errorMessage,
       });
     } finally {
       setIsAddingProperty(false);
@@ -263,7 +265,7 @@ export default function AddPropertyView({
               <div className="space-y-6">
                 <div>
                   <h3 className="text-xl font-bold text-slate-900 mb-1">Select Listing Package</h3>
-                  <p className="text-slate-500 text-sm">Choose the best management plan for your property.</p>
+                  <p className="text-slate-500 text-sm">Choose the best fitting package for your property.</p>
                 </div>
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -287,20 +289,24 @@ export default function AddPropertyView({
                         </div>
                         <CardTitle className="text-lg">EZPAY PRIME</CardTitle>
                       </div>
-                      <CardDescription>Highest standard management for premium properties.</CardDescription>
+                      <CardDescription>Ready-to-go assets. Immediate onboarding.
+
+</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-3 text-sm">
                       <div className="flex items-center gap-2 text-slate-600">
                         <CheckCircle className="h-4 w-4 text-emerald-500" />
-                        <span>Meets ACCESSS Serenity Standards</span>
+                        <span>Property meets 100% of <a href="#access-standard">ACCESS Standard criteria</a>
+.</span>
                       </div>
                       <div className="flex items-center gap-2 text-slate-600">
                         <CheckCircle className="h-4 w-4 text-emerald-500" />
-                        <span>Featured on Premier Listings</span>
+                        <span>No modifications or financial leverage needed
+</span>
                       </div>
                       <div className="flex items-center gap-2 text-slate-600">
                         <CheckCircle className="h-4 w-4 text-emerald-500" />
-                        <span>Professional Tenant Screening</span>
+                        <span>Fast-tracked listing (7-10 days after inspection)</span>
                       </div>
                     </CardContent>
                   </Card>
@@ -325,24 +331,25 @@ export default function AddPropertyView({
                         </div>
                         <CardTitle className="text-lg">EZPAY VANTAGE</CardTitle>
                       </div>
-                      <CardDescription>Management for properties that need upgrades.</CardDescription>
+                      <CardDescription>Asset requires strategic upgrade. Facilitated secured financing via Capital Legacy Partners.</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-3 text-sm">
                       <div className="flex items-center gap-2 text-slate-600">
                         <CheckCircle className="h-4 w-4 text-emerald-500" />
-                        <span>Standard Listings Display</span>
+                        <span>Meets aesthetic/space standards but fails critical criteria</span>
                       </div>
                       <div className="flex items-center gap-2 text-slate-600">
                         <CheckCircle className="h-4 w-4 text-emerald-500" />
-                        <span>Optional Maintenance Services</span>
+                        <span>Uses CLP facility for mandatory upgrades</span>
                       </div>
                       <div className="flex items-center gap-2 text-slate-600 text-amber-700 font-medium">
                         <Info className="h-4 w-4" />
-                        <span>No upfront ACCESS requirement</span>
+                        <span>Property value enhancement for higher rental rates</span>
                       </div>
                     </CardContent>
                   </Card>
                 </div>
+                <div className="flex justify-end w-full"><Link href={'/landlord-partner'}><Button className="bg-white text-xs text-primary border-b-2 border-primary hover:text-white"><i>Learn More</i></Button></Link></div>
               </div>
 
               {/* Basic Info */}
@@ -431,7 +438,7 @@ export default function AddPropertyView({
               </div>
 
               {formData.landlord_package === "prime" && (
-                <div className="space-y-6">
+                <div className="space-y-6" id="access-standard">
                   <Card className="border-primary/20 bg-primary/5 overflow-hidden">
                     <CardHeader className="bg-primary/5 pb-4">
                       <div className="flex items-center gap-2">
@@ -512,8 +519,9 @@ export default function AddPropertyView({
                       const input = document.createElement("input");
                       input.type = "file";
                       input.accept = ".pdf,.jpg,.jpeg,.png";
-                      input.onchange = (e: any) => {
-                        const file = e.target.files?.[0];
+                      input.onchange = (e: Event) => {
+                        const target = e.target as HTMLInputElement;
+                        const file = target.files?.[0];
                         if (file) handleFileUpload(file, "c_of_o");
                       };
                       input.click();
@@ -719,22 +727,50 @@ export default function AddPropertyView({
   );
 }
 
-const UploadBox = ({ type, file, onUpload, onTrigger, onRemove, instruction, multi }: any) => {
+interface UploadBoxProps {
+  type: UploadedFile["type"];
+  file?: UploadedFile;
+  onUpload: (file: File) => void;
+  onTrigger?: () => void;
+  onRemove: (id: string) => void;
+  instruction: string;
+  multi?: boolean;
+}
+
+const UploadBox = ({
+  type,
+  file,
+  onUpload,
+  onTrigger,
+  onRemove,
+  instruction,
+  multi,
+}: UploadBoxProps) => {
   if (file && !multi) {
     return (
       <div className="border border-primary/20 bg-primary/5 rounded-2xl p-4 flex items-center justify-between animate-in zoom-in-95 duration-200">
         <div className="flex items-center gap-4">
           <div className="w-14 h-14 bg-white rounded-xl border flex items-center justify-center overflow-hidden shadow-sm">
             {file.url && type !== "c_of_o" ? (
-              <img src={file.url} alt="Uploaded" className="w-full h-full object-cover" />
+              <img
+                src={file.url}
+                alt="Uploaded"
+                className="w-full h-full object-cover"
+              />
             ) : (
               <File className="h-5 w-5 text-primary" />
             )}
           </div>
           <div>
-            <p className="font-bold text-sm text-slate-900 truncate max-w-[150px]">{file.file.name}</p>
+            <p className="font-bold text-sm text-slate-900 truncate max-w-[150px]">
+              {file.file.name}
+            </p>
             <p className="text-xs text-slate-500">
-              {file.uploading ? "Uploading..." : file.error ? "Error" : "Uploaded Successfully"}
+              {file.uploading
+                ? "Uploading..."
+                : file.error
+                  ? "Error"
+                  : "Uploaded Successfully"}
             </p>
           </div>
         </div>
@@ -753,9 +789,15 @@ const UploadBox = ({ type, file, onUpload, onTrigger, onRemove, instruction, mul
     <div className="border-2 border-dashed border-slate-200 rounded-3xl p-8 text-center hover:border-primary/50 transition-all group bg-slate-50/50 hover:bg-primary/5">
       <div className="flex flex-col items-center">
         <div className="w-16 h-16 bg-white shadow-sm rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform text-primary border border-slate-100">
-          {type === "c_of_o" ? <File className="h-8 w-8" /> : <Camera className="h-8 w-8" />}
+          {type === "c_of_o" ? (
+            <File className="h-8 w-8" />
+          ) : (
+            <Camera className="h-8 w-8" />
+          )}
         </div>
-        <p className="font-bold text-slate-900 mb-1">{type === "c_of_o" ? "Upload Document" : "Capture Photo"}</p>
+        <p className="font-bold text-slate-900 mb-1">
+          {type === "c_of_o" ? "Upload Document" : "Capture Photo"}
+        </p>
         <p className="text-xs text-slate-500 mb-6 max-w-[200px]">{instruction}</p>
         {onTrigger && (
           <Button
@@ -778,17 +820,33 @@ const UploadBox = ({ type, file, onUpload, onTrigger, onRemove, instruction, mul
   );
 };
 
-const StagingArea = ({ files, onRemove }: any) => {
+interface StagingAreaProps {
+  files: UploadedFile[];
+  onRemove: (id: string) => void;
+}
+
+const StagingArea = ({ files, onRemove }: StagingAreaProps) => {
   if (files.length === 0) return null;
   return (
     <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3 mt-4 p-4 bg-slate-50 rounded-2xl border border-slate-100 max-h-64 overflow-y-auto">
-      {files.map((file: any) => (
-        <div key={file.id} className="relative aspect-square bg-white rounded-xl border border-slate-100 overflow-hidden group shadow-sm transition-transform hover:scale-95">
+      {files.map((file: UploadedFile) => (
+        <div
+          key={file.id}
+          className="relative aspect-square bg-white rounded-xl border border-slate-100 overflow-hidden group shadow-sm transition-transform hover:scale-95"
+        >
           {file.url ? (
-            <img src={file.url} alt="Staged" className="w-full h-full object-cover" />
+            <img
+              src={file.url}
+              alt="Staged"
+              className="w-full h-full object-cover"
+            />
           ) : (
             <div className="w-full h-full flex items-center justify-center bg-slate-50">
-              {file.uploading ? <Loader2 className="h-5 w-5 animate-spin text-primary" /> : <ImageIcon className="h-5 w-5 text-slate-300" />}
+              {file.uploading ? (
+                <Loader2 className="h-5 w-5 animate-spin text-primary" />
+              ) : (
+                <ImageIcon className="h-5 w-5 text-slate-300" />
+              )}
             </div>
           )}
           <button

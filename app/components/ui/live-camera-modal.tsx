@@ -120,7 +120,6 @@ export const LiveCameraModal = ({
         else if (type === "living_room") roomKey = "living_room";
         else if (type === "compound_road") roomKey = "compound_road";
         else if (type === "exterior_shot") roomKey = "exterior_shot";
-        else if (type === "compound") roomKey = "compound";
         else if (type === "power_system") roomKey = "power_system";
 
         const result = validateRoomFrame(predictions, roomKey, b);

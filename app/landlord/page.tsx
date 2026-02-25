@@ -587,7 +587,7 @@ export default function LandlordDashboard() {
             {activeTab === "add-property" && (
               <AddPropertyView 
                 token={token} 
-                user_id={user.id} 
+                user_id={String(user.id)} 
                 onSuccess={() => {
                   refreshData();
                   setActiveTab("properties");
