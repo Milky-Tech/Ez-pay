@@ -189,6 +189,7 @@ const PropertyReviewDialog = ({
     open: false,
     action: "" as "approve" | "reject",
   });
+  const [rejectComment, setRejectComment] = useState("");
   const { token } = useAuth();
   // Helper function to ensure full URL
   const getFullImageUrl = (url: string) => {
@@ -292,6 +293,10 @@ const PropertyReviewDialog = ({
   const handleApproveProperty = async () => {
     setIsProcessing(true);
     try {
+      // Package specific logic
+      const isPrime = propertyDetails?.landlord_package === "prime" || property.landlord_package === "prime";
+      const availabilityStatus = isPrime ? "available" : "upgrade_pending";
+
       const response = await fetch(`${API_BASE_URL}/property/approve`, {
         method: "POST",
         headers: {
@@ -301,6 +306,8 @@ const PropertyReviewDialog = ({
         },
         body: JSON.stringify({
           property_registration_id: property.id,
+          status: "approved",
+          availability_status: availabilityStatus,
         }),
       });
 
@@ -342,7 +349,10 @@ const PropertyReviewDialog = ({
             Accept: "application/json",
             Authorization: `Bearer ${token || localStorage.getItem("token")}`,
           },
-          body: JSON.stringify({ status: "rejected" }),
+          body: JSON.stringify({ 
+            status: "rejected",
+            comment: rejectComment 
+          }),
         }
       );
 
@@ -880,6 +890,16 @@ const PropertyReviewDialog = ({
                       <li>Remove the property from pending submissions</li>
                     </ul>
                   </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="reject-comment" className="text-sm font-semibold">Reason for Rejection</Label>
+                    <textarea
+                      id="reject-comment"
+                      className="w-full min-h-[100px] p-3 text-sm border rounded-md focus:outline-none focus:ring-2 focus:ring-red-500"
+                      placeholder="Enter the reason for rejection (e.g., poor image quality, missing documents...)"
+                      value={rejectComment}
+                      onChange={(e) => setRejectComment(e.target.value)}
+                    />
+                  </div>
                 </div>
               )}
               <div className="mt-4 p-3 bg-gray-50 rounded-lg">
@@ -905,11 +925,11 @@ const PropertyReviewDialog = ({
                   ? handleApproveProperty
                   : handleRejectProperty
               }
-              disabled={isProcessing}
+              disabled={isProcessing || (confirmationDialog.action === "reject" && !rejectComment)}
               className={
                 confirmationDialog.action === "approve"
                   ? "bg-green-600 hover:bg-green-700"
-                  : "bg-red-600 hover:bg-red-700"
+                  : "bg-red-600 hover:bg-red-700 disabled:opacity-50"
               }
             >
               {isProcessing ? (

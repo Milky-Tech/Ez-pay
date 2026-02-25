@@ -29,13 +29,6 @@ import { Button } from "@/app/components/ui/button";
 import { Input } from "@/app/components/ui/input";
 import { Label } from "@/app/components/ui/label";
 import { Textarea } from "@/app/components/ui/textarea";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/app/components/ui/dialog";
 import { Badge } from "@/app/components/ui/badge";
 import { Card, CardContent } from "@/app/components/ui/card";
 import {
@@ -46,9 +39,9 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { useLandlordData } from "@/hooks/useLandlordData";
 import { useFileUpload } from "@/hooks/useFileUpload";
-import { PropertyCard } from "@/app/components/landlord/PropertyCard";
 import { ApplicationItem } from "@/app/components/landlord/ApplicationItem";
-import { AddPropertyDialog } from "@/app/components/landlord/AddPropertyDialog";
+import PropertiesTab from "@/app/components/landlord/PropertiesTab";
+import AddPropertyView from "@/app/components/landlord/AddPropertyView";
 
 export default function LandlordDashboard() {
   const {
@@ -64,7 +57,6 @@ export default function LandlordDashboard() {
   const [activeTab, setActiveTab] = useState("dashboard");
   const [searchTerm, setSearchTerm] = useState("");
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
-  const [addPropertyDialog, setAddPropertyDialog] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const {
     landlordData,
@@ -256,7 +248,7 @@ export default function LandlordDashboard() {
         {isProfileComplete && (
           <Button
             size="sm"
-            onClick={() => setAddPropertyDialog(true)}
+            onClick={() => setActiveTab("add-property")}
             className="bg-primary"
           >
             <Plus className="h-4 w-4" />
@@ -381,7 +373,7 @@ export default function LandlordDashboard() {
             </Button>
             {isProfileComplete && (
               <Button
-                onClick={() => setAddPropertyDialog(true)}
+                onClick={() => setActiveTab("add-property")}
                 className="bg-primary hover:bg-primary/90 transition-all font-raleway font-bold shadow-lg shadow-primary/20"
               >
                 <Plus className="h-4 w-4 mr-2" /> Add Property
@@ -478,81 +470,22 @@ export default function LandlordDashboard() {
 
                 {/* Main Content Areas */}
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                  {/* Properties List */}
-                  <div className="lg:col-span-2 space-y-6">
-                    <div className="flex items-center justify-between">
-                      <h2 className="text-xl font-bold text-slate-900 font-raleway">
-                        My Properties
-                      </h2>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="text-primary hover:text-primary hover:bg-primary/5"
-                        onClick={() => setActiveTab("properties")}
-                      >
-                        View All
-                      </Button>
-                    </div>
-
-                    {dataLoading.properties ? (
-                      <div className="flex flex-col items-center justify-center py-20 bg-white rounded-2xl border border-dashed">
-                        <Loader2 className="h-8 w-8 animate-spin text-primary mb-4" />
-                        <p className="text-slate-400">Fetching properties...</p>
-                      </div>
-                    ) : filteredProperties.length === 0 ? (
-                      <Card className="border-dashed border-2 py-12 text-center">
-                        <CardContent className="space-y-4">
-                          <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto">
-                            <Building className="h-8 w-8 text-slate-300" />
-                          </div>
-                          <p className="text-slate-500">
-                            {searchTerm
-                              ? "No match found."
-                              : "No properties listed yet."}
-                          </p>
-                          {!searchTerm && isProfileComplete && (
-                            <Button onClick={() => setAddPropertyDialog(true)}>
-                              Add Your First Property
-                            </Button>
-                          )}
-                          {!isProfileComplete && (
-                            <div className="space-y-2">
-                              <p className="text-amber-600 text-sm flex items-center justify-center gap-2">
-                                <AlertTriangle className="h-4 w-4" />
-                                Property upload is hidden until profile is 100%
-                                complete
-                              </p>
-                              <Button
-                                variant="outline"
-                                onClick={() => setActiveTab("settings")}
-                              >
-                                Complete Profile Now
-                              </Button>
-                            </div>
-                          )}
-                        </CardContent>
-                      </Card>
-                    ) : (
-                      <div className="space-y-4">
-                        {filteredProperties.map((p) => (
-                          <PropertyCard
-                            key={p.id}
-                            property={p}
-                            onViewDetails={(id) =>
-                              router.push(`/listings/${id}`)
-                            }
-                          />
-                        ))}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Sidebar: Applications & Summary */}
-                  <div className="space-y-8">
+                  {/* Recent Activity & Quick Stats */}
+                  <div className="lg:col-span-2 space-y-8">
                     <div className="space-y-6">
-                      <h2 className="text-xl font-bold text-slate-900 font-raleway">
-                        Recent Activity
-                      </h2>
+                      <div className="flex items-center justify-between">
+                        <h2 className="text-xl font-bold text-slate-900 font-raleway">
+                          Recent Activity
+                        </h2>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-primary"
+                          onClick={() => setActiveTab("applicants")}
+                        >
+                          View All
+                        </Button>
+                      </div>
                       {dataLoading.applications ? (
                         <div className="flex justify-center py-10">
                           <Loader2 className="h-6 w-6 animate-spin text-primary" />
@@ -573,7 +506,9 @@ export default function LandlordDashboard() {
                         </div>
                       )}
                     </div>
+                  </div>
 
+                  <div className="space-y-8">
                     <Card
                       className={`${isProfileComplete ? "bg-primary" : "bg-slate-900"} text-white border-none shadow-xl overflow-hidden relative group`}
                     >
@@ -638,6 +573,79 @@ export default function LandlordDashboard() {
                   </div>
                 </div>
               </>
+            )}
+
+            {activeTab === "properties" && (
+              <PropertiesTab 
+                properties={properties} 
+                loading={dataLoading} 
+                onAddProperty={() => setActiveTab("add-property")}
+                onViewDetails={(id) => router.push(`/listings/${id}`)}
+              />
+            )}
+
+            {activeTab === "add-property" && (
+              <AddPropertyView 
+                token={token} 
+                user_id={user.id} 
+                onSuccess={() => {
+                  refreshData();
+                  setActiveTab("properties");
+                }} 
+                onCancel={() => setActiveTab("properties")}
+                toast={toast}
+              />
+            )}
+
+            {activeTab === "applicants" && (
+              <div className="space-y-6">
+                <div>
+                  <h2 className="text-2xl font-bold text-slate-900 font-raleway">Property Applicants</h2>
+                  <p className="text-slate-500 text-sm">Review and manage interest in your listings.</p>
+                </div>
+                {dataLoading.applications ? (
+                  <div className="flex justify-center py-20 bg-white rounded-2xl border border-dashed">
+                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                  </div>
+                ) : applications.length === 0 ? (
+                  <Card className="border-dashed border-2 py-12 text-center bg-transparent">
+                    <CardContent className="space-y-4">
+                      <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto">
+                        <Users className="h-8 w-8 text-slate-300" />
+                      </div>
+                      <p className="text-slate-500 font-medium">No application requests yet.</p>
+                    </CardContent>
+                  </Card>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {applications.map((a) => (
+                      <ApplicationItem
+                        key={a.id}
+                        application={a}
+                        onClick={(id) => router.push(`/listings/apply/${id}`)}
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {activeTab === "finance" && (
+              <div className="space-y-6">
+                <div>
+                  <h2 className="text-2xl font-bold text-slate-900 font-raleway">Financial Overview</h2>
+                  <p className="text-slate-500 text-sm">Track your earnings and payout history.</p>
+                </div>
+                <Card className="border-dashed border-2 py-12 text-center bg-transparent">
+                  <CardContent className="space-y-4">
+                    <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto">
+                      <CreditCard className="h-8 w-8 text-slate-300" />
+                    </div>
+                    <p className="text-slate-500 font-medium">Financial tracking will be available soon.</p>
+                    <p className="text-xs text-slate-400">We're finalizing your payout dashboard.</p>
+                  </CardContent>
+                </Card>
+              </div>
             )}
 
             {activeTab === "settings" && (
@@ -1043,16 +1051,7 @@ export default function LandlordDashboard() {
       </main>
 
       {/* Dialogs */}
-      {addPropertyDialog && (
-        <AddPropertyDialog
-          open={addPropertyDialog}
-          onOpenChange={setAddPropertyDialog}
-          token={token}
-          user_id={user.id}
-          onSuccess={refreshData}
-          toast={toast}
-        />
-      )}
+      {/* No dialogs needed */}
     </div>
   );
 }

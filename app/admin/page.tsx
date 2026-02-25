@@ -2,54 +2,13 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import {
   Card,
   CardContent,
   CardHeader,
   CardTitle,
 } from "@/app/components/ui/card";
-import { Button } from "@/app/components/ui/button";
-import { Input } from "@/app/components/ui/input";
 import { Badge } from "@/app/components/ui/badge";
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from "@/app/components/ui/tabs";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/app/components/ui/table";
-import {
-  Search,
-  Filter,
-  RefreshCw,
-  AlertCircle,
-  TrendingUp,
-  Home,
-  Building2,
-  FileText,
-  Users,
-  UserCheck,
-  LogOut,
-  CheckCircle,
-  XCircle,
-  Clock,
-  Eye,
-} from "lucide-react";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/app/components/ui/select";
 import { useAuth } from "@/context/authcontext";
 import { useToast } from "@/hooks/use-toast";
 
@@ -59,6 +18,22 @@ import AdminHeader from "./components/AdminHeader";
 import OverviewTab from "./components/OverviewTab";
 import ListingsTab from "./components/ListingsTab";
 import ApplicationsTab from "./components/ApplicationsTab";
+import UsersTab from "./components/UsersTab";
+import LandlordsTab from "./components/LandlordsTab";
+import {
+  Sheet,
+  SheetContent,
+} from "@/app/components/ui/sheet";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/app/components/ui/alert-dialog";
 
 // API Base URL
 const API_BASE_URL =
@@ -175,13 +150,11 @@ export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState("overview");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [data, setData] = useState<{
-    properties: Property[];
     listings: Property[];
     applications: Application[];
     users: Landlord[];
     landlords: Landlord[];
   }>({
-    properties: [],
     listings: [],
     applications: [],
     users: [],
@@ -198,7 +171,6 @@ export default function AdminDashboard() {
   });
 
   const [loading, setLoading] = useState({
-    properties: false,
     listings: false,
     applications: false,
     users: false,
@@ -237,7 +209,6 @@ export default function AdminDashboard() {
         landlords: true,
       }));
       await Promise.all([
-        fetchProperties(),
         fetchApplications(),
         fetchListings(),
         fetchUsers(),
@@ -257,33 +228,6 @@ export default function AdminDashboard() {
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Fetch Properties (Submissions)
-  const fetchProperties = useCallback(async () => {
-    try {
-      setLoading((prev) => ({ ...prev, properties: true }));
-      const response = await fetch(`${API_BASE_URL}/property/properties`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!response.ok) throw new Error("Failed to fetch properties");
-      const result = await response.json();
-      const propertiesData = result.data || result;
-      setData((prev) => ({ ...prev, properties: propertiesData }));
-
-      // Update stats
-      const approvedCount = propertiesData.filter(
-        (p: Property) => p.status === "approved"
-      ).length;
-      setStats((prev) => ({
-        ...prev,
-        totalProperties: propertiesData.length,
-        availableProperties: approvedCount,
-      }));
-    } catch (error) {
-      console.error(error);
-    } finally {
-      setLoading((prev) => ({ ...prev, properties: false }));
-    }
-  }, [token]);
 
   // Fetch Listings (Active)
   const fetchListings = useCallback(async () => {
@@ -294,7 +238,21 @@ export default function AdminDashboard() {
       });
       if (!response.ok) throw new Error("Failed to fetch listings");
       const result = await response.json();
-      setData((prev) => ({ ...prev, listings: result.data || result }));
+      const listingsData = result.data || result;
+      setData((prev) => ({ ...prev, listings: listingsData }));
+
+      // Update stats based on listings as well for Overview
+      const maintenanceCount = listingsData.filter(
+        (l: Property) => l.availability_status === "maintenance"
+      ).length;
+
+      setStats((prev) => ({
+        ...prev,
+        // Using listings for available properties stat
+        availableProperties: listingsData.filter(
+          (l: Property) => l.availability_status === "available"
+        ).length,
+      }));
     } catch (error) {
       console.error(error);
     } finally {
@@ -338,6 +296,7 @@ export default function AdminDashboard() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          Accept: "application/json",
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({ id }),
@@ -361,6 +320,7 @@ export default function AdminDashboard() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          Accept: "application/json",
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({ id, comment }),
@@ -421,6 +381,71 @@ export default function AdminDashboard() {
     }
   }, [token]);
 
+  // User Actions
+  const handleRegisterAdmin = async (adminData: any) => {
+    try {
+      // We use a direct fetch instead of the context register to avoid logging out the current admin
+      const response = await fetch(`${API_BASE_URL}/register`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        body: JSON.stringify({
+          ...adminData,
+          role: "admin", // Passing role to API
+        }),
+      });
+
+      if (!response.ok) {
+        const result = await response.json();
+        throw new Error(result.message || "Failed to register admin");
+      }
+
+      toast({ title: "Admin Created", description: "New administrator registered successfully." });
+      fetchUsers();
+      return true;
+    } catch (error: any) {
+      console.error(error);
+      toast({
+        variant: "destructive",
+        title: "Registration Error",
+        description: error.message || "Failed to register admin.",
+      });
+      return false;
+    }
+  };
+
+  const handleDeleteUser = async (id: string, name: string) => {
+    setDeleteDialog({
+      open: true,
+      type: "user",
+      id,
+      name,
+    });
+  };
+
+  const confirmDeleteUser = async () => {
+    if (!deleteDialog.id) return;
+    try {
+      const response = await fetch(`${API_BASE_URL}/users/${deleteDialog.id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!response.ok) throw new Error("Failed to delete user");
+      toast({ title: "User Deleted", description: "User removed successfully." });
+      fetchUsers();
+      setDeleteDialog({ open: false, type: null, id: null, name: null });
+    } catch (error) {
+      console.error(error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to delete user.",
+      });
+    }
+  };
+
   // Consolidated Handlers passed to components
   const handleDeleteListing = async (id: string) => {
     try {
@@ -447,6 +472,12 @@ export default function AdminDashboard() {
     inspectionFee: number
   ) => {
     try {
+      // Logic for status based on package
+      // EZPRIME: status = "approved", availability_status = "available"
+      // EZVANTAGE: status = "approved", availability_status = "upgrade_pending"
+      const isPrime = property.landlord_package === "prime";
+      const availabilityStatus = isPrime ? "available" : "upgrade_pending";
+
       const response = await fetch(`${API_BASE_URL}/property/approve`, {
         method: "POST",
         headers: {
@@ -456,6 +487,8 @@ export default function AdminDashboard() {
         body: JSON.stringify({
           property_registration_id: property.id,
           inspection_fee: inspectionFee,
+          status: "approved",
+          availability_status: availabilityStatus,
         }),
       });
 
@@ -466,9 +499,8 @@ export default function AdminDashboard() {
 
       toast({
         title: "Approved",
-        description: `Listing approved with inspection fee ₦${inspectionFee.toLocaleString()}`,
+        description: `Listing approved as ${isPrime ? "Prime" : "Vantage"}. Initial status: ${availabilityStatus}`,
       });
-      fetchProperties();
       fetchListings();
     } catch (error: any) {
       console.error(error);
@@ -481,7 +513,7 @@ export default function AdminDashboard() {
     }
   };
 
-  const handleRejectListing = async (property: Property) => {
+  const handleRejectListing = async (property: Property, comment?: string) => {
     try {
       const response = await fetch(
         `${API_BASE_URL}/property/${property.id}/status`,
@@ -491,12 +523,12 @@ export default function AdminDashboard() {
             "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
           },
-          body: JSON.stringify({ status: "rejected" }),
+          body: JSON.stringify({ status: "rejected", comment }),
         }
       );
       if (!response.ok) throw new Error("Failed to reject property");
       toast({ title: "Rejected", description: "Listing submission rejected." });
-      fetchProperties();
+      fetchListings();
     } catch (error) {
       console.error(error);
       toast({
@@ -505,6 +537,29 @@ export default function AdminDashboard() {
         description: "Failed to reject listing.",
       });
       throw error;
+    }
+  };
+
+  const handleUpdateAvailability = async (id: string, status: string) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/listings/${id}/availability`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ availability_status: status }),
+      });
+      if (!response.ok) throw new Error("Failed to update availability");
+      toast({ title: "Updated", description: `Property marked as ${status}.` });
+      fetchListings();
+    } catch (error) {
+      console.error(error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to update availability.",
+      });
     }
   };
 
@@ -533,6 +588,7 @@ export default function AdminDashboard() {
       pending: "bg-yellow-100 text-yellow-800",
       in_review: "bg-blue-50 text-blue-600",
       rejected: "bg-red-100 text-red-800",
+      upgrade_pending: "bg-amber-100 text-amber-800",
     };
     const colorClass = variants[status] || "bg-gray-100 text-gray-800";
     return (
@@ -542,21 +598,32 @@ export default function AdminDashboard() {
     );
   };
 
-  // Combine properties (pending) and listings (approved) for ListingsTab
-  // Filter properties to exclude approved ones to avoid duplicates if API overlaps
-  const combinedListings = [
-    ...data.properties.filter((p) => p.status !== "approved"),
-    ...data.listings,
-  ];
+  // Listings for ListingsTab
+  // Since properties endpoint is removed, we use only the listings data
+  const combinedListings = data.listings;
 
   return (
     <div className="flex min-h-screen bg-gray-50 font-sans">
-      {/* Sidebar */}
-      <Sidebar
-        activeTab={activeTab}
-        setActiveTab={setActiveTab}
-        onLogout={logout}
-      />
+      {/* Sidebar - Desktop */}
+      <div className="hidden md:block">
+        <Sidebar
+          activeTab={activeTab}
+          setActiveTab={setActiveTab}
+          onLogout={logout}
+        />
+      </div>
+
+      {/* Sidebar - Mobile */}
+      <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
+        <SheetContent side="left" className="p-0 w-64">
+          <Sidebar
+            activeTab={activeTab}
+            setActiveTab={setActiveTab}
+            onLogout={logout}
+            onClose={() => setMobileMenuOpen(false)}
+          />
+        </SheetContent>
+      </Sheet>
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
@@ -570,13 +637,13 @@ export default function AdminDashboard() {
           {activeTab === "overview" && (
             <OverviewTab
               stats={stats}
-              properties={data.properties}
+              properties={data.listings} // Show approved listings in Overview as per requirement
               applications={data.applications}
               loading={loading}
               getStatusBadge={getStatusBadge}
               formatPrice={formatPrice}
               formatDate={formatDate}
-              fetchProperties={fetchProperties}
+              fetchProperties={fetchListings} // Refresh listings instead
               fetchApplications={fetchApplications}
             />
           )}
@@ -584,9 +651,8 @@ export default function AdminDashboard() {
           {activeTab === "listings" && (
             <ListingsTab
               listings={combinedListings}
-              loading={loading.properties || loading.listings}
+              loading={loading.listings}
               fetchListings={() => {
-                fetchProperties();
                 fetchListings();
               }}
               formatPrice={formatPrice}
@@ -594,6 +660,7 @@ export default function AdminDashboard() {
               getStatusBadge={getStatusBadge}
               onApprove={handleApproveListing}
               onReject={handleRejectListing}
+              onUpdateAvailability={handleUpdateAvailability}
               onDelete={(id) => handleDeleteListing(id)}
             />
           )}
@@ -617,28 +684,56 @@ export default function AdminDashboard() {
           {/* Users & Landlords - keeping simplified placeholders or existing logic if I had the full components */}
           {/* Note: In a real scenario I would reuse the table logic for Users/Landlords here similar to above tabs */}
           {activeTab === "users" && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Users</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p>User management table goes here.</p>
-              </CardContent>
-            </Card>
+            <UsersTab
+              users={data.users}
+              loading={loading.users}
+              fetchUsers={fetchUsers}
+              formatDate={formatDate}
+              onRegisterAdmin={handleRegisterAdmin}
+              onDeleteUser={handleDeleteUser}
+            />
           )}
 
           {activeTab === "landlords" && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Landlords</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p>Landlord management table goes here.</p>
-              </CardContent>
-            </Card>
+            <LandlordsTab
+              landlords={data.landlords}
+              loading={loading.landlords}
+              fetchLandlords={fetchLandlords}
+              formatDate={formatDate}
+              getStatusBadge={getStatusBadge}
+            />
           )}
         </main>
       </div>
+
+      {/* Deletion Confirmation Dialog */}
+      <AlertDialog
+        open={deleteDialog.open}
+        onOpenChange={(open) =>
+          setDeleteDialog((prev) => ({ ...prev, open }))
+        }
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete the{" "}
+              {deleteDialog.type === "listing" ? "listing" : "user"}{" "}
+              <span className="font-semibold text-gray-900">"{deleteDialog.name}"</span>{" "}
+              from the system.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={deleteDialog.type === "listing" ? confirmDeleteListing : confirmDeleteUser}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

@@ -37,11 +37,7 @@ import {
   RefreshCw,
   AlertCircle,
   Eye,
-  CheckCircle,
-  XCircle,
-  Clock,
-  Edit,
-  Trash2,
+   Trash2,
 } from "lucide-react";
 import {
   Select,
@@ -72,14 +68,15 @@ interface Property {
 }
 
 interface ListingsTabProps {
-  listings: Property[]; // Contains ALL listings (pending + approved) ideally, or we might need separate props if data sources differ
+  listings: Property[]; // Contains ALL properties (pending + approved)
   loading: boolean;
   fetchListings: () => void;
   formatPrice: (price: number | null) => string;
   formatDate: (dateString: string) => string;
   getStatusBadge: (status: string) => JSX.Element;
   onApprove: (property: Property, inspectionFee: number) => Promise<void>;
-  onReject: (property: Property) => Promise<void>;
+  onReject: (property: Property, comment?: string) => Promise<void>;
+  onUpdateAvailability: (id: string, status: string) => Promise<void>;
   onDelete: (id: string, name: string) => void;
 }
 
@@ -92,6 +89,7 @@ export default function ListingsTab({
   getStatusBadge,
   onApprove,
   onReject,
+  onUpdateAvailability,
   onDelete,
 }: ListingsTabProps) {
   const [activeSubTab, setActiveSubTab] = useState("approved");
@@ -107,6 +105,17 @@ export default function ListingsTab({
     property: null,
   });
   const [inspectionFee, setInspectionFee] = useState<string>("");
+
+  // Rejection Dialog State
+  const [rejectionDialog, setRejectionDialog] = useState<{
+    open: boolean;
+    property: Property | null;
+    comment: string;
+  }>({
+    open: false,
+    property: null,
+    comment: "",
+  });
 
   // Filter Logic
   const filteredListings = listings.filter((listing) => {
@@ -126,16 +135,9 @@ export default function ListingsTab({
         : listing.status === statusFilter);
 
     // Tab Filter (Pending vs Approved)
-    // NOTE: This logic depends on how data is returned.
-    // If 'status' is 'approved', it goes to Approved tab.
-    // If 'status' is 'pending', 'submitted', 'in_review', etc., it goes to Pending tab.
-    // existing logic in page.tsx used 'status' for submissions and 'availability_status' for listings.
-    // We need to robustly check.
     const isApproved =
       listing.status === "approved" ||
-      listing.availability_status === "available" ||
-      listing.availability_status === "rented" ||
-      listing.availability_status === "maintenance";
+      ["available", "rented", "maintenance", "upgrade_pending"].includes(listing.availability_status);
 
     if (activeSubTab === "approved") {
       return matchesSearch && matchesStatusFilter && isApproved;
@@ -152,8 +154,18 @@ export default function ListingsTab({
           setInspectionFee("");
         })
         .catch(() => {
-          // Error handling done in parent usually
+          // Error handling done in parent
         });
+    }
+  };
+
+  const handleRejectClick = () => {
+    if (rejectionDialog.property) {
+      onReject(rejectionDialog.property, rejectionDialog.comment)
+        .then(() => {
+          setRejectionDialog({ open: false, property: null, comment: "" });
+        })
+        .catch(() => {});
     }
   };
 
@@ -167,8 +179,8 @@ export default function ListingsTab({
             className="w-full md:w-auto"
           >
             <TabsList>
-              <TabsTrigger value="pending">Pending Requests</TabsTrigger>
-              <TabsTrigger value="approved">Active Listings</TabsTrigger>
+              <TabsTrigger value="pending">Submission Requests</TabsTrigger>
+              <TabsTrigger value="approved">Manage Properties</TabsTrigger>
             </TabsList>
           </Tabs>
 
@@ -208,6 +220,7 @@ export default function ListingsTab({
               {activeSubTab === "approved" ? (
                 <>
                   <SelectItem value="available">Available</SelectItem>
+                  <SelectItem value="upgrade_pending">Upgrade Pending</SelectItem>
                   <SelectItem value="rented">Rented</SelectItem>
                   <SelectItem value="maintenance">Maintenance</SelectItem>
                 </>
@@ -312,21 +325,45 @@ export default function ListingsTab({
                                 </Button>
                               </DialogTrigger>
                               <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
-                                <PropertyReviewDialog
-                                  property={item}
-                                  onApprove={() =>
-                                    setApprovalDialog({
+                                  <PropertyReviewDialog
+                                    property={item}
+                                    onApprove={() =>
+                                      setApprovalDialog({
+                                        open: true,
+                                        property: item,
+                                      })
+                                    }
+                                    onReject={() => setRejectionDialog({
                                       open: true,
                                       property: item,
-                                    })
-                                  }
-                                  onReject={() => onReject(item)}
-                                />
-                              </DialogContent>
-                            </Dialog>
+                                      comment: ""
+                                    })}
+                                  />
+                                </DialogContent>
+                              </Dialog>
                           </>
                         ) : (
                           <>
+                            {item.availability_status === "upgrade_pending" && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="bg-green-50 text-green-700 hover:bg-green-100 border-green-200"
+                                onClick={() => onUpdateAvailability(item.id, "available")}
+                              >
+                                Mark Available
+                              </Button>
+                            )}
+                            {item.availability_status === "available" && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="bg-orange-50 text-orange-700 hover:bg-orange-100 border-orange-200"
+                                onClick={() => onUpdateAvailability(item.id, "maintenance")}
+                              >
+                                Maintenance
+                              </Button>
+                            )}
                             <Link
                               href={`/listings/${item.code_name || item.id}`}
                               target="_blank"
@@ -368,7 +405,7 @@ export default function ListingsTab({
       >
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
-            <DialogTitle>Approve Listing</DialogTitle>
+            <DialogTitle>Approve Property & Set Fee</DialogTitle>
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="space-y-2">
@@ -380,7 +417,7 @@ export default function ListingsTab({
                 onChange={(e) => setInspectionFee(e.target.value)}
               />
               <p className="text-xs text-gray-500">
-                This fee will be attached to the approved listing.
+                This fee will be attached to the approved property listing.
               </p>
             </div>
           </div>
@@ -396,6 +433,48 @@ export default function ListingsTab({
               disabled={!inspectionFee || Number(inspectionFee) <= 0}
             >
               Approve & List
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Rejection Dialog with Comment */}
+      <Dialog
+        open={rejectionDialog.open}
+        onOpenChange={(open) =>
+          setRejectionDialog((prev) => ({ ...prev, open }))
+        }
+      >
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Reject Property Submission</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="space-y-2">
+              <Label>Reason for Rejection</Label>
+              <Input
+                placeholder="Enter reason or comment"
+                value={rejectionDialog.comment}
+                onChange={(e) => setRejectionDialog(prev => ({ ...prev, comment: e.target.value }))}
+              />
+              <p className="text-xs text-gray-500">
+                This comment will be shared with the property owner.
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setRejectionDialog({ open: false, property: null, comment: "" })}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleRejectClick}
+              disabled={!rejectionDialog.comment}
+            >
+              Reject Submission
             </Button>
           </DialogFooter>
         </DialogContent>

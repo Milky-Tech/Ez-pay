@@ -14,12 +14,14 @@ interface SidebarProps {
   activeTab: string;
   setActiveTab: (tab: string) => void;
   onLogout: () => void;
+  onClose?: () => void;
 }
 
 export default function Sidebar({
   activeTab,
   setActiveTab,
   onLogout,
+  onClose,
 }: SidebarProps) {
   const navItems = [
     {
@@ -29,7 +31,7 @@ export default function Sidebar({
     },
     {
       id: "listings",
-      label: "Listings",
+      label: "Property",
       icon: <Building2 className="h-5 w-5" />,
     },
     {
@@ -50,7 +52,7 @@ export default function Sidebar({
   ];
 
   return (
-    <div className="hidden md:flex flex-col w-64 bg-white border-r h-screen sticky top-0">
+    <div className="flex flex-col w-full md:w-64 bg-white md:border-r h-full md:h-screen md:sticky top-0">
       <div className="p-6 border-b flex flex-col items-center">
         <div className="relative w-16 h-16 mb-2">
           <Image
@@ -69,7 +71,10 @@ export default function Sidebar({
           {navItems.map((item) => (
             <li key={item.id}>
               <button
-                onClick={() => setActiveTab(item.id)}
+                onClick={() => {
+                  setActiveTab(item.id);
+                  if (onClose) onClose();
+                }}
                 className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-md transition-colors ${
                   activeTab === item.id
                     ? "bg-primary text-white shadow-sm"

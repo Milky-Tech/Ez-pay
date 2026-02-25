@@ -35,7 +35,7 @@ export default function AuthLayout({
       }}
     >
       {/* Dark Overlay */}
-      <div className="absolute inset-0 bg-black/40" />
+      <div className="absolute inset-0 bg-black/20" />
 
       {/* Content Container */}
       <div className="relative z-10 flex h-full w-full flex-col px-6 md:flex-row md:px-12 lg:px-20">
@@ -44,10 +44,10 @@ export default function AuthLayout({
         <div className="flex h-full w-full flex-col justify-center md:w-1/2">
           <div className="mt-12">
            
-          <Link href="/">   <img src="/images/EZPAY-16.png" className="h-28 mb-6 pl-[-5px]" />       </Link>       
+          <Link href="/" className="p-0 m-0">   <img src="/images/EZPAY-16.png" className="h-28 mb-6 pl-[-5px]" />       </Link>       
            
 
-          <div className="mb-2 text-5xl font-bold leading-tight text-white drop-shadow-xl lg:text-5xl">
+          <div className="mb-2 text-[40px] font-bold leading-tight text-white drop-shadow-xl lg:text-5xl">
             {heroTitle || (
               <>
                 Join Thousands <br />

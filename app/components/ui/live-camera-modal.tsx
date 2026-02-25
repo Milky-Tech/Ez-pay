@@ -215,7 +215,7 @@ export const LiveCameraModal = ({
     startCamera();
   };
 
-  const handleDone = () => {
+  const handleDone = (force: boolean = false) => {
     if (capturedImage) {
       fetch(capturedImage)
         .then((res) => res.blob())
@@ -223,7 +223,7 @@ export const LiveCameraModal = ({
           const file = new File([blob], `AI_capture_${Date.now()}.jpg`, {
             type: "image/jpeg",
           });
-          onCapture(file, isValidatedAtCapture, captureMetadata);
+          onCapture(file, force ? false : isValidatedAtCapture, captureMetadata);
           onOpenChange(false);
           setCapturedImage(null);
           setCaptureMetadata(null);
@@ -371,18 +371,24 @@ export const LiveCameraModal = ({
                   <RefreshCw className="mr-2 h-4 w-4" />
                   Retake
                 </Button>
-                <Button
-                  className={`flex-1 h-14 rounded-xl font-bold shadow-lg ${
-                    packageType === "prime" && !isValidatedAtCapture
-                      ? "bg-gray-600 cursor-not-allowed opacity-50"
-                      : "bg-primary hover:bg-primary/90 text-white shadow-primary/20"
-                  }`}
-                  onClick={handleDone}
-                  disabled={packageType === "prime" && !isValidatedAtCapture}
-                >
-                  <Check className="mr-2 h-5 w-5" />
-                  Continue
-                </Button>
+                
+                {packageType === "prime" && !isValidatedAtCapture ? (
+                  <Button
+                    className="flex-1 h-14 rounded-xl font-bold bg-amber-500 hover:bg-amber-600 text-white shadow-lg shadow-amber-500/20"
+                    onClick={() => handleDone(true)}
+                  >
+                    <CheckCircle2 className="mr-2 h-5 w-5" />
+                    Submit Anyway
+                  </Button>
+                ) : (
+                  <Button
+                    className="flex-1 h-14 rounded-xl font-bold bg-primary hover:bg-primary/90 text-white shadow-lg shadow-primary/20"
+                    onClick={() => handleDone(false)}
+                  >
+                    <Check className="mr-2 h-5 w-5" />
+                    Continue
+                  </Button>
+                )}
               </div>
             </div>
           )}
