@@ -1416,6 +1416,7 @@ export default function RentalApplicationContent() {
         onCapture={(file) => handleFileUpload(file, "live_photo")}
         title="Identity Verification Selfie"
         type="live_photo"
+        disableAI={true}
       />
 
       <LiveVideoModal

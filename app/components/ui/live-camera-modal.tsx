@@ -21,6 +21,7 @@ interface LiveCameraModalProps {
   title?: string;
   type?: UploadedFile["type"] | null;
   packageType?: "prime" | "vantage";
+  disableAI?: boolean;
 }
 
 export const LiveCameraModal = ({
@@ -30,6 +31,7 @@ export const LiveCameraModal = ({
   title = "Capture Live Photo",
   type,
   packageType = "prime",
+  disableAI = false,
 }: LiveCameraModalProps) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -99,7 +101,7 @@ export const LiveCameraModal = ({
   };
 
   const runDetection = useCallback(async () => {
-    if (!open || capturedImage || !model) return;
+    if (!open || capturedImage || !model || disableAI) return;
 
     const video = videoRef.current;
     if (video && video.readyState === 4) {
@@ -144,7 +146,7 @@ export const LiveCameraModal = ({
   }, [model, capturedImage, type, open]);
 
   useEffect(() => {
-    if (open && model && !capturedImage) {
+    if (open && model && !capturedImage && !disableAI) {
       detectionRequestId.current = requestAnimationFrame(runDetection);
       return () => {
         if (detectionRequestId.current) {
@@ -197,8 +199,8 @@ export const LiveCameraModal = ({
         context.drawImage(video, 0, 0, canvas.width, canvas.height);
         const imageData = canvas.toDataURL("image/jpeg", 0.9);
         setCapturedImage(imageData);
-        setIsValidatedAtCapture(currentValidation?.scene_match || false);
-        setCaptureMetadata(currentValidation);
+        setIsValidatedAtCapture(disableAI ? true : (currentValidation?.scene_match || false));
+        setCaptureMetadata(disableAI ? null : currentValidation);
         
         if (stream) {
           stream.getTracks().forEach((track) => track.stop());
@@ -266,32 +268,34 @@ export const LiveCameraModal = ({
               />
               
               {/* Guidance Overlay */}
-              <div className="absolute inset-0 pointer-events-none border-[12px] border-white/5 flex flex-col items-center justify-end pb-24">
-                <div className={`px-4 py-2 rounded-full backdrop-blur-md flex flex-col items-center gap-1 transition-all duration-300 max-w-[85%] ${
-                  guidance.type === "warning" ? "bg-red-500/80 text-white" : 
-                  guidance.type === "success" ? "bg-green-500/80 text-white" : 
-                  "bg-white/20 text-white"
-                }`}>
-                  <div className="flex items-center gap-2">
-                    {guidance.type === "warning" ? <AlertCircle className="h-4 w-4" /> : 
-                     guidance.type === "success" ? <CheckCircle2 className="h-4 w-4" /> : 
-                     <Info className="h-4 w-4" />}
-                    <span className="text-xs font-bold font-raleway text-center">{guidance.message}</span>
-                  </div>
-                  
-                  {currentValidation && currentValidation.missing_objects.length > 0 && (
-                    <div className="text-[10px] opacity-90 flex flex-wrap justify-center gap-1 mt-1">
-                      <span className="font-bold">Missing:</span>
-                      {currentValidation.missing_objects.map((obj, i) => (
-                        <span key={i} className="bg-black/20 px-1.5 rounded">{obj}</span>
-                      ))}
+              {!disableAI && (
+                <div className="absolute inset-0 pointer-events-none border-[12px] border-white/5 flex flex-col items-center justify-end pb-24">
+                  <div className={`px-4 py-2 rounded-full backdrop-blur-md flex flex-col items-center gap-1 transition-all duration-300 max-w-[85%] ${
+                    guidance.type === "warning" ? "bg-red-500/80 text-white" : 
+                    guidance.type === "success" ? "bg-green-500/80 text-white" : 
+                    "bg-white/20 text-white"
+                  }`}>
+                    <div className="flex items-center gap-2">
+                      {guidance.type === "warning" ? <AlertCircle className="h-4 w-4" /> : 
+                       guidance.type === "success" ? <CheckCircle2 className="h-4 w-4" /> : 
+                       <Info className="h-4 w-4" />}
+                      <span className="text-xs font-bold font-raleway text-center">{guidance.message}</span>
                     </div>
-                  )}
+                    
+                    {currentValidation && currentValidation.missing_objects.length > 0 && (
+                      <div className="text-[10px] opacity-90 flex flex-wrap justify-center gap-1 mt-1">
+                        <span className="font-bold">Missing:</span>
+                        {currentValidation.missing_objects.map((obj, i) => (
+                          <span key={i} className="bg-black/20 px-1.5 rounded">{obj}</span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
+              )}
 
               {/* Detections Box */}
-              {detections.map((det, i) => (
+              {!disableAI && detections.map((det, i) => (
                 <div 
                   key={i}
                   className="absolute border-2 border-primary/40 pointer-events-none rounded transition-all duration-200"
@@ -326,16 +330,16 @@ export const LiveCameraModal = ({
               </Button>
               <div className="relative group">
                 <div className={`absolute -inset-1 rounded-full blur opacity-50 transition duration-500 ${
-                  currentValidation?.scene_match ? 'bg-green-500 opacity-75' : 'bg-primary'
+                  currentValidation?.scene_match && !disableAI ? 'bg-green-500 opacity-75' : 'bg-primary'
                 }`} />
                 <Button
                   size="icon"
                   className={`h-20 w-20 rounded-full text-black hover:scale-105 active:scale-95 transition-all shadow-2xl relative border-8 border-black ${
-                    guidance.type === 'warning' ? 'bg-gray-300' : 'bg-white'
+                    guidance.type === 'warning' && !disableAI ? 'bg-gray-300' : 'bg-white'
                   }`}
                   onClick={handleCapture}
                 >
-                  <Camera className={`h-10 w-10 ${currentValidation?.scene_match ? 'text-green-600' : ''}`} />
+                  <Camera className={`h-10 w-10 ${(currentValidation?.scene_match && !disableAI) ? 'text-green-600' : ''}`} />
                 </Button>
               </div>
               <Button

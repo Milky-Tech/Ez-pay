@@ -50,6 +50,7 @@ import { useFileUpload, UploadedFile } from "@/hooks/useFileUpload";
 import { NIGERIAN_STATES_LGAS } from "@/lib/nigerian-states";
 import { LiveCameraModal } from "@/app/components/ui/live-camera-modal";
 import Link from "next/link";
+import { getCurrentLocation } from "@/lib/geolocation";
 
 interface AddPropertyViewProps {
   token: string | null;
@@ -76,6 +77,7 @@ export default function AddPropertyView({
   const [formStep, setFormStep] = useState(0);
   const [isAddingProperty, setIsAddingProperty] = useState(false);
   const [consentGiven, setConsentGiven] = useState(false);
+  const [locationData, setLocationData] = useState<any>(null);
   const [expandedSections, setExpandedSections] = useState({
     aesthetics: false,
     power: false,
@@ -204,6 +206,7 @@ export default function AddPropertyView({
         interior_rooms: interiorUrls,
         landlord_package: formData.landlord_package,
         c_of_o: getFileByType("c_of_o")?.url || "",
+        locationData: locationData,
       };
 
       const response = await fetch(`${API_BASE_URL}/listings`, {
@@ -714,8 +717,21 @@ export default function AddPropertyView({
       <LiveCameraModal
         open={cameraConfig.open}
         onOpenChange={(open) => setCameraConfig((prev) => ({ ...prev, open }))}
-        onCapture={(file, isValidated, aiMetadata) => {
+        onCapture={async (file, isValidated, aiMetadata) => {
           if (cameraConfig.type) {
+            const interiorTypes = ["living_room", "bedroom", "kitchen", "rest_room", "others"];
+            if (interiorTypes.includes(cameraConfig.type) && !locationData) {
+              try {
+                const loc = await getCurrentLocation();
+                setLocationData(loc);
+                toast({
+                  title: "Location Captured",
+                  description: "Property location has been automatically recorded.",
+                });
+              } catch (error) {
+                console.error("Failed to fetch location", error);
+              }
+            }
             handleFileUpload(file, cameraConfig.type, cameraConfig.isMultiple, undefined, isValidated, aiMetadata);
           }
         }}
