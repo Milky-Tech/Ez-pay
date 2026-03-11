@@ -9,10 +9,12 @@ const API_BASE_URL =
 export const useLandlordData = (user: any, token: string | null) => {
   const [landlordData, setLandlordData] = useState<any | null>(null);
   const [properties, setProperties] = useState<any[]>([]);
+  const [drafts, setDrafts] = useState<any[]>([]);
   const [applications, setApplications] = useState<any[]>([]);
   const [loading, setLoading] = useState({
     profile: false,
     properties: false,
+    drafts: false,
     applications: false,
   });
   const { toast } = useToast();
@@ -81,6 +83,32 @@ export const useLandlordData = (user: any, token: string | null) => {
     }
   }, [token, user?.id, toast]);
 
+  const fetchDrafts = useCallback(async () => {
+    if (!token) return;
+
+    try {
+      setLoading((prev) => ({ ...prev, drafts: true }));
+      const response = await fetch(`${API_BASE_URL}/my-listings/draft`, {
+        headers: {
+          Accept: "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const allDrafts = data.data || data || [];
+        setDrafts(allDrafts);
+      } else {
+        console.warn("Could not fetch drafts");
+      }
+    } catch (error) {
+      console.error("Error fetching drafts:", error);
+    } finally {
+      setLoading((prev) => ({ ...prev, drafts: false }));
+    }
+  }, [token]);
+
   const fetchApplications = useCallback(
     async (currentProperties: any[]) => {
       if (!token || currentProperties.length === 0) {
@@ -118,8 +146,9 @@ export const useLandlordData = (user: any, token: string | null) => {
     if (token && user?.id) {
       fetchLandlordProfile();
       fetchLandlordProperties();
+      fetchDrafts();
     }
-  }, [token, user?.id, fetchLandlordProfile, fetchLandlordProperties]);
+  }, [token, user?.id, fetchLandlordProfile, fetchLandlordProperties, fetchDrafts]);
 
   useEffect(() => {
     if (properties.length > 0) {
@@ -131,12 +160,14 @@ export const useLandlordData = (user: any, token: string | null) => {
 
   const refreshData = () => {
     fetchLandlordProperties();
+    fetchDrafts();
     fetchApplications(properties);
   };
 
   return {
     landlordData,
     properties,
+    drafts,
     applications,
     loading,
     refreshData,

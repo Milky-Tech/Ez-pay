@@ -30,16 +30,20 @@ import { useRouter } from "next/navigation";
 
 interface PropertiesTabProps {
   properties: any[];
+  drafts: any[];
   loading: boolean;
   onAddProperty: () => void;
   onViewDetails: (id: string) => void;
+  onEditDraft: (id: string) => void;
 }
 
 export default function PropertiesTab({
   properties,
+  drafts,
   loading,
   onAddProperty,
   onViewDetails,
+  onEditDraft,
 }: PropertiesTabProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const router = useRouter();
@@ -51,14 +55,21 @@ export default function PropertiesTab({
       p.property_address?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  const filteredDrafts = drafts.filter(
+    (p) =>
+      p.code_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      p.area?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      p.property_address?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
   const stats = {
     available: filteredProperties.filter((p) => p.availability_status === "available" && p.status === "approved").length,
     rented: filteredProperties.filter((p) => p.availability_status === "rented" || p.availability_status === "occupied").length,
     submitted: filteredProperties.filter((p) => p.status === "pending").length,
-    drafts: filteredProperties.filter((p) => p.status === "draft").length,
+    drafts: filteredDrafts.length,
   };
 
-  const PropertyList = ({ items, emptyMessage, icon: Icon }: { items: any[], emptyMessage: string, icon: any }) => (
+  const PropertyList = ({ items, emptyMessage, icon: Icon, isDraft = false }: { items: any[], emptyMessage: string, icon: any, isDraft?: boolean }) => (
     <div className="space-y-4">
       {items.length === 0 ? (
         <Card className="border-dashed border-2 py-12 text-center bg-transparent">
@@ -74,7 +85,11 @@ export default function PropertiesTab({
         </Card>
       ) : (
         items.map((p) => (
-          <PropertyCard key={p.id} property={p} onViewDetails={onViewDetails} />
+          <PropertyCard 
+            key={p.id} 
+            property={p} 
+            onViewDetails={() => isDraft ? onEditDraft(p.id) : onViewDetails(p.id)} 
+          />
         ))
       )}
     </div>
@@ -150,9 +165,10 @@ export default function PropertiesTab({
         </TabsContent>
         <TabsContent value="drafts" className="mt-0">
           <PropertyList 
-            items={filteredProperties.filter(p => p.status === "draft")}
+            items={filteredDrafts}
             emptyMessage="You have no property drafts."
             icon={FolderOpen}
+            isDraft={true}
           />
         </TabsContent>
       </Tabs>

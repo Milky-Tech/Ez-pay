@@ -10,6 +10,7 @@ import {
 import { Button } from "@/app/components/ui/button";
 import { Camera, RefreshCw, X, Check, FlipHorizontal, AlertCircle, Info, CheckCircle2, AlertTriangle } from "lucide-react";
 import * as cocoSsd from "@tensorflow-models/coco-ssd";
+import * as tf from "@tensorflow/tfjs";
 import { UploadedFile } from "@/hooks/useFileUpload";
 import { useAI } from "@/context/aicontext";
 import { validateRoomFrame, RoomType, ValidationResult } from "@/lib/ai/room-validation";
@@ -46,6 +47,7 @@ export const LiveCameraModal = ({
   const { model, isModelLoading, error: aiError } = useAI();
   const [detections, setDetections] = useState<cocoSsd.DetectedObject[]>([]);
   const [brightness, setBrightness] = useState<number>(0);
+  const [sharpness, setSharpness] = useState<number>(0);
   const [currentValidation, setCurrentValidation] = useState<ValidationResult | null>(null);
   const [guidance, setGuidance] = useState<{ message: string; type: "info" | "warning" | "success" }>({
     message: isModelLoading ? "AI is initializing..." : "Initializing AI guidance...",
@@ -83,21 +85,40 @@ export const LiveCameraModal = ({
     }
   }, [model, isModelLoading, aiError]);
 
-  const calculateBrightness = (video: HTMLVideoElement) => {
-    const canvas = document.createElement("canvas");
-    canvas.width = 100;
-    canvas.height = 100;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return 0;
-    ctx.drawImage(video, 0, 0, 100, 100);
-    const imageData = ctx.getImageData(0, 0, 100, 100);
-    const data = imageData.data;
-    let colorSum = 0;
-    for (let x = 0; x < data.length; x += 4) {
-      const avg = (data[x] + data[x + 1] + data[x + 2]) / 3;
-      colorSum += avg;
+  const checkImageQuality = async (video: HTMLVideoElement) => {
+    try {
+      if (!tf.engine().backendName) {
+        await tf.ready();
+      }
+      return tf.tidy(() => {
+        const tensor = tf.browser.fromPixels(video);
+        
+        // Calculate brightness
+        const grayscale = tf.image.rgbToGrayscale(tensor);
+        const brightnessScore = grayscale.mean().dataSync()[0];
+
+        // Calculate sharpness (variance of Laplacian)
+        const laplacianKernel = tf.tensor2d([
+          [0,  1, 0],
+          [1, -4, 1],
+          [0,  1, 0]
+        ], [3, 3]).expandDims(2).expandDims(3);
+
+        const floatGrayscale = grayscale.asType('float32').expandDims(0);
+        const edges = tf.conv2d(floatGrayscale, laplacianKernel, 1, 'same');
+        
+        const variance = tf.moments(edges).variance.dataSync()[0];
+
+        return {
+          brightness: brightnessScore,
+          sharpness: variance
+        };
+      });
+    } catch (err) {
+      console.error("TFJS QA Error:", err);
+      // Fallback
+      return { brightness: 128, sharpness: 1000 };
     }
-    return colorSum / (100 * 100);
   };
 
   const runDetection = useCallback(async () => {
@@ -111,8 +132,11 @@ export const LiveCameraModal = ({
         setDetections(predictions);
         
         // Quality Check
-        const b = calculateBrightness(video);
+        const qualityResult = await checkImageQuality(video);
+        const b = qualityResult.brightness;
+        const s = qualityResult.sharpness;
         setBrightness(b);
+        setSharpness(s);
 
         // Map component type to validation room type
         let roomKey: RoomType = "living_room";
@@ -131,7 +155,20 @@ export const LiveCameraModal = ({
         let message = result.user_hint;
         let gType: "info" | "warning" | "success" = result.scene_match ? "success" : "info";
 
-        if (b < 30 || b > 230) gType = "warning";
+        // Strict thresholds for validation state
+        if (b < 40) {
+          message = "Too dark! Need more light";
+          gType = "warning";
+          result.scene_match = false;
+        } else if (b > 240) {
+          message = "Too bright or glaring";
+          gType = "warning";
+          result.scene_match = false;
+        } else if (s < 100) {
+          message = "Hold steady, camera is unfocused/blurry";
+          gType = "warning";
+          result.scene_match = false;
+        }
 
         setGuidance({ message, type: gType });
       } catch (err) {

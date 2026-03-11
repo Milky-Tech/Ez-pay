@@ -36,6 +36,21 @@ import {
   AvatarFallback,
   AvatarImage,
 } from "@/app/components/ui/avatar";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/app/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/app/components/ui/select";
+import { NIGERIAN_STATES_LGAS } from "@/lib/nigerian-states";
 import { useToast } from "@/hooks/use-toast";
 import { useLandlordData } from "@/hooks/useLandlordData";
 import { useFileUpload } from "@/hooks/useFileUpload";
@@ -58,9 +73,17 @@ export default function LandlordDashboard() {
   const [searchTerm, setSearchTerm] = useState("");
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isDraftModalOpen, setIsDraftModalOpen] = useState(false);
+  const [isCreatingDraft, setIsCreatingDraft] = useState(false);
+  const [draftData, setDraftData] = useState({
+    property_address: "",
+    state: "",
+    area: "",
+  });
   const {
     landlordData,
     properties,
+    drafts,
     applications,
     loading: dataLoading,
     refreshData,
@@ -185,6 +208,63 @@ export default function LandlordDashboard() {
     }
   };
 
+  const handleCreateDraft = async () => {
+    if (!token || !user?.id) return;
+    
+    if (!draftData.property_address || !draftData.state || !draftData.area) {
+      toast({
+        variant: "destructive",
+        title: "Missing Information",
+        description: "Please provide the state, area, and property address.",
+      });
+      return;
+    }
+
+    setIsCreatingDraft(true);
+    try {
+      const response = await fetch(
+        `${
+          process.env.NEXT_PUBLIC_API_URL || "https://ez-pay.realestway.com/api"
+        }/listings`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            ...draftData,
+            landlord_id: user.id,
+            is_draft: true,
+          }),
+        }
+      );
+
+      if (response.ok) {
+        const result = await response.json();
+        const propertyId = result.data?.id || result.id;
+        
+        toast({
+          title: "Draft Created",
+          description: "Redirecting to edit your property details...",
+        });
+        
+        router.push(`/listings/${propertyId}/edit`);
+      } else {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to create draft");
+      }
+    } catch (error) {
+       toast({
+        variant: "destructive",
+        title: "Draft Creation Failed",
+        description: error instanceof Error ? error.message : "Failed to create draft",
+      });
+    } finally {
+      setIsCreatingDraft(false);
+    }
+  };
+
   const filteredProperties = properties.filter(
     (p) =>
       p.code_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -248,7 +328,7 @@ export default function LandlordDashboard() {
         {isProfileComplete && (
           <Button
             size="sm"
-            onClick={() => setActiveTab("add-property")}
+            onClick={() => setIsDraftModalOpen(true)}
             className="bg-primary"
           >
             <Plus className="h-4 w-4" />
@@ -373,7 +453,7 @@ export default function LandlordDashboard() {
             </Button>
             {isProfileComplete && (
               <Button
-                onClick={() => setActiveTab("add-property")}
+                onClick={() => setIsDraftModalOpen(true)}
                 className="bg-primary hover:bg-primary/90 transition-all font-raleway font-bold shadow-lg shadow-primary/20"
               >
                 <Plus className="h-4 w-4 mr-2" /> Add Property
@@ -578,9 +658,11 @@ export default function LandlordDashboard() {
             {activeTab === "properties" && (
               <PropertiesTab 
                 properties={properties} 
+                drafts={drafts}
                 loading={dataLoading} 
-                onAddProperty={() => setActiveTab("add-property")}
+                onAddProperty={() => setIsDraftModalOpen(true)}
                 onViewDetails={(id) => router.push(`/listings/${id}`)}
+                onEditDraft={(id) => router.push(`/listings/${id}/edit`)}
               />
             )}
 
@@ -1051,7 +1133,71 @@ export default function LandlordDashboard() {
       </main>
 
       {/* Dialogs */}
-      {/* No dialogs needed */}
+      <Dialog open={isDraftModalOpen} onOpenChange={setIsDraftModalOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle className="font-raleway text-xl">Start Property Draft</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="state">State *</Label>
+              <Select
+                value={draftData.state}
+                onValueChange={(v) => setDraftData({ ...draftData, state: v, area: "" })}
+              >
+                <SelectTrigger className="bg-slate-50 border-none h-11">
+                  <SelectValue placeholder="Select state" />
+                </SelectTrigger>
+                <SelectContent>
+                  {Object.keys(NIGERIAN_STATES_LGAS).map((state) => (
+                    <SelectItem key={state} value={state}>{state}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="area">Local Government (Area) *</Label>
+              <Select
+                value={draftData.area}
+                onValueChange={(v) => setDraftData({ ...draftData, area: v })}
+                disabled={!draftData.state}
+              >
+                <SelectTrigger className="bg-slate-50 border-none h-11">
+                  <SelectValue placeholder={draftData.state ? "Select LGA" : "Select state first"} />
+                </SelectTrigger>
+                <SelectContent>
+                  {draftData.state && NIGERIAN_STATES_LGAS[draftData.state]?.map((lga) => (
+                    <SelectItem key={lga} value={lga}>{lga}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="property_address">Property Address *</Label>
+              <Input
+                id="property_address"
+                value={draftData.property_address}
+                onChange={(e) => setDraftData({ ...draftData, property_address: e.target.value })}
+                placeholder="e.g. 15, Admiralty Way, Lekki Phase 1"
+                className="bg-slate-50 border-none h-11"
+              />
+            </div>
+          </div>
+          <div className="flex justify-end gap-3 mt-4">
+            <Button variant="outline" onClick={() => setIsDraftModalOpen(false)}>Cancel</Button>
+            <Button 
+              onClick={handleCreateDraft} 
+              disabled={isCreatingDraft || !draftData.state || !draftData.area || !draftData.property_address}
+              className="bg-primary"
+            >
+              {isCreatingDraft ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+              Create Draft
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
