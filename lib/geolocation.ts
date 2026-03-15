@@ -32,7 +32,9 @@ export const getCurrentLocation = async () => {
             resolve({
               latitude,
               longitude,
-              address,
+              lat: latitude,
+              long: longitude,
+              address: address,
               city,
               state,
               zipCode,

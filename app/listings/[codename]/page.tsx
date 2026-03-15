@@ -927,38 +927,79 @@ export default function PropertyDetailsPage() {
                 </div>
               </div>
 
-              <div className="bg-[#8B2323]/5 rounded-2xl p-6 border border-[#8B2323]/10">
-                <h3 className="text-lg font-semibold text-[#8B2323] mb-4 font-raleway">
-                  Price Breakdown
-                </h3>
-                <div className="space-y-3">
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Monthly Rent:</span>
-                    <span className="font-semibold">
-                      {formatPrice(monthlyCost)}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Annual Rent:</span>
-                    <span className="font-semibold">
-                      {formatPrice(annualCost)}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">
-                      Security Deposit (2 months):
-                    </span>
-                    <span className="font-semibold">
-                      {formatPrice(securityDeposit)}
-                    </span>
-                  </div>
-                  <div className="border-t border-[#8B2323]/20 pt-3 mt-3">
-                    <div className="flex justify-between text-lg font-bold text-[#8B2323]">
-                      <span>Initial Payment:</span>
-                      <span>
-                        {formatPrice(monthlyCost + securityDeposit)}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mt-8">
+                {/* Price Breakdown Section */}
+                <div className="bg-[#8B2323]/5 rounded-2xl p-6 border border-[#8B2323]/10 flex flex-col justify-center">
+                  <h3 className="text-lg font-semibold text-[#8B2323] mb-4 font-raleway">
+                    Price Breakdown
+                  </h3>
+                  <div className="space-y-4">
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Monthly Rent:</span>
+                      <span className="font-semibold text-lg">
+                        {formatPrice(monthlyCost)}
                       </span>
                     </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Annual Rent:</span>
+                      <span className="font-semibold text-lg">
+                        {formatPrice(annualCost)}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">
+                        Security Deposit (2 months):
+                      </span>
+                      <span className="font-semibold text-lg">
+                        {formatPrice(securityDeposit)}
+                      </span>
+                    </div>
+                    <div className="border-t border-[#8B2323]/20 pt-4 mt-2">
+                      <div className="flex justify-between text-xl font-bold text-[#8B2323]">
+                        <span>Initial Payment:</span>
+                        <span>
+                          {formatPrice(monthlyCost + securityDeposit)}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Map Section */}
+                <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden shadow-sm min-h-[300px] flex flex-col">
+                  <div className="p-4 border-b border-gray-100 flex items-center bg-gray-50">
+                    <MapPin className="h-5 w-5 text-[#8B2323] mr-2" />
+                    <h3 className="text-lg font-semibold text-gray-800 font-raleway">
+                      Property Location
+                    </h3>
+                  </div>
+                  <div className="flex-1 w-full bg-gray-100 relative">
+                    {(() => {
+                      const lat = property.locationData?.latitude || property.location_data?.latitude;
+                      const lng = property.locationData?.longitude || property.location_data?.longitude;
+                      const mapQuery = lat && lng 
+                        ? `${lat},${lng}` 
+                        : encodeURIComponent(`${property.property_address || ""}, ${property.area || ""}, ${property.state || ""}, Nigeria`);
+                      
+                      const googleMapsApiKey = "DEMO_KEY"; // Replace with your actual Google Maps API key when provided
+                      // If you have a real key, you can use the official Embed API:
+                      // const mapUrl = \`https://www.google.com/maps/embed/v1/place?key=\${googleMapsApiKey}&q=\${mapQuery}&zoom=15\`;
+                      
+                      // Using the free iframe fallback until a valid key is provided so it doesn't break aesthetically
+                      const mapUrl = `https://maps.google.com/maps?q=${mapQuery}&t=&z=15&ie=UTF8&iwloc=&output=embed`;
+
+                      return (
+                        <iframe
+                          width="100%"
+                          height="100%"
+                          style={{ border: 0, minHeight: "100%", position: "absolute", top: 0, left: 0 }}
+                          loading="lazy"
+                          allowFullScreen
+                          referrerPolicy="no-referrer-when-downgrade"
+                          src={mapUrl}
+                        />
+                      );
+                    })()}
                   </div>
                 </div>
               </div>

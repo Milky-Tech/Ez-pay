@@ -88,7 +88,15 @@ export default function PropertiesTab({
           <PropertyCard 
             key={p.id} 
             property={p} 
-            onViewDetails={() => isDraft ? onEditDraft(p.id) : onViewDetails(p.id)} 
+            onViewDetails={() => {
+              if (isDraft) {
+                // Store draft data to prevent re-fetching on the edit page
+                localStorage.setItem(`draft_${p.id}`, JSON.stringify(p));
+                onEditDraft(p.id);
+              } else {
+                onViewDetails(p.id);
+              }
+            }} 
           />
         ))
       )}

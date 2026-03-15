@@ -290,90 +290,16 @@ const PropertyReviewDialog = ({
     });
   };
 
-  const handleApproveProperty = async () => {
-    setIsProcessing(true);
-    try {
-      // Package specific logic
-      const isPrime = propertyDetails?.landlord_package === "prime" || property.landlord_package === "prime";
-      const availabilityStatus = isPrime ? "available" : "upgrade_pending";
-
-      const response = await fetch(`${API_BASE_URL}/property/approve`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json",
-          Authorization: `Bearer ${token || localStorage.getItem("token")}`,
-        },
-        body: JSON.stringify({
-          property_registration_id: property.id,
-          status: "approved",
-          availability_status: availabilityStatus,
-        }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || "Failed to approve property");
-      }
-
-      // Call the parent's onApprove callback
-      onApprove();
-
-      // Refresh data if callback provided
-      if (refreshData) {
-        refreshData();
-      }
-    } catch (error) {
-      console.error("Approve property error:", error);
-      alert(
-        error instanceof Error
-          ? error.message
-          : "There was an error approving the property."
-      );
-    } finally {
-      setIsProcessing(false);
-      closeConfirmationDialog();
-    }
+  const handleApproveProperty = () => {
+    onApprove();
+    closeConfirmationDialog();
   };
 
-  const handleRejectProperty = async () => {
-    setIsProcessing(true);
-    try {
-      const response = await fetch(
-        `${API_BASE_URL}/property/${property.id}/status`,
-        {
-          method: "PATCH",
-          headers: {
-            "Content-Type": "application/json",
-            Accept: "application/json",
-            Authorization: `Bearer ${token || localStorage.getItem("token")}`,
-          },
-          body: JSON.stringify({ 
-            status: "rejected",
-            comment: rejectComment 
-          }),
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error("Failed to reject property");
-      }
-
-      // Call the parent's onReject callback
-      onReject();
-
-      // Refresh data if callback provided
-      if (refreshData) {
-        refreshData();
-      }
-    } catch (error) {
-      console.error("Reject property error:", error);
-      alert("There was an error rejecting the property.");
-    } finally {
-      setIsProcessing(false);
-      closeConfirmationDialog();
-    }
+  const handleRejectProperty = () => {
+    // If the parent handles the rejection dialog, we just call onReject
+    // If we want to pass the comment back:
+    onReject(); 
+    closeConfirmationDialog();
   };
 
   useEffect(() => {

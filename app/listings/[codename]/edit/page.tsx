@@ -1,3 +1,5 @@
+"use client";
+
 import EditPropertyView from "@/app/components/landlord/EditPropertyView";
 import Header from "@/app/components/header";
 import Footer from "@/app/components/footer";
@@ -22,7 +24,7 @@ export default function EditListingPage({
 }
 
 // Client component wrapper to provide user token
-// import { useAuth } from "@/hooks/useAuth";
+
 import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/context/authcontext";
@@ -39,7 +41,7 @@ function EditPropertyViewWrapper({ propertyId }: { propertyId: string }) {
   return (
     <EditPropertyView
       token={token}
-      user_id={user.id}
+      user_id={String(user.id)}
       propertyId={propertyId}
       onSuccess={() => router.push("/landlord")}
       onCancel={() => router.push("/landlord")}

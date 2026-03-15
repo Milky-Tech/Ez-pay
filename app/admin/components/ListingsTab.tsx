@@ -74,7 +74,7 @@ interface ListingsTabProps {
   formatPrice: (price: number | null) => string;
   formatDate: (dateString: string) => string;
   getStatusBadge: (status: string) => JSX.Element;
-  onApprove: (property: Property, inspectionFee: number) => Promise<void>;
+  onApprove: (property: Property, inspectionFee: number, monthlyRentAscend: number, monthlyRentAnchor: number) => Promise<void>;
   onReject: (property: Property, comment?: string) => Promise<void>;
   onUpdateAvailability: (id: string, status: string) => Promise<void>;
   onDelete: (id: string, name: string) => void;
@@ -105,6 +105,8 @@ export default function ListingsTab({
     property: null,
   });
   const [inspectionFee, setInspectionFee] = useState<string>("");
+  const [monthlyRentAscend, setMonthlyRentAscend] = useState<string>("");
+  const [monthlyRentAnchor, setMonthlyRentAnchor] = useState<string>("");
 
   // Rejection Dialog State
   const [rejectionDialog, setRejectionDialog] = useState<{
@@ -148,10 +150,17 @@ export default function ListingsTab({
 
   const handleApproveClick = () => {
     if (approvalDialog.property && inspectionFee) {
-      onApprove(approvalDialog.property, Number(inspectionFee))
+      onApprove(
+        approvalDialog.property,
+        Number(inspectionFee),
+        Number(monthlyRentAscend) || 0,
+        Number(monthlyRentAnchor) || 0
+      )
         .then(() => {
           setApprovalDialog({ open: false, property: null });
           setInspectionFee("");
+          setMonthlyRentAscend("");
+          setMonthlyRentAnchor("");
         })
         .catch(() => {
           // Error handling done in parent
@@ -408,23 +417,48 @@ export default function ListingsTab({
             <DialogTitle>Approve Property & Set Fee</DialogTitle>
           </DialogHeader>
           <div className="grid gap-4 py-4">
-            <div className="space-y-2">
-              <Label>Inspection Fee (₦)</Label>
-              <Input
-                type="number"
-                placeholder="Enter fee amount"
-                value={inspectionFee}
-                onChange={(e) => setInspectionFee(e.target.value)}
-              />
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label>Inspection Fee (₦) *</Label>
+                <Input
+                  type="number"
+                  placeholder="Enter fee amount"
+                  value={inspectionFee}
+                  onChange={(e) => setInspectionFee(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Monthly Rent Ascend (₦)</Label>
+                <Input
+                  type="number"
+                  placeholder="Enter rent ascend"
+                  value={monthlyRentAscend}
+                  onChange={(e) => setMonthlyRentAscend(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Monthly Rent Anchor (₦)</Label>
+                <Input
+                  type="number"
+                  placeholder="Enter rent anchor"
+                  value={monthlyRentAnchor}
+                  onChange={(e) => setMonthlyRentAnchor(e.target.value)}
+                />
+              </div>
               <p className="text-xs text-gray-500">
-                This fee will be attached to the approved property listing.
+                These values will be attached to the approved property listing.
               </p>
             </div>
           </div>
           <DialogFooter>
             <Button
               variant="outline"
-              onClick={() => setApprovalDialog({ open: false, property: null })}
+              onClick={() => {
+                setApprovalDialog({ open: false, property: null });
+                setInspectionFee("");
+                setMonthlyRentAscend("");
+                setMonthlyRentAnchor("");
+              }}
             >
               Cancel
             </Button>

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Button } from "@/app/components/ui/button";
 import { Input } from "@/app/components/ui/input";
 import { Label } from "@/app/components/ui/label";
@@ -78,6 +78,19 @@ export default function AddPropertyView({
   const [isAddingProperty, setIsAddingProperty] = useState(false);
   const [consentGiven, setConsentGiven] = useState(false);
   const [locationData, setLocationData] = useState<any>(null);
+  const [isPublishing, setIsPublishing] = useState(false);
+
+  useEffect(() => {
+    const captureLocation = async () => {
+      try {
+        const loc = await getCurrentLocation();
+        setLocationData(loc);
+      } catch (error) {
+        console.warn("Failed to capture location on mount:", error);
+      }
+    };
+    captureLocation();
+  }, []);
   const [expandedSections, setExpandedSections] = useState({
     aesthetics: false,
     power: false,
@@ -148,13 +161,18 @@ export default function AddPropertyView({
     return true;
   };
 
-  const handleAddProperty = async () => {
+  const handleAction = async (isPublishingAction: boolean) => {
     if (!token || !user_id) return;
+
+    setIsPublishing(isPublishingAction);
+
+    // Only validate full details if the user is attempting to publish
+    if (isPublishingAction && !validateStep0()) return;
 
     const isVantage = formData.landlord_package === "vantage";
     const isPrime = formData.landlord_package === "prime";
 
-    if (!isVantage && !consentGiven) {
+    if (isPublishingAction && !isVantage && !consentGiven) {
       toast({
         variant: "destructive",
         title: "Consent Required",
@@ -168,35 +186,36 @@ export default function AddPropertyView({
     const powerSystemUrl = powerFiles[0]?.url;
     const exteriorShotUrl = getFileByType("exterior_shot")?.url;
 
-    if (isPrime && powerFiles.length === 0) {
-      toast({
-        variant: "destructive",
-        title: "Missing Requirement",
-        description: "Power System Image is compulsory for Prime package.",
-      });
-      return;
-    }
+    if (isPublishingAction) {
+      if (isPrime && powerFiles.length === 0) {
+        toast({
+          variant: "destructive",
+          title: "Missing Requirement",
+          description: "Power System Image is compulsory for Prime package.",
+        });
+        return;
+      }
 
-    const interiorFiles = getInteriorRoomFiles();
-    const interiorUrls = interiorFiles.map((f) => f.url).filter(Boolean) as string[];
-
-    if (!compoundRoadUrl || !exteriorShotUrl) {
-      toast({
-        variant: "destructive",
-        title: "Missing Files",
-        description: "Please upload required property images (Compound and Exterior Shot)",
-      });
-      return;
+      if (!compoundRoadUrl || !exteriorShotUrl) {
+        toast({
+          variant: "destructive",
+          title: "Missing Files",
+          description: "Please upload required property images (Compound and Exterior Shot)",
+        });
+        return;
+      }
     }
 
     setIsAddingProperty(true);
     try {
+      // 1. Create Property (POST)
       const interiorFiles = getInteriorRoomFiles().filter(f => f.type !== "c_of_o");
       const interiorUrls = interiorFiles.map((f) => f.url).filter(Boolean) as string[];
 
       const propertyData = {
         ...formData,
         landlord_id: user_id,
+        is_draft: 1, // Store as draft first
         number_of_units: parseInt(formData.number_of_units) || 1,
         rent: parseInt(formData.rent) || 0,
         compound_road: compoundRoadUrl,
@@ -219,21 +238,47 @@ export default function AddPropertyView({
         body: JSON.stringify(propertyData),
       });
 
-      if (response.ok) {
-        toast({
-          title: "Property Added",
-          description: "Your property has been added successfully",
-        });
-        onSuccess();
-      } else {
+      if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.message || "Failed to add property");
       }
+
+      const result = await response.json();
+      const propertyId = result.data?.id || result.id;
+
+      // 2. Publish if requested
+      if (isPublishingAction && propertyId) {
+        const publishResponse = await fetch(`${API_BASE_URL}/listings/${propertyId}/publish`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Accept: "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        if (publishResponse.ok) {
+          toast({
+            title: "Property Published",
+            description: "Your property has been submitted for review.",
+          });
+          onSuccess();
+        } else {
+          const errorData = await publishResponse.json();
+          throw new Error(errorData.message || "Property added as draft, but failed to publish.");
+        }
+      } else {
+        toast({
+          title: "Draft Saved",
+          description: "Your property has been saved as a draft.",
+        });
+        onSuccess();
+      }
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : "Failed to add property. Please try again.";
+      const errorMessage = error instanceof Error ? error.message : "Action failed. Please try again.";
       toast({
         variant: "destructive",
-        title: "Add Property Failed",
+        title: isPublishingAction ? "Submit Failed" : "Save Failed",
         description: errorMessage,
       });
     } finally {
@@ -698,16 +743,26 @@ export default function AddPropertyView({
               </div>
 
               <div className="pt-8 border-t border-slate-100 flex flex-col sm:flex-row justify-between items-center gap-4">
-                <Button variant="outline" onClick={() => setFormStep(0)} className="h-12 px-8 rounded-xl font-medium border-slate-200">
+                <Button variant="ghost" onClick={() => setFormStep(0)} className="h-12 px-8 rounded-xl font-medium">
                   Back to Details
                 </Button>
-                <Button 
-                  onClick={handleAddProperty}
-                  disabled={isAddingProperty}
-                  className="bg-primary hover:bg-primary/90 h-12 px-12 rounded-xl font-bold shadow-lg shadow-primary/20"
-                >
-                  {isAddingProperty ? <Loader2 className="animate-spin h-5 w-5 mr-2" /> : "Submit Property"}
-                </Button>
+                <div className="flex gap-4 w-full sm:w-auto">
+                    <Button 
+                        variant="outline"
+                        onClick={() => handleAction(false)}
+                        disabled={isAddingProperty}
+                        className="flex-1 sm:flex-none h-12 px-8 rounded-xl font-bold border-slate-200"
+                    >
+                        {isAddingProperty && !isPublishing ? <Loader2 className="animate-spin h-5 w-5 mr-2" /> : "Save Draft"}
+                    </Button>
+                    <Button 
+                        onClick={() => handleAction(true)}
+                        disabled={isAddingProperty}
+                        className="flex-1 sm:flex-none bg-primary hover:bg-primary/90 h-12 px-12 rounded-xl font-bold shadow-lg shadow-primary/20"
+                    >
+                        {isAddingProperty && isPublishing ? <Loader2 className="animate-spin h-5 w-5 mr-2" /> : "Submit Property"}
+                    </Button>
+                </div>
               </div>
             </div>
           )}

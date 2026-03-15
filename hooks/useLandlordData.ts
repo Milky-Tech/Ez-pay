@@ -88,7 +88,7 @@ export const useLandlordData = (user: any, token: string | null) => {
 
     try {
       setLoading((prev) => ({ ...prev, drafts: true }));
-      const response = await fetch(`${API_BASE_URL}/my-listings/draft`, {
+      const response = await fetch(`${API_BASE_URL}/listings/drafts`, {
         headers: {
           Accept: "application/json",
           Authorization: `Bearer ${token}`,

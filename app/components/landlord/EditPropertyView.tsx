@@ -131,15 +131,34 @@ export default function EditPropertyView({
     let isMounted = true;
     const fetchDraft = async () => {
       try {
-        const res = await fetch(`${API_BASE_URL}/listings/${propertyId}`, {
-          headers: {
-            Authorization: `Bearer ${token}`
+        let property = null;
+
+        // 1. Try to load from Local Storage first
+        const storedDraftStr = typeof window !== "undefined" ? localStorage.getItem(`draft_${propertyId}`) : null;
+        if (storedDraftStr) {
+          try {
+            property = JSON.parse(storedDraftStr);
+            // Optionally remove it so next time we fetch fresh if they come via direct link
+            localStorage.removeItem(`draft_${propertyId}`);
+          } catch (e) {
+            console.error("Failed to parse stored draft", e);
           }
-        });
-        if (res.ok) {
-          const data = await res.json();
-          const property = data.data || data;
-          if (isMounted) {
+        }
+
+        // 2. Fallback to API if not in local storage
+        if (!property) {
+          const res = await fetch(`${API_BASE_URL}/listings/${propertyId}`, {
+            headers: {
+              Authorization: `Bearer ${token}`
+            }
+          });
+          if (res.ok) {
+            const data = await res.json();
+            property = data.data || data;
+          }
+        }
+
+        if (property && isMounted) {
             setFormData({
               property_address: property.property_address || "",
               state: property.state || "",
@@ -154,9 +173,9 @@ export default function EditPropertyView({
               landlord_package: property.landlord_package || "prime",
               c_of_o: property.c_of_o || "",
             });
+            setLocationData(property.locationData || property.location_data || null);
             // If they had c_of_o, consent might be assumed if published, but for draft we reset or set true
             setConsentGiven(true);
-          }
         }
       } catch (e) {
         console.error("Failed to fetch draft:", e);
@@ -176,76 +195,6 @@ export default function EditPropertyView({
     };
   }, [propertyId, token]);
 
-  const [debouncedFormData, setDebouncedFormData] = useState(formData);
-  // Simple debounce for auto-save
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedFormData(formData);
-    }, 1500);
-    return () => clearTimeout(timer);
-  }, [formData]);
-
-  // Handle Auto-Save
-  useEffect(() => {
-    if (isLoading || !propertyId || !token) return;
-    
-    const autoSave = async () => {
-      setIsAutoSaving(true);
-      try {
-        const compoundRoadUrl = getFileByType("compound_road")?.url || formData.compound_road;
-        const powerFiles = getFilesByType("power_system");
-        const powerSystemUrl = powerFiles[0]?.url || formData.power_system;
-        const exteriorShotUrl = getFileByType("exterior_shot")?.url || formData.exterior_shot;
-        
-        const currentInteriorFiles = getInteriorRoomFiles().filter(f => f.type !== "c_of_o");
-        const newInteriorUrls = currentInteriorFiles.map(f => f.url).filter(Boolean) as string[];
-        
-        // Merge existing interior rooms from draft with new ones
-        const allInteriorUrls = Array.from(new Set([...(formData.interior_rooms || []), ...newInteriorUrls]));
-
-        const propertyData = {
-          ...debouncedFormData,
-          number_of_units: parseInt(debouncedFormData.number_of_units) || 1,
-          rent: parseInt(debouncedFormData.rent) || 0,
-          compound_road: compoundRoadUrl,
-          power_system: powerSystemUrl,
-          exterior_shot: exteriorShotUrl,
-          lead_image_url: exteriorShotUrl,
-          interior_rooms: allInteriorUrls,
-          c_of_o: getFileByType("c_of_o")?.url || debouncedFormData.c_of_o,
-          locationData: locationData,
-        };
-
-        const response = await fetch(`${API_BASE_URL}/listings/${propertyId}`, {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-            Accept: "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify(propertyData),
-        });
-
-        if (response.ok) {
-          setLastSaved(new Date());
-        }
-      } catch (e) {
-        console.error("Auto-save failed", e);
-      } finally {
-        setIsAutoSaving(false);
-      }
-    };
-    
-    autoSave();
-  }, [debouncedFormData, getFileByType, getFilesByType, getInteriorRoomFiles, isLoading, locationData, propertyId, token]);
-
-  const toggleSection = (section: keyof typeof expandedSections) => {
-    setExpandedSections((prev) => ({
-      ...prev,
-      [section]: !prev[section],
-    }));
-  };
-
   const validateStep0 = () => {
     if (
       !formData.property_address ||
@@ -254,7 +203,7 @@ export default function EditPropertyView({
       !formData.typology ||
       !formData.rent ||
       !formData.landlord_package ||
-      !getFileByType("c_of_o")
+      (!getFileByType("c_of_o") && !formData.c_of_o)
     ) {
       toast({
         variant: "destructive",
@@ -266,15 +215,15 @@ export default function EditPropertyView({
     return true;
   };
 
-  const handlePublishProperty = async () => {
+  const handleAction = async (isPublishingAction: boolean) => {
     if (!token || !user_id || !propertyId) return;
 
-    if (!validateStep0()) return;
+    if (isPublishingAction && !validateStep0()) return;
 
     const isVantage = formData.landlord_package === "vantage";
     const isPrime = formData.landlord_package === "prime";
 
-    if (!isVantage && !consentGiven) {
+    if (isPublishingAction && !isVantage && !consentGiven) {
       toast({
         variant: "destructive",
         title: "Consent Required",
@@ -288,54 +237,104 @@ export default function EditPropertyView({
     const powerSystemUrl = powerFiles[0]?.url || formData.power_system;
     const exteriorShotUrl = getFileByType("exterior_shot")?.url || formData.exterior_shot;
 
-    if (isPrime && !powerSystemUrl) {
-      toast({
-        variant: "destructive",
-        title: "Missing Requirement",
-        description: "Power System Image is compulsory for Prime package.",
-      });
-      return;
+    if (isPublishingAction) {
+      if (isPrime && !powerSystemUrl) {
+        toast({
+          variant: "destructive",
+          title: "Missing Requirement",
+          description: "Power System Image is compulsory for Prime package.",
+        });
+        return;
+      }
+
+      if (!compoundRoadUrl || !exteriorShotUrl) {
+        toast({
+          variant: "destructive",
+          title: "Missing Files",
+          description: "Please upload required property images (Compound and Exterior Shot)",
+        });
+        return;
+      }
     }
 
-    if (!compoundRoadUrl || !exteriorShotUrl) {
-      toast({
-        variant: "destructive",
-        title: "Missing Files",
-        description: "Please upload required property images (Compound and Exterior Shot)",
-      });
-      return;
+    if (isPublishingAction) {
+      setIsPublishing(true);
+    } else {
+      setIsAutoSaving(true);
     }
 
-    setIsPublishing(true);
     try {
-      const response = await fetch(`${API_BASE_URL}/listings/${propertyId}/publish`, {
-        method: "POST",
+      // 1. Update/Save Progress (PUT)
+      const currentInteriorFiles = getInteriorRoomFiles().filter(f => f.type !== "c_of_o");
+      const newInteriorUrls = currentInteriorFiles.map(f => f.url).filter(Boolean) as string[];
+      const allInteriorUrls = Array.from(new Set([...(formData.interior_rooms || []), ...newInteriorUrls]));
+
+      const propertyData = {
+        ...formData,
+        number_of_units: parseInt(formData.number_of_units) || 1,
+        rent: parseInt(formData.rent) || 0,
+        compound_road: compoundRoadUrl,
+        power_system: powerSystemUrl,
+        exterior_shot: exteriorShotUrl,
+        lead_image_url: exteriorShotUrl,
+        interior_rooms: allInteriorUrls,
+        c_of_o: getFileByType("c_of_o")?.url || formData.c_of_o,
+        locationData: locationData,
+      };
+
+      const updateResponse = await fetch(`${API_BASE_URL}/listings/${propertyId}`, {
+        method: "PATCH",
         headers: {
           "Content-Type": "application/json",
           Accept: "application/json",
           Authorization: `Bearer ${token}`,
         },
+        body: JSON.stringify(propertyData),
       });
 
-      if (response.ok) {
-        toast({
-          title: "Property Published",
-          description: "Your property has been published successfully",
+      if (!updateResponse.ok) {
+        throw new Error("Failed to save changes");
+      }
+
+      setLastSaved(new Date());
+
+      // 2. Publish if requested
+      if (isPublishingAction) {
+        const publishResponse = await fetch(`${API_BASE_URL}/listings/${propertyId}/publish`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Accept: "application/json",
+            Authorization: `Bearer ${token}`,
+          },
         });
-        onSuccess();
+
+        if (publishResponse.ok) {
+          toast({
+            title: "Property Published",
+            description: "Your property has been submitted for review.",
+          });
+          onSuccess();
+        } else {
+          const errorData = await publishResponse.json();
+          throw new Error(errorData.message || "Failed to publish property");
+        }
       } else {
-        const errorData = await response.json();
-        throw new Error(errorData.message || "Failed to publish property");
+        toast({
+          title: "Draft Saved",
+          description: "Your changes have been saved successfully.",
+        });
       }
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : "Failed to publish property. Please try again.";
+      const errorMessage = error instanceof Error ? error.message : "Action failed. Please try again.";
       toast({
         variant: "destructive",
-        title: "Publish Property Failed",
+        title: isPublishingAction ? "Publish Failed" : "Save Failed",
         description: errorMessage,
       });
     } finally {
       setIsPublishing(false);
+      setIsAutoSaving(false);
     }
   };
 
@@ -721,11 +720,21 @@ export default function EditPropertyView({
                       initialImageUrl={formData.power_system}
                       onUpload={(f) => handleFileUpload(f, "power_system", true)}
                       onTrigger={() => setCameraConfig({ open: true, type: "power_system", isMultiple: true })}
-                      onRemove={(id) => removeFile(id)}
+                      onRemove={(id, url) => {
+                        if (id) removeFile(id);
+                        if (url && url === formData.power_system) setFormData(prev => ({...prev, power_system: ""}));
+                      }}
                       instruction="Show the generator, inverter, or solar setup."
                       multi
                     />
-                    <StagingArea files={getFilesByType("power_system")} onRemove={removeFile} />
+                    <StagingArea 
+                      files={getFilesByType("power_system")} 
+                      initialImageUrls={formData.power_system ? [formData.power_system] : []}
+                      onRemove={(id, url) => {
+                        if (id) removeFile(id);
+                        if (url && url === formData.power_system) setFormData(prev => ({...prev, power_system: ""}));
+                      }} 
+                    />
                   </div>
                 </div>
               </div>
@@ -746,11 +755,21 @@ export default function EditPropertyView({
                       type="living_room"
                       onUpload={(f) => handleFileUpload(f, "living_room", true)}
                       onTrigger={() => setCameraConfig({ open: true, type: "living_room", isMultiple: true })}
-                      onRemove={(id) => removeFile(id)}
+                      onRemove={(id, url) => {
+                        if (id) removeFile(id);
+                        if (url) setFormData(prev => ({...prev, interior_rooms: prev.interior_rooms.filter(i => i !== url)}));
+                      }}
                       instruction="Capture main living space from multiple angles."
                       multi
                     />
-                    <StagingArea files={getFilesByType("living_room")} onRemove={removeFile} />
+                    <StagingArea 
+                      files={getFilesByType("living_room")} 
+                      initialImageUrls={formData.interior_rooms}
+                      onRemove={(id, url) => {
+                        if (id) removeFile(id);
+                        if (url) setFormData(prev => ({...prev, interior_rooms: prev.interior_rooms.filter(i => i !== url)}));
+                      }} 
+                    />
                   </div>
 
                   <div className="space-y-3">
@@ -762,11 +781,21 @@ export default function EditPropertyView({
                       type="bedroom"
                       onUpload={(f) => handleFileUpload(f, "bedroom", true)}
                       onTrigger={() => setCameraConfig({ open: true, type: "bedroom", isMultiple: true })}
-                      onRemove={(id) => removeFile(id)}
+                      onRemove={(id, url) => {
+                        if (id) removeFile(id);
+                        if (url) setFormData(prev => ({...prev, interior_rooms: prev.interior_rooms.filter(i => i !== url)}));
+                      }}
                       instruction="Show each bedroom clearly including closets."
                       multi
                     />
-                    <StagingArea files={getFilesByType("bedroom")} onRemove={removeFile} />
+                    <StagingArea 
+                      files={getFilesByType("bedroom")} 
+                      initialImageUrls={formData.interior_rooms}
+                      onRemove={(id, url) => {
+                        if (id) removeFile(id);
+                        if (url) setFormData(prev => ({...prev, interior_rooms: prev.interior_rooms.filter(i => i !== url)}));
+                      }} 
+                    />
                   </div>
 
                   <div className="space-y-3">
@@ -778,11 +807,21 @@ export default function EditPropertyView({
                       type="kitchen"
                       onUpload={(f) => handleFileUpload(f, "kitchen", true)}
                       onTrigger={() => setCameraConfig({ open: true, type: "kitchen", isMultiple: true })}
-                      onRemove={(id) => removeFile(id)}
+                      onRemove={(id, url) => {
+                        if (id) removeFile(id);
+                        if (url) setFormData(prev => ({...prev, interior_rooms: prev.interior_rooms.filter(i => i !== url)}));
+                      }}
                       instruction="Focus on cabinets, sink, and workspace."
                       multi
                     />
-                    <StagingArea files={getFilesByType("kitchen")} onRemove={removeFile} />
+                    <StagingArea 
+                      files={getFilesByType("kitchen")} 
+                      initialImageUrls={formData.interior_rooms}
+                      onRemove={(id, url) => {
+                        if (id) removeFile(id);
+                        if (url) setFormData(prev => ({...prev, interior_rooms: prev.interior_rooms.filter(i => i !== url)}));
+                      }} 
+                    />
                   </div>
 
                   <div className="space-y-3">
@@ -794,11 +833,21 @@ export default function EditPropertyView({
                       type="rest_room"
                       onUpload={(f) => handleFileUpload(f, "rest_room", true)}
                       onTrigger={() => setCameraConfig({ open: true, type: "rest_room", isMultiple: true })}
-                      onRemove={(id) => removeFile(id)}
+                      onRemove={(id, url) => {
+                        if (id) removeFile(id);
+                        if (url) setFormData(prev => ({...prev, interior_rooms: prev.interior_rooms.filter(i => i !== url)}));
+                      }}
                       instruction="Capture toilets, showers, and tiling."
                       multi
                     />
-                    <StagingArea files={getFilesByType("rest_room")} onRemove={removeFile} />
+                    <StagingArea 
+                      files={getFilesByType("rest_room")} 
+                      initialImageUrls={formData.interior_rooms}
+                      onRemove={(id, url) => {
+                        if (id) removeFile(id);
+                        if (url) setFormData(prev => ({...prev, interior_rooms: prev.interior_rooms.filter(i => i !== url)}));
+                      }} 
+                    />
                   </div>
 
                   <div className="space-y-3">
@@ -810,26 +859,46 @@ export default function EditPropertyView({
                       type="others"
                       onUpload={(f) => handleFileUpload(f, "others", true)}
                       onTrigger={() => setCameraConfig({ open: true, type: "others", isMultiple: true })}
-                      onRemove={(id) => removeFile(id)}
+                      onRemove={(id, url) => {
+                        if (id) removeFile(id);
+                        if (url) setFormData(prev => ({...prev, interior_rooms: prev.interior_rooms.filter(i => i !== url)}));
+                      }}
                       instruction="Any other important features of the property."
                       multi
                     />
-                    <StagingArea files={getFilesByType("others")} onRemove={removeFile} />
+                    <StagingArea 
+                      files={getFilesByType("others")} 
+                      initialImageUrls={formData.interior_rooms}
+                      onRemove={(id, url) => {
+                        if (id) removeFile(id);
+                        if (url) setFormData(prev => ({...prev, interior_rooms: prev.interior_rooms.filter(i => i !== url)}));
+                      }} 
+                    />
                   </div>
                 </div>
               </div>
 
               <div className="pt-8 border-t border-slate-100 flex flex-col sm:flex-row justify-between items-center gap-4">
-                <Button variant="outline" onClick={() => setFormStep(0)} className="h-12 px-8 rounded-xl font-medium border-slate-200">
+                <Button variant="ghost" onClick={() => setFormStep(0)} className="h-12 px-8 rounded-xl font-medium">
                   Back to Details
                 </Button>
-                <Button 
-                  onClick={handlePublishProperty}
-                  disabled={isPublishing || isAutoSaving}
-                  className="bg-primary hover:bg-primary/90 h-12 px-12 rounded-xl font-bold shadow-lg shadow-primary/20"
-                >
-                  {isPublishing ? <Loader2 className="animate-spin h-5 w-5 mr-2" /> : "Publish Property"}
-                </Button>
+                <div className="flex gap-4 w-full sm:w-auto">
+                    <Button 
+                        variant="outline"
+                        onClick={() => handleAction(false)}
+                        disabled={isAutoSaving || isPublishing}
+                        className="flex-1 sm:flex-none h-12 px-8 rounded-xl font-bold border-slate-200"
+                    >
+                        {isAutoSaving ? <Loader2 className="animate-spin h-5 w-5 mr-2" /> : "Save Draft"}
+                    </Button>
+                    <Button 
+                        onClick={() => handleAction(true)}
+                        disabled={isPublishing || isAutoSaving}
+                        className="flex-1 sm:flex-none bg-primary hover:bg-primary/90 h-12 px-12 rounded-xl font-bold shadow-lg shadow-primary/20"
+                    >
+                        {isPublishing ? <Loader2 className="animate-spin h-5 w-5 mr-2" /> : "Submit Property"}
+                    </Button>
+                </div>
               </div>
             </div>
           )}
@@ -871,7 +940,7 @@ interface UploadBoxProps {
   initialImageUrl?: string;
   onUpload: (file: File) => void;
   onTrigger?: () => void;
-  onRemove: (id: string) => void;
+  onRemove: (id: string, clearInitial?: any) => void;
   instruction: string;
   multi?: boolean;
 }
@@ -904,14 +973,14 @@ const UploadBox = ({
           </div>
           <div>
             <p className="font-bold text-sm text-slate-900 truncate max-w-[150px]">
-              {file.file.name}
+              {file?.file?.name || "Drafted File"}
             </p>
             <p className="text-xs text-slate-500">
-              {file.uploading
+              {file?.uploading
                 ? "Uploading..."
-                : file.error
+                : file?.error
                   ? "Error"
-                  : "Uploaded Successfully"}
+                  : "Saved"}
             </p>
           </div>
         </div>
@@ -919,7 +988,13 @@ const UploadBox = ({
           variant="ghost"
           size="icon"
           className="h-10 w-10 text-slate-400 hover:text-red-500 hover:bg-red-50"
-          onClick={() => onRemove(file.id)}
+          onClick={() => {
+            if (file) {
+              onRemove(file.id);
+            } else if (initialImageUrl) {
+              onRemove("", true); // Instruct parent to clear initialImageUrl
+            }
+          }}
         >
           <Trash2 className="h-5 w-5" />
         </Button>
@@ -963,13 +1038,39 @@ const UploadBox = ({
 
 interface StagingAreaProps {
   files: UploadedFile[];
-  onRemove: (id: string) => void;
+  initialImageUrls?: string[];
+  onRemove: (id: string, urlToRemove?: string) => void;
 }
 
-const StagingArea = ({ files, onRemove }: StagingAreaProps) => {
-  if (files.length === 0) return null;
+const StagingArea = ({ files, initialImageUrls = [], onRemove }: StagingAreaProps) => {
+  if (files.length === 0 && initialImageUrls.length === 0) return null;
   return (
     <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3 mt-4 p-4 bg-slate-50 rounded-2xl border border-slate-100 max-h-64 overflow-y-auto">
+      {/* Render already saved initial draft images */}
+      {initialImageUrls.map((url, index) => {
+        // Only render if this URL hasn't been uploaded as a new file in this session
+        // (to avoid duplicates if the hook somehow tracks it, though usually hook is fresh)
+        return (
+          <div
+            key={`initial-${index}`}
+            className="relative aspect-square bg-white rounded-xl border border-slate-100 overflow-hidden group shadow-sm transition-transform hover:scale-95"
+          >
+            <img
+              src={url}
+              alt="Drafted"
+              className="w-full h-full object-cover"
+            />
+            <button
+              onClick={() => onRemove("", url)}
+              className="absolute top-1.5 right-1.5 bg-black/50 hover:bg-red-500 text-white rounded-lg p-1.5 opacity-0 group-hover:opacity-100 transition-all backdrop-blur-sm"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        );
+      })}
+
+      {/* Render newly staging files */}
       {files.map((file: UploadedFile) => (
         <div
           key={file.id}

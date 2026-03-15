@@ -447,16 +447,26 @@ export default function AdminDashboard() {
   };
 
   // Consolidated Handlers passed to components
-  const handleDeleteListing = async (id: string) => {
+  const handleDeleteListing = async (id: string, name: string) => {
+    setDeleteDialog({
+      open: true,
+      type: "listing",
+      id,
+      name,
+    });
+  };
+
+  const confirmDeleteListing = async () => {
+    if (!deleteDialog.id) return;
     try {
-      const response = await fetch(`${API_BASE_URL}/listings/${id}`, {
+      const response = await fetch(`${API_BASE_URL}/listings/${deleteDialog.id}`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!response.ok) throw new Error("Failed to delete listing");
       toast({ title: "Deleted", description: "Listing deleted successfully." });
+      setDeleteDialog({ open: false, type: null, id: null, name: null });
       fetchListings(); // refresh listings
-      fetchProperties(); // refresh pending too potentially
     } catch (error) {
       console.error(error);
       toast({
@@ -469,7 +479,9 @@ export default function AdminDashboard() {
 
   const handleApproveListing = async (
     property: Property,
-    inspectionFee: number
+    inspectionFee: number,
+    monthlyRentAscend: number,
+    monthlyRentAnchor: number
   ) => {
     try {
       // Logic for status based on package
@@ -478,15 +490,16 @@ export default function AdminDashboard() {
       const isPrime = property.landlord_package === "prime";
       const availabilityStatus = isPrime ? "available" : "upgrade_pending";
 
-      const response = await fetch(`${API_BASE_URL}/property/approve`, {
-        method: "POST",
+      const response = await fetch(`${API_BASE_URL}/listings/${property.id}`, {
+        method: "PATCH",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
-          property_registration_id: property.id,
           inspection_fee: inspectionFee,
+          monthly_rent_ascend: monthlyRentAscend,
+          monthly_rent_anchor: monthlyRentAnchor,
           status: "approved",
           availability_status: availabilityStatus,
         }),
@@ -661,7 +674,7 @@ export default function AdminDashboard() {
               onApprove={handleApproveListing}
               onReject={handleRejectListing}
               onUpdateAvailability={handleUpdateAvailability}
-              onDelete={(id) => handleDeleteListing(id)}
+              onDelete={(id, name) => handleDeleteListing(id, name)}
             />
           )}
 
