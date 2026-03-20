@@ -176,6 +176,13 @@ export default function EditPropertyView({
             setLocationData(property.locationData || property.location_data || null);
             // If they had c_of_o, consent might be assumed if published, but for draft we reset or set true
             setConsentGiven(true);
+        } else if (isMounted) {
+            toast({
+              variant: "destructive",
+              title: "Property Not Found",
+              description: "Could not load the property details to edit. Please create a draft first.",
+            });
+            onCancel();
         }
       } catch (e) {
         console.error("Failed to fetch draft:", e);

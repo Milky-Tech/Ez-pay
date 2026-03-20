@@ -170,10 +170,10 @@ export default function ProfilePage() {
                 variant="outline"
                 size="sm"
                 onClick={handleLogout}
-                className="hidden sm:flex items-center gap-2"
+                className="flex items-center gap-2"
               >
                 <LogOut className="h-4 w-4" />
-                Sign Out
+                <span className="hidden sm:inline">Sign Out</span>
               </Button>
             </div>
           </div>
@@ -250,6 +250,14 @@ export default function ProfilePage() {
               >
                 <Settings className="h-4 w-4" />
                 Account Settings
+              </Button>
+              <Button
+                variant="ghost"
+                className="w-full justify-start gap-3 h-11 text-red-600 hover:text-red-700 hover:bg-red-50 lg:hidden"
+                onClick={handleLogout}
+              >
+                <LogOut className="h-4 w-4" />
+                Log Out
               </Button>
             </div>
           </div>

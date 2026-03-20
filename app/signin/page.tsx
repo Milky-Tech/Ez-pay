@@ -15,10 +15,11 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/context/authcontext";
 import AuthLayout from "@/app/components/auth/AuthLayout";
+import { GoogleLogin } from "@react-oauth/google";
 
 export default function SignInPage() {
   const router = useRouter();
-  const { login, isAuthenticated, user, message, loading } = useAuth();
+  const { login, googleLogin, isAuthenticated, user, message, loading } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -46,6 +47,19 @@ export default function SignInPage() {
     setError("");
     e.preventDefault();
     await login(email, password);
+  };
+
+  const handleGoogleSuccess = async (credentialResponse: any) => {
+    if (credentialResponse.credential) {
+      const success = await googleLogin(credentialResponse.credential);
+      if (!success) {
+        setError("Google authentication failed.");
+      }
+    }
+  };
+
+  const handleGoogleError = () => {
+    setError("Google Sign-In was unsuccessful. Please try again.");
   };
 
   return (
@@ -155,23 +169,17 @@ export default function SignInPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-4 mb-2">
-        <button className="flex items-center justify-center gap-2 h-10 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors shadow-sm">
-          <img
-            src="https://www.svgrepo.com/show/475656/google-color.svg"
-            className="h-5 w-5"
-            alt="Google"
+      <div className="flex flex-col gap-4 mb-2">
+        <div className="w-full">
+          <GoogleLogin
+            onSuccess={handleGoogleSuccess}
+            onError={handleGoogleError}
+            useOneTap
+            theme="outline"
+            size="large"
+            width="100%"
           />
-          <span className="text-sm font-bold text-gray-700">Google</span>
-        </button>
-        <button className="flex items-center justify-center gap-2 h-10 bg-black rounded-xl hover:bg-gray-900 transition-colors shadow-lg">
-          <img
-            src="https://www.svgrepo.com/show/303102/apple-black-logo.svg"
-            className="h-5 w-5 invert"
-            alt="Apple"
-          />
-          <span className="text-sm font-bold text-white">Apple</span>
-        </button>
+        </div>
       </div>
 
       <p className="text-center text-gray-200 text-sm mt-8">

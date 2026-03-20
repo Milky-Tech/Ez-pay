@@ -2,8 +2,8 @@
 
 import { createContext, useContext, useState, useEffect } from "react";
 
-const BASE_API =
-  process.env.NEXT_PUBLIC_API_URL || "https://ez-pay.realestway.com/api";
+// const BASE_API =  process.env.NEXT_PUBLIC_API_URL || "https://ez-pay.realestway.com/api";
+const BASE_API = 'http://127.0.0.1:8000/api'
 
 type User = {
   id: number;
@@ -21,6 +21,7 @@ type AuthContextType = {
   isAuthenticated: boolean;
   loading: boolean;
   login: (email: string, password: string) => Promise<boolean>;
+  googleLogin: (credential: string) => Promise<boolean>;
   register: (data: RegisterData) => Promise<boolean>;
   logout: () => void;
 };
@@ -130,6 +131,66 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  // Google Login function
+  const googleLogin = async (credential: string): Promise<boolean> => {
+    try {
+      setLoading(true);
+      setMessage("");
+      console.log(`Attempting Google login at: ${BASE_API}/login/google`);
+
+      const response = await fetch(`${BASE_API}/login/google`, {
+        method: "POST",
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ id_token: credential }),
+      });
+
+      let data;
+      const contentType = response.headers.get("content-type");
+      if (contentType && contentType.includes("application/json")) {
+        data = await response.json();
+      } else {
+        const text = await response.text();
+        console.warn("Expected JSON but received from Google login:", text.substring(0, 100));
+        data = { message: "Server returned non-JSON response" };
+      }
+
+      const tokenValue =
+        data?.data?.token ??
+        data?.token ??
+        data?.access_token ??
+        data?.data?.access_token ??
+        null;
+      const userValue = data?.data?.user ?? data?.user ?? null;
+
+      if (response.ok && tokenValue) {
+        localStorage.setItem("token", tokenValue);
+        if (userValue) localStorage.setItem("user", JSON.stringify(userValue));
+
+        setToken(tokenValue);
+        if (userValue) setUser(userValue);
+        setIsAuthenticated(true);
+        return true;
+      } else {
+        const errorMsg =
+          data?.message ||
+          data?.error ||
+          "Google login failed";
+        console.error("Google login failed:", errorMsg);
+        setMessage(errorMsg);
+        return false;
+      }
+    } catch (error) {
+      console.error("Network Error during Google login:", error);
+      setMessage("Network error during Google login. Please try again.");
+      return false;
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Register function
   const register = async (data: RegisterData): Promise<boolean> => {
     try {
@@ -205,6 +266,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         loading,
         token,
         login,
+        googleLogin,
         register,
         logout,
       }}

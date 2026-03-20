@@ -669,23 +669,47 @@ export default function LandlordDashboard() {
                 properties={properties} 
                 drafts={drafts}
                 loading={dataLoading} 
-                onAddProperty={() => setActiveTab("add-property")}
+                onAddProperty={() => {
+                  if (isProfileComplete) {
+                    setActiveTab("add-property");
+                  } else {
+                    toast({
+                      variant: "destructive",
+                      title: "Profile Incomplete",
+                      description: "Please complete your profile to 100% before adding a property.",
+                    });
+                    setActiveTab("settings");
+                  }
+                }}
                 onViewDetails={(id) => router.push(`/listings/${id}`)}
                 onEditDraft={(id) => router.push(`/listings/${id}/edit`)}
               />
             )}
 
             {activeTab === "add-property" && (
-              <AddPropertyView 
-                token={token} 
-                user_id={String(user.id)} 
-                onSuccess={() => {
-                  refreshData();
-                  setActiveTab("properties");
-                }} 
-                onCancel={() => setActiveTab("properties")}
-                toast={toast}
-              />
+              isProfileComplete ? (
+                <AddPropertyView 
+                  token={token} 
+                  user_id={String(user.id)} 
+                  onSuccess={() => {
+                    refreshData();
+                    setActiveTab("properties");
+                  }} 
+                  onCancel={() => setActiveTab("properties")}
+                  toast={toast}
+                />
+              ) : (
+                <div className="flex flex-col items-center justify-center py-20 bg-white rounded-2xl border border-dashed border-amber-200">
+                  <AlertTriangle className="h-12 w-12 text-amber-500 mb-4" />
+                  <h3 className="text-xl font-bold text-slate-900 mb-2">Profile Incomplete</h3>
+                  <p className="text-slate-500 text-center max-w-md mb-6">
+                    You must complete your profile to 100% before you can upload properties.
+                  </p>
+                  <Button onClick={() => setActiveTab("settings")}>
+                    Complete Profile Now
+                  </Button>
+                </div>
+              )
             )}
 
             {activeTab === "applicants" && (

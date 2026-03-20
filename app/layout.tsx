@@ -1,6 +1,6 @@
 import { AuthProvider } from "@/context/authcontext";
 import { AIProvider } from "@/context/aicontext";
-import CookieConsent from "@/app/components/ui/cookie-consent";
+import GoogleProvider from "@/app/components/providers/GoogleProvider";
 import "./globals.css";
 import type { Metadata } from "next";
 import { Raleway, Open_Sans, Montserrat, Great_Vibes, Redressed } from "next/font/google";
@@ -85,12 +85,13 @@ export default function RootLayout({
       className={`${raleway.variable} ${openSans.variable} ${montserrat.variable} ${greatVibes.variable} ${redressed.variable}`}
     >
       <body className="font-open-sans antialiased">
-        <AuthProvider>
-          <AIProvider>
-            {children}
-            <CookieConsent />
-          </AIProvider>
-        </AuthProvider>
+        <GoogleProvider>
+          <AuthProvider>
+            <AIProvider>
+              {children}
+            </AIProvider>
+          </AuthProvider>
+        </GoogleProvider>
       </body>
     </html>
   );
