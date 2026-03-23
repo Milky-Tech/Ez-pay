@@ -37,8 +37,7 @@ import { useFileUpload } from "@/hooks/useFileUpload";
 import { LiveCameraModal } from "@/app/components/ui/live-camera-modal";
 import { LiveVideoModal } from "@/app/components/ui/live-video-modal";
 
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL || "https://ez-pay.realestway.com/api";
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL;
 
 export default function RentalApplicationContent() {
   const params = useParams();
@@ -403,7 +402,7 @@ export default function RentalApplicationContent() {
                       <div className="flex justify-between items-center mb-2">
                         <span className="text-gray-600">Monthly Rent:</span>
                         <span className="text-2xl font-bold text-primary font-raleway">
-                          {formatPrice(property.monthly_cost || property.rent)}
+                          {formatPrice(property.monthly_rent_anchor || property.monthly_cost || property.rent)}
                         </span>
                       </div>
                       <p className="text-sm text-gray-500">
@@ -514,7 +513,8 @@ export default function RentalApplicationContent() {
                                             <div className="mt-2">
                                               <p className="font-semibold text-primary">
                                                 {formatPrice(
-                                                  property.monthly_cost ||
+                                                  property.monthly_rent_anchor ||
+                                                    property.monthly_cost ||
                                                     property.rent,
                                                 )}{" "}
                                                 / month
@@ -558,8 +558,8 @@ export default function RentalApplicationContent() {
                                               <p className="font-semibold text-primary">
                                                 Starting from{" "}
                                                 {formatPrice(
-                                                  (property.monthly_cost ||
-                                                    property.rent) * 0.8,
+                                                  property.monthly_rent_ascend ||
+                                                  ((property.monthly_rent_anchor || property.monthly_cost || property.rent) * 0.8),
                                                 )}{" "}
                                                 / month
                                               </p>

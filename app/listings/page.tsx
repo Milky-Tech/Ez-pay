@@ -30,8 +30,7 @@ import { type Property } from "@/lib/types";
 import PropertyFilter from "./component/filter";
 import Footer from "../components/footer";
 
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL || "https://ez-pay.realestway.com/api";
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL;
 
 export default function ListingsPage() {
   const [properties, setProperties] = useState<Property[]>([]);
@@ -198,7 +197,7 @@ export default function ListingsPage() {
 
                           return roomsArray && roomsArray.length > 0 ? (
                             <img
-                              src={`https://ez-pay.realestway.com/${roomsArray[0]}`}
+                              src={`${process.env.NEXT_PUBLIC_API_URL?.replace("/api", "")}/${roomsArray[0]}`}
                               alt={property.typology}
                               className="h-full w-full object-cover"
                             />

@@ -9,7 +9,7 @@ import { Loader2, CheckCircle2, XCircle, Home } from "lucide-react";
 import { useAuth } from "@/context/authcontext";
 import Link from "next/link";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://ez-pay.realestway.com/api";
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL;
 
 function VerificationContent() {
   const searchParams = useSearchParams();

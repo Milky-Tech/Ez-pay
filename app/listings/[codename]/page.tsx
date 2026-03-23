@@ -63,8 +63,7 @@ import { type Property } from "@/lib/types";
 import { useAuth } from "@/context/authcontext";
 import Footer from "@/app/components/footer";
 
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL || "https://ez-pay.realestway.com/api";
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL;
 const BASEURL_SITE = "https://ezpay.bridgenthomes.com";
 
 const INSPECTION_POLICY = `
@@ -259,9 +258,10 @@ export default function PropertyDetailsPage() {
   const getFullImageUrl = (url: string | undefined) => {
     if (!url) return "";
     const cleanUrl = url.trim();
-    return cleanUrl.startsWith("http")
-      ? cleanUrl
-      : `https://ez-pay.realestway.com/${cleanUrl.startsWith("/") ? cleanUrl.slice(1) : cleanUrl}`;
+    const siteBaseUrl = process.env.NEXT_PUBLIC_API_URL?.replace("/api", "");
+    return url.startsWith("http")
+      ? url
+      : `${siteBaseUrl}/${cleanUrl.startsWith("/") ? cleanUrl.slice(1) : cleanUrl}`;
   };
 
   const validateForm = (): string[] => {
@@ -454,9 +454,9 @@ export default function PropertyDetailsPage() {
   }
 
   // Calculate price breakdown
-  const monthlyCost = (property.rent * 1.1) / 12 / (property.no_of_units || 1);
-  const annualCost = (property.rent * 1.1) / (property.no_of_units || 1);
-  const securityDeposit = monthlyCost * 2;
+  const monthlyCost = property.monthly_rent_anchor || (property.rent * 1.1 / 12);
+  const annualCost = property.desired_annual_rent || (property.rent * 1.1);
+  const securityDeposit = monthlyCost * 3; // EZPAY Anchor standard
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -592,17 +592,41 @@ export default function PropertyDetailsPage() {
               <Card className="sticky top-24 border-none shadow-xl rounded-3xl overflow-hidden">
                 <CardContent className="p-8">
                   <div className="mb-8">
-                    <p className="text-sm text-gray-400 mb-1 font-montserrat">
-                      Monthly EZ-Pay Rent
-                    </p>
-                    <div className="flex items-baseline gap-1">
-                      <p className="text-5xl font-bold text-[#8B2323] font-montserrat">
-                        {formatPrice(monthlyCost)}
-                      </p>
-                      <span className="text-gray-400 text-sm">/month</span>
+                    <div className="flex flex-col gap-4">
+                      <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                        <div className="flex justify-between items-center mb-1">
+                          <p className="text-[10px] font-bold text-primary uppercase tracking-wider">EZPAY ANCHOR</p>
+                          <Badge variant="outline" className="text-[10px] h-5">Standard</Badge>
+                        </div>
+                        <div className="flex items-baseline gap-1">
+                          <p className="text-3xl font-bold text-[#8B2323] font-montserrat">
+                            {formatPrice(property.monthly_rent_anchor || monthlyCost)}
+                          </p>
+                          <span className="text-gray-400 text-xs">/month</span>
+                        </div>
+                        <p className="text-[10px] text-gray-400 font-montserrat mt-1">
+                          Refundable Caution Fee: {formatPrice((property.monthly_rent_anchor || monthlyCost) * 3)} • Requires Guarantor
+                        </p>
+                      </div>
+
+                      <div className="bg-primary/5 p-4 rounded-2xl border border-primary/10">
+                        <div className="flex justify-between items-center mb-1">
+                          <p className="text-[10px] font-bold text-primary uppercase tracking-wider">EZPAY ASCEND</p>
+                          <Badge className="bg-primary text-white text-[10px] h-5 border-none">Zero Caution</Badge>
+                        </div>
+                        <div className="flex items-baseline gap-1">
+                          <p className="text-3xl font-bold text-[#8B2323] font-montserrat">
+                            {formatPrice(property.monthly_rent_ascend || (monthlyCost * 0.8))}
+                          </p>
+                          <span className="text-gray-400 text-xs">/month</span>
+                        </div>
+                        <p className="text-[10px] text-gray-400 font-montserrat mt-1">
+                          No caution fee required • Zero upfront costs
+                        </p>
+                      </div>
                     </div>
-                    <p className="text-sm text-gray-400 mt-2 font-montserrat">
-                      Annual Cost: {formatPrice(annualCost)}
+                    <p className="text-xs text-gray-400 mt-4 font-montserrat">
+                      Annual Total: {formatPrice(annualCost)}
                     </p>
                   </div>
 
@@ -649,8 +673,8 @@ export default function PropertyDetailsPage() {
                                     <p className="font-semibold">
                                       Physical Inspection
                                     </p>
-                                    <Badge className="ml-2 bg-amber-100 text-amber-800">
-                                      ₦50,000
+                                    <Badge className="ml-2 bg-amber-100 text-amber-800 border-none">
+                                      {formatPrice(property.inspection_fee || 50000)}
                                     </Badge>
                                   </div>
                                   <p className="text-sm text-gray-600 mt-1">
@@ -1201,7 +1225,7 @@ export default function PropertyDetailsPage() {
                       ? JSON.parse(rooms)
                       : [];
                   imageUrl = roomsArray && roomsArray.length > 0 
-                    ? `https://ez-pay.realestway.com/${roomsArray[0]}`
+                    ? `${process.env.NEXT_PUBLIC_API_URL?.replace("/api", "")}/${roomsArray[0]}`
                     : "";
                 } catch (e) {
                   imageUrl = "";

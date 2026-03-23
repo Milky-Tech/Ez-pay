@@ -74,6 +74,8 @@ export const metadata: Metadata = {
   },
 };
 
+import { Toaster } from "@/app/components/ui/toaster";
+
 export default function RootLayout({
   children,
 }: {
@@ -92,6 +94,7 @@ export default function RootLayout({
             </AIProvider>
           </AuthProvider>
         </GoogleProvider>
+        <Toaster />
       </body>
     </html>
   );

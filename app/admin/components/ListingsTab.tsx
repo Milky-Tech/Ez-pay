@@ -58,7 +58,7 @@ interface Property {
   area: string;
   state: string;
   monthly_cost: number | null;
-  availability_status: string;
+  listing_status: string;
   status?: string; // For pending properties
   full_name: string;
   rent: number;
@@ -74,7 +74,14 @@ interface ListingsTabProps {
   formatPrice: (price: number | null) => string;
   formatDate: (dateString: string) => string;
   getStatusBadge: (status: string) => JSX.Element;
-  onApprove: (property: Property, inspectionFee: number, monthlyRentAscend: number, monthlyRentAnchor: number) => Promise<void>;
+  onApprove: (
+    property: Property,
+    inspectionFee: number,
+    monthlyRentAscend: number,
+    monthlyRentAnchor: number,
+    upgradeLoan?: number,
+    amortizationPeriod?: number
+  ) => Promise<void>;
   onReject: (property: Property, comment?: string) => Promise<void>;
   onUpdateAvailability: (id: string, status: string) => Promise<void>;
   onDelete: (id: string, name: string) => void;
@@ -96,28 +103,7 @@ export default function ListingsTab({
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
 
-  // Approval Dialog State
-  const [approvalDialog, setApprovalDialog] = useState<{
-    open: boolean;
-    property: Property | null;
-  }>({
-    open: false,
-    property: null,
-  });
-  const [inspectionFee, setInspectionFee] = useState<string>("");
-  const [monthlyRentAscend, setMonthlyRentAscend] = useState<string>("");
-  const [monthlyRentAnchor, setMonthlyRentAnchor] = useState<string>("");
-
-  // Rejection Dialog State
-  const [rejectionDialog, setRejectionDialog] = useState<{
-    open: boolean;
-    property: Property | null;
-    comment: string;
-  }>({
-    open: false,
-    property: null,
-    comment: "",
-  });
+  // Filter Logic
 
   // Filter Logic
   const filteredListings = listings.filter((listing) => {
@@ -133,50 +119,24 @@ export default function ListingsTab({
     const matchesStatusFilter =
       statusFilter === "all" ||
       (activeSubTab === "approved"
-        ? listing.availability_status === statusFilter
+        ? listing.listing_status === statusFilter
         : listing.status === statusFilter);
 
-    // Tab Filter (Pending vs Approved)
+    // Tab Filter (Pending vs Approved vs Upgrading)
+    const isUpgradePending = listing.status === "approved" && listing.listing_status === "upgrade_pending";
     const isApproved =
-      listing.status === "approved" ||
-      ["available", "rented", "maintenance", "upgrade_pending"].includes(listing.availability_status);
+      listing.status === "approved" && !isUpgradePending;
 
     if (activeSubTab === "approved") {
       return matchesSearch && matchesStatusFilter && isApproved;
+    } else if (activeSubTab === "upgrading") {
+      return matchesSearch && matchesStatusFilter && isUpgradePending;
     } else {
-      return matchesSearch && matchesStatusFilter && !isApproved;
+      return matchesSearch && matchesStatusFilter && !isApproved && !isUpgradePending;
     }
   });
 
-  const handleApproveClick = () => {
-    if (approvalDialog.property && inspectionFee) {
-      onApprove(
-        approvalDialog.property,
-        Number(inspectionFee),
-        Number(monthlyRentAscend) || 0,
-        Number(monthlyRentAnchor) || 0
-      )
-        .then(() => {
-          setApprovalDialog({ open: false, property: null });
-          setInspectionFee("");
-          setMonthlyRentAscend("");
-          setMonthlyRentAnchor("");
-        })
-        .catch(() => {
-          // Error handling done in parent
-        });
-    }
-  };
-
-  const handleRejectClick = () => {
-    if (rejectionDialog.property) {
-      onReject(rejectionDialog.property, rejectionDialog.comment)
-        .then(() => {
-          setRejectionDialog({ open: false, property: null, comment: "" });
-        })
-        .catch(() => {});
-    }
-  };
+  // Logic handled in PropertyReviewDialog
 
   return (
     <Card className="border-none shadow-none">
@@ -190,6 +150,7 @@ export default function ListingsTab({
             <TabsList>
               <TabsTrigger value="pending">Submission Requests</TabsTrigger>
               <TabsTrigger value="approved">Manage Properties</TabsTrigger>
+              <TabsTrigger value="upgrading">Pending Upgrades</TabsTrigger>
             </TabsList>
           </Tabs>
 
@@ -229,10 +190,11 @@ export default function ListingsTab({
               {activeSubTab === "approved" ? (
                 <>
                   <SelectItem value="available">Available</SelectItem>
-                  <SelectItem value="upgrade_pending">Upgrade Pending</SelectItem>
                   <SelectItem value="rented">Rented</SelectItem>
                   <SelectItem value="maintenance">Maintenance</SelectItem>
                 </>
+              ) : activeSubTab === "upgrading" ? (
+                <SelectItem value="upgrade_pending">Upgrade Pending</SelectItem>
               ) : (
                 <>
                   <SelectItem value="pending">Pending</SelectItem>
@@ -315,7 +277,7 @@ export default function ListingsTab({
                     <TableCell>
                       {getStatusBadge(
                         activeSubTab === "approved"
-                          ? item.availability_status
+                          ? item.listing_status
                           : item.status || "pending"
                       )}
                     </TableCell>
@@ -336,24 +298,16 @@ export default function ListingsTab({
                               <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
                                   <PropertyReviewDialog
                                     property={item}
-                                    onApprove={() =>
-                                      setApprovalDialog({
-                                        open: true,
-                                        property: item,
-                                      })
-                                    }
-                                    onReject={() => setRejectionDialog({
-                                      open: true,
-                                      property: item,
-                                      comment: ""
-                                    })}
+                                    onApprove={onApprove}
+                                    onReject={onReject}
+                                    refreshData={fetchListings}
                                   />
                                 </DialogContent>
                               </Dialog>
                           </>
                         ) : (
                           <>
-                            {item.availability_status === "upgrade_pending" && (
+                            {item.listing_status === "upgrade_pending" && (
                               <Button
                                 variant="outline"
                                 size="sm"
@@ -363,7 +317,7 @@ export default function ListingsTab({
                                 Mark Available
                               </Button>
                             )}
-                            {item.availability_status === "available" && (
+                            {item.listing_status === "available" && (
                               <Button
                                 variant="outline"
                                 size="sm"
@@ -405,114 +359,6 @@ export default function ListingsTab({
         )}
       </CardContent>
 
-      {/* Approval Dialog with Inspection Fee */}
-      <Dialog
-        open={approvalDialog.open}
-        onOpenChange={(open) =>
-          setApprovalDialog((prev) => ({ ...prev, open }))
-        }
-      >
-        <DialogContent className="sm:max-w-[425px]">
-          <DialogHeader>
-            <DialogTitle>Approve Property & Set Fee</DialogTitle>
-          </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label>Inspection Fee (₦) *</Label>
-                <Input
-                  type="number"
-                  placeholder="Enter fee amount"
-                  value={inspectionFee}
-                  onChange={(e) => setInspectionFee(e.target.value)}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Monthly Rent Ascend (₦)</Label>
-                <Input
-                  type="number"
-                  placeholder="Enter rent ascend"
-                  value={monthlyRentAscend}
-                  onChange={(e) => setMonthlyRentAscend(e.target.value)}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Monthly Rent Anchor (₦)</Label>
-                <Input
-                  type="number"
-                  placeholder="Enter rent anchor"
-                  value={monthlyRentAnchor}
-                  onChange={(e) => setMonthlyRentAnchor(e.target.value)}
-                />
-              </div>
-              <p className="text-xs text-gray-500">
-                These values will be attached to the approved property listing.
-              </p>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => {
-                setApprovalDialog({ open: false, property: null });
-                setInspectionFee("");
-                setMonthlyRentAscend("");
-                setMonthlyRentAnchor("");
-              }}
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={handleApproveClick}
-              disabled={!inspectionFee || Number(inspectionFee) <= 0}
-            >
-              Approve & List
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Rejection Dialog with Comment */}
-      <Dialog
-        open={rejectionDialog.open}
-        onOpenChange={(open) =>
-          setRejectionDialog((prev) => ({ ...prev, open }))
-        }
-      >
-        <DialogContent className="sm:max-w-[425px]">
-          <DialogHeader>
-            <DialogTitle>Reject Property Submission</DialogTitle>
-          </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="space-y-2">
-              <Label>Reason for Rejection</Label>
-              <Input
-                placeholder="Enter reason or comment"
-                value={rejectionDialog.comment}
-                onChange={(e) => setRejectionDialog(prev => ({ ...prev, comment: e.target.value }))}
-              />
-              <p className="text-xs text-gray-500">
-                This comment will be shared with the property owner.
-              </p>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setRejectionDialog({ open: false, property: null, comment: "" })}
-            >
-              Cancel
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={handleRejectClick}
-              disabled={!rejectionDialog.comment}
-            >
-              Reject Submission
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </Card>
   );
 }

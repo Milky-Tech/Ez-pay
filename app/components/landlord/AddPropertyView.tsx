@@ -50,7 +50,8 @@ import { useFileUpload, UploadedFile } from "@/hooks/useFileUpload";
 import { NIGERIAN_STATES_LGAS } from "@/lib/nigerian-states";
 import { LiveCameraModal } from "@/app/components/ui/live-camera-modal";
 import Link from "next/link";
-import { getCurrentLocation } from "@/lib/geolocation";
+import { useGeolocation } from "@/hooks/useGeolocation";
+
 
 interface AddPropertyViewProps {
   token: string | null;
@@ -64,8 +65,7 @@ interface AddPropertyViewProps {
   }) => void;
 }
 
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL || "https://ez-pay.realestway.com/api";
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL;
 
 export default function AddPropertyView({
   token,
@@ -80,17 +80,57 @@ export default function AddPropertyView({
   const [locationData, setLocationData] = useState<any>(null);
   const [isPublishing, setIsPublishing] = useState(false);
 
+  const { position, getPosition, error: geoError } = useGeolocation();
+  
+  // Reverse geocoding when position is captured
   useEffect(() => {
-    const captureLocation = async () => {
-      try {
-        const loc = await getCurrentLocation();
-        setLocationData(loc);
-      } catch (error) {
-        console.warn("Failed to capture location on mount:", error);
+    const reverseGeocode = async () => {
+      if (position && position.lat && position.lng) {
+        try {
+          // Store raw position
+          setLocationData({
+            lat: position.lat,
+            long: position.lng,
+            latitude: position.lat,
+            longitude: position.lng
+          });
+
+          // Perform reverse geocoding to fill form
+          const response = await fetch(
+            `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${position.lat}&longitude=${position.lng}`
+          );
+          const data = await response.json();
+
+          if (data) {
+            const newState = data.localityInfo?.administrative?.find(
+              (a: any) => a.adminLevel <= 4 && NIGERIAN_STATES_LGAS[a.name]
+            )?.name || data.principalSubdivision;
+
+            const newArea = data.locality || data.city || data.localityInfo?.administrative?.find(
+              (a: any) => a.adminLevel > 4
+            )?.name;
+
+            const newAddress = data.localityInfo?.administrative?.[0]?.name || data.label || "";
+
+            setFormData(prev => ({
+              ...prev,
+              state: prev.state || newState || "",
+              area: prev.area || newArea || "",
+              property_address: prev.property_address || newAddress || ""
+            }));
+
+            toast({
+              title: "Location Captured",
+              description: `Property location detected: ${newState || "Unknown State"}`,
+            });
+          }
+        } catch (error) {
+          console.error("Reverse geocoding failed:", error);
+        }
       }
     };
-    captureLocation();
-  }, []);
+    reverseGeocode();
+  }, [position]);
   const [expandedSections, setExpandedSections] = useState({
     aesthetics: false,
     power: false,
@@ -124,15 +164,21 @@ export default function AddPropertyView({
   });
 
   const {
-    uploadedFiles,
-    handleFileUpload,
-    handleBulkInteriorUpload,
+    handleFileUpload: originalHandleFileUpload,
     removeFile,
-    clearUploads,
     getFileByType,
     getFilesByType,
     getInteriorRoomFiles,
   } = useFileUpload(token);
+
+  const handleFileUpload = async (file: File, type: string, isMultiple?: boolean, ...args: any[]) => {
+    const interiorTypes = ["living_room", "bedroom", "kitchen", "rest_room", "others"];
+    if (interiorTypes.includes(type) && !locationData) {
+      getPosition();
+    }
+    // @ts-ignore
+    return originalHandleFileUpload(file, type, isMultiple, ...args);
+  };
 
   const toggleSection = (section: keyof typeof expandedSections) => {
     setExpandedSections((prev) => ({
@@ -142,19 +188,20 @@ export default function AddPropertyView({
   };
 
   const validateStep0 = () => {
-    if (
-      !formData.property_address ||
-      !formData.state ||
-      !formData.area ||
-      !formData.typology ||
-      !formData.rent ||
-      !formData.landlord_package ||
-      !getFileByType("c_of_o")
-    ) {
+    const missingFields: string[] = [];
+    if (!formData.property_address) missingFields.push("Property Address");
+    if (!formData.state) missingFields.push("State");
+    if (!formData.area) missingFields.push("Local Government (Area)");
+    if (!formData.typology) missingFields.push("Property Type");
+    if (!formData.rent) missingFields.push("Monthly Rent");
+    if (!formData.landlord_package) missingFields.push("Listing Package");
+    if (!getFileByType("c_of_o")) missingFields.push("Certificate of Occupancy");
+
+    if (missingFields.length > 0) {
       toast({
         variant: "destructive",
         title: "Missing Information",
-        description: "Please fill in all required fields and upload the Certificate of Occupancy.",
+        description: `Please provide: ${missingFields.join(", ")}.`,
       });
       return false;
     }
@@ -181,26 +228,30 @@ export default function AddPropertyView({
       return;
     }
 
+    const exteriorShotUrl = getFileByType("exterior_shot")?.url;
     const compoundRoadUrl = getFileByType("compound_road")?.url;
     const powerFiles = getFilesByType("power_system");
-    const powerSystemUrl = powerFiles[0]?.url;
-    const exteriorShotUrl = getFileByType("exterior_shot")?.url;
+
+    const missingImages: string[] = [];
+    if (!exteriorShotUrl) missingImages.push("Exterior Shot");
+    if (!compoundRoadUrl) missingImages.push("Compound/Road View");
+    if (isPrime && powerFiles.length === 0) missingImages.push("Power System (Required for Prime)");
 
     if (isPublishingAction) {
-      if (isPrime && powerFiles.length === 0) {
+      if (missingImages.length > 0) {
         toast({
           variant: "destructive",
-          title: "Missing Requirement",
-          description: "Power System Image is compulsory for Prime package.",
+          title: "Missing Required Photos",
+          description: `Please upload: ${missingImages.join(", ")}.`,
         });
         return;
       }
 
-      if (!compoundRoadUrl || !exteriorShotUrl) {
+      if (!isVantage && !consentGiven) {
         toast({
           variant: "destructive",
-          title: "Missing Files",
-          description: "Please upload required property images (Compound and Exterior Shot)",
+          title: "Consent Required",
+          description: "Please confirm that your property meets the ACCESSS standard",
         });
         return;
       }
@@ -218,14 +269,19 @@ export default function AddPropertyView({
         is_draft: 1, // Store as draft first
         number_of_units: parseInt(formData.number_of_units) || 1,
         rent: parseInt(formData.rent) || 0,
-        compound_road: compoundRoadUrl,
-        power_system: powerSystemUrl,
-        exterior_shot: exteriorShotUrl,
-        lead_image_url: exteriorShotUrl,
+        compound_road: getFileByType("compound_road")?.url,
+        power_system: getFilesByType("power_system")[0]?.url,
+        exterior_shot: getFileByType("exterior_shot")?.url,
+        lead_image_url: getFileByType("exterior_shot")?.url,
         interior_rooms: interiorUrls,
         landlord_package: formData.landlord_package,
         c_of_o: getFileByType("c_of_o")?.url || "",
-        locationData: locationData,
+        locationData: locationData ? {
+          ...locationData,
+          city: formData.area || "Unknown",
+          state: formData.state || "Unknown",
+          address: formData.property_address || "Unknown"
+        } : null,
       };
 
       const response = await fetch(`${API_BASE_URL}/listings`, {
@@ -472,7 +528,7 @@ export default function AddPropertyView({
                   </div>
                   
                   <div className="space-y-2">
-                    <Label htmlFor="rent">Monthly Rent (₦) *</Label>
+                    <Label htmlFor="rent">Annual Rent (₦) *</Label>
                     <Input
                       id="rent"
                       type="number"
@@ -483,6 +539,33 @@ export default function AddPropertyView({
                     />
                   </div>
                 </div>
+
+                {/* Google Maps Preview */}
+                {locationData && (
+                  <div className="mt-6 animate-in fade-in duration-500">
+                    <Label className="mb-3 block font-bold text-slate-900 flex items-center gap-2">
+                      <div className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
+                      Verified Property Location
+                    </Label>
+                    <div className="rounded-[2rem] overflow-hidden border border-slate-100 shadow-xl shadow-slate-200/50 aspect-video w-full bg-slate-50 relative group">
+                      <iframe
+                        width="100%"
+                        height="100%"
+                        style={{ border: 0 }}
+                        loading="lazy"
+                        allowFullScreen
+                        referrerPolicy="no-referrer-when-downgrade"
+                        src={`https://www.google.com/maps/embed/v1/place?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}&q=${locationData.lat},${locationData.long}&zoom=16`}
+                        className="grayscale-[0.2] contrast-[1.1] brightness-[1.05]"
+                      ></iframe>
+                      <div className="absolute top-4 right-4 bg-white/90 backdrop-blur-md px-4 py-2 rounded-2xl text-[10px] font-bold text-slate-800 shadow-2xl border border-white/50 flex items-center gap-2 transition-transform group-hover:scale-105">
+                        <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+                        LAT: {locationData.lat.toFixed(6)}, LNG: {locationData.long.toFixed(6)}
+                      </div>
+                      <div className="absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-black/20 to-transparent pointer-events-none" />
+                    </div>
+                  </div>
+                )}
               </div>
 
               {formData.landlord_package === "prime" && (
@@ -776,16 +859,7 @@ export default function AddPropertyView({
           if (cameraConfig.type) {
             const interiorTypes = ["living_room", "bedroom", "kitchen", "rest_room", "others"];
             if (interiorTypes.includes(cameraConfig.type) && !locationData) {
-              try {
-                const loc = await getCurrentLocation();
-                setLocationData(loc);
-                toast({
-                  title: "Location Captured",
-                  description: "Property location has been automatically recorded.",
-                });
-              } catch (error) {
-                console.error("Failed to fetch location", error);
-              }
+              getPosition();
             }
             handleFileUpload(file, cameraConfig.type, cameraConfig.isMultiple, undefined, isValidated, aiMetadata);
           }
@@ -818,10 +892,19 @@ const UploadBox = ({
   multi,
 }: UploadBoxProps) => {
   if (file && !multi) {
+    const isSuccess = file.url && !file.uploading && !file.error;
+    const isError = !!file.error;
+
     return (
-      <div className="border border-primary/20 bg-primary/5 rounded-2xl p-4 flex items-center justify-between animate-in zoom-in-95 duration-200">
+      <div className={`border rounded-2xl p-4 flex items-center justify-between animate-in zoom-in-95 duration-200 ${
+        isError ? "border-red-500 bg-red-50" : 
+        isSuccess ? "border-emerald-500 bg-emerald-50" : 
+        "border-primary/20 bg-primary/5"
+      }`}>
         <div className="flex items-center gap-4">
-          <div className="w-14 h-14 bg-white rounded-xl border flex items-center justify-center overflow-hidden shadow-sm">
+          <div className={`w-14 h-14 bg-white rounded-xl border flex items-center justify-center overflow-hidden shadow-sm ${
+            isError ? "border-red-200" : isSuccess ? "border-emerald-200" : "border-slate-200"
+          }`}>
             {file.url && type !== "c_of_o" ? (
               <img
                 src={file.url}
@@ -829,18 +912,18 @@ const UploadBox = ({
                 className="w-full h-full object-cover"
               />
             ) : (
-              <File className="h-5 w-5 text-primary" />
+              <File className={`h-5 w-5 ${isError ? "text-red-500" : isSuccess ? "text-emerald-500" : "text-primary"}`} />
             )}
           </div>
           <div>
             <p className="font-bold text-sm text-slate-900 truncate max-w-[150px]">
               {file.file.name}
             </p>
-            <p className="text-xs text-slate-500">
+            <p className={`text-xs ${isError ? "text-red-600 font-medium" : isSuccess ? "text-emerald-600 font-medium" : "text-slate-500"}`}>
               {file.uploading
                 ? "Uploading..."
                 : file.error
-                  ? "Error"
+                  ? file.error
                   : "Uploaded Successfully"}
             </p>
           </div>
@@ -848,7 +931,7 @@ const UploadBox = ({
         <Button
           variant="ghost"
           size="icon"
-          className="h-10 w-10 text-slate-400 hover:text-red-500 hover:bg-red-50"
+          className={`h-10 w-10 ${isError ? "text-red-400 hover:text-red-500 hover:bg-red-100" : "text-slate-400 hover:text-red-500 hover:bg-red-50"}`}
           onClick={() => onRemove(file.id)}
         >
           <Trash2 className="h-5 w-5" />
@@ -900,34 +983,43 @@ const StagingArea = ({ files, onRemove }: StagingAreaProps) => {
   if (files.length === 0) return null;
   return (
     <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3 mt-4 p-4 bg-slate-50 rounded-2xl border border-slate-100 max-h-64 overflow-y-auto">
-      {files.map((file: UploadedFile) => (
-        <div
-          key={file.id}
-          className="relative aspect-square bg-white rounded-xl border border-slate-100 overflow-hidden group shadow-sm transition-transform hover:scale-95"
-        >
-          {file.url ? (
-            <img
-              src={file.url}
-              alt="Staged"
-              className="w-full h-full object-cover"
-            />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center bg-slate-50">
-              {file.uploading ? (
-                <Loader2 className="h-5 w-5 animate-spin text-primary" />
-              ) : (
-                <ImageIcon className="h-5 w-5 text-slate-300" />
-              )}
-            </div>
-          )}
-          <button
-            onClick={() => onRemove(file.id)}
-            className="absolute top-1.5 right-1.5 bg-black/50 hover:bg-red-500 text-white rounded-lg p-1.5 opacity-0 group-hover:opacity-100 transition-all backdrop-blur-sm"
+      {files.map((file: UploadedFile) => {
+        const isSuccess = file.url && !file.uploading && !file.error;
+        const isError = !!file.error;
+        
+        return (
+          <div
+            key={file.id}
+            className={`relative aspect-square rounded-xl border overflow-hidden group shadow-sm transition-transform hover:scale-95 ${
+              isError ? "border-red-500 bg-red-50" : 
+              isSuccess ? "border-emerald-500 bg-emerald-50" : 
+              "border-slate-100 bg-white"
+            }`}
           >
-            <Trash2 className="h-3.5 w-3.5" />
-          </button>
-        </div>
-      ))}
+            {file.url ? (
+              <img
+                src={file.url}
+                alt="Staged"
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center bg-slate-50">
+                {file.uploading ? (
+                  <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                ) : (
+                  <ImageIcon className={`h-5 w-5 ${isError ? "text-red-300" : "text-slate-300"}`} />
+                )}
+              </div>
+            )}
+            <button
+              onClick={() => onRemove(file.id)}
+              className="absolute top-1.5 right-1.5 bg-black/50 hover:bg-red-500 text-white rounded-lg p-1.5 opacity-0 group-hover:opacity-100 transition-all backdrop-blur-sm"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        );
+      })}
     </div>
   );
 };

@@ -10,7 +10,6 @@ import {
   RefreshCw,
   Plus,
   Building,
-  Users,
   CreditCard,
   Home,
   LogOut,
@@ -23,6 +22,7 @@ import {
   Upload,
   Trash2,
   Paperclip,
+  Users,
 } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/app/components/ui/button";
@@ -36,21 +36,6 @@ import {
   AvatarFallback,
   AvatarImage,
 } from "@/app/components/ui/avatar";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/app/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/app/components/ui/select";
-import { NIGERIAN_STATES_LGAS } from "@/lib/nigerian-states";
 import { useToast } from "@/hooks/use-toast";
 import { useLandlordData } from "@/hooks/useLandlordData";
 import { useFileUpload } from "@/hooks/useFileUpload";
@@ -169,8 +154,7 @@ export default function LandlordDashboard() {
     try {
       const response = await fetch(
         `${
-          process.env.NEXT_PUBLIC_API_URL || "https://ez-pay.realestway.com/api"
-        }/landlords/${user.id}`,
+          process.env.NEXT_PUBLIC_API_URL }/landlords/${user.id}`,
         {
           method: "PATCH",
           headers: {
@@ -225,7 +209,7 @@ export default function LandlordDashboard() {
 
       const response = await fetch(
         `${
-          process.env.NEXT_PUBLIC_API_URL || "https://ez-pay.realestway.com/api"
+          process.env.NEXT_PUBLIC_API_URL
         }/listings`,
         {
           method: "POST",
@@ -248,10 +232,9 @@ export default function LandlordDashboard() {
         const result = await response.json();
         const propertyId = result.data?.id || result.id;
         
-        toast({
-          title: "Draft Created",
-          description: "Redirecting to edit your property details...",
-        });
+        if (typeof window !== "undefined") {
+          localStorage.setItem(`draft_${propertyId}`, JSON.stringify(result.data || result));
+        }
         
         router.push(`/listings/${propertyId}/edit`);
       } else {
@@ -268,6 +251,7 @@ export default function LandlordDashboard() {
       setIsCreatingDraft(false);
     }
   };
+  
 
   const filteredProperties = properties.filter(
     (p) =>
@@ -280,15 +264,14 @@ export default function LandlordDashboard() {
     totalProperties: properties.length,
     occupiedUnits: properties.filter(
       (p) =>
-        p.availability_status === "rented" ||
-        p.availability_status === "occupied",
+        p.listing_status === "rented"
     ).length,
     totalUnits: properties.reduce(
-      (acc, p) => acc + (p.noOfUnits || p.number_of_units || 1),
+      (acc, p) => acc + (p.number_of_units || 1),
       0,
     ),
     pendingApplications: applications.filter(
-      (a) => a.status === "pending" || a.status === "submitted",
+      (a) => a.status === "pending",
     ).length,
     totalRevenue: properties.reduce((acc, p) => acc + (p.monthly_cost || 0), 0),
   };
@@ -378,7 +361,6 @@ export default function LandlordDashboard() {
           {[
             { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
             { id: "properties", label: "My Properties", icon: Building },
-            { id: "applicants", label: "Applicants", icon: Users },
             { id: "finance", label: "Finance", icon: BarChart3 },
             { id: "settings", label: "Profile Settings", icon: Settings },
           ].map((item) => (
@@ -522,12 +504,6 @@ export default function LandlordDashboard() {
                       color: "bg-emerald-600 shadow-emerald-200",
                     },
                     {
-                      label: "Pending Apps",
-                      value: stats.pendingApplications,
-                      icon: Users,
-                      color: "bg-amber-600 shadow-amber-200",
-                    },
-                    {
                       label: "Monthly Revenue",
                       value: `₦${stats.totalRevenue.toLocaleString()}`,
                       icon: CreditCard,
@@ -559,42 +535,9 @@ export default function LandlordDashboard() {
 
                 {/* Main Content Areas */}
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                  {/* Recent Activity & Quick Stats */}
+                  {/* Quick Actions or Placeholders if needed */}
                   <div className="lg:col-span-2 space-y-8">
-                    <div className="space-y-6">
-                      <div className="flex items-center justify-between">
-                        <h2 className="text-xl font-bold text-slate-900 font-raleway">
-                          Recent Activity
-                        </h2>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="text-primary"
-                          onClick={() => setActiveTab("applicants")}
-                        >
-                          View All
-                        </Button>
-                      </div>
-                      {dataLoading.applications ? (
-                        <div className="flex justify-center py-10">
-                          <Loader2 className="h-6 w-6 animate-spin text-primary" />
-                        </div>
-                      ) : applications.length === 0 ? (
-                        <p className="text-sm text-slate-400 text-center py-10 bg-white rounded-2xl border border-dashed">
-                          No recent activity.
-                        </p>
-                      ) : (
-                        <div className="space-y-3">
-                          {applications.slice(0, 5).map((a) => (
-                            <ApplicationItem
-                              key={a.id}
-                              application={a}
-                              onClick={(id) => router.push(`/listings/apply/${id}`)}
-                            />
-                          ))}
-                        </div>
-                      )}
-                    </div>
+                    {/* You could add a quick guide or empty state summary here */}
                   </div>
 
                   <div className="space-y-8">
@@ -644,16 +587,14 @@ export default function LandlordDashboard() {
                         ) : (
                           <>
                             <p className="text-sm text-primary-foreground/80 mb-6">
-                              You have {stats.pendingApplications} pending
-                              applications. Faster responses typically lead to
-                              higher conversion.
+                              Your profile is complete! You can now upload and manage your properties efficiently.
                             </p>
                             <Button
                               variant="secondary"
                               className="w-full font-bold"
-                              onClick={() => setActiveTab("applicants")}
+                              onClick={() => setActiveTab("properties")}
                             >
-                              Go to Applications
+                              Manage Properties
                             </Button>
                           </>
                         )}
@@ -681,7 +622,13 @@ export default function LandlordDashboard() {
                     setActiveTab("settings");
                   }
                 }}
-                onViewDetails={(id) => router.push(`/listings/${id}`)}
+                onViewDetails={(id, status) => {
+                  if (status !== "approved") {
+                    router.push(`/landlord/listings/${id}/preview`);
+                  } else {
+                    router.push(`/listings/${id}`);
+                  }
+                }}
                 onEditDraft={(id) => router.push(`/listings/${id}/edit`)}
               />
             )}
@@ -712,38 +659,6 @@ export default function LandlordDashboard() {
               )
             )}
 
-            {activeTab === "applicants" && (
-              <div className="space-y-6">
-                <div>
-                  <h2 className="text-2xl font-bold text-slate-900 font-raleway">Property Applicants</h2>
-                  <p className="text-slate-500 text-sm">Review and manage interest in your listings.</p>
-                </div>
-                {dataLoading.applications ? (
-                  <div className="flex justify-center py-20 bg-white rounded-2xl border border-dashed">
-                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                  </div>
-                ) : applications.length === 0 ? (
-                  <Card className="border-dashed border-2 py-12 text-center bg-transparent">
-                    <CardContent className="space-y-4">
-                      <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto">
-                        <Users className="h-8 w-8 text-slate-300" />
-                      </div>
-                      <p className="text-slate-500 font-medium">No application requests yet.</p>
-                    </CardContent>
-                  </Card>
-                ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {applications.map((a) => (
-                      <ApplicationItem
-                        key={a.id}
-                        application={a}
-                        onClick={(id) => router.push(`/listings/apply/${id}`)}
-                      />
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
 
             {activeTab === "finance" && (
               <div className="space-y-6">

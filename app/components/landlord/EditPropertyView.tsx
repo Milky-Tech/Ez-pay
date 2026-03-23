@@ -50,7 +50,7 @@ import { useFileUpload, UploadedFile } from "@/hooks/useFileUpload";
 import { NIGERIAN_STATES_LGAS } from "@/lib/nigerian-states";
 import { LiveCameraModal } from "@/app/components/ui/live-camera-modal";
 import Link from "next/link";
-import { getCurrentLocation } from "@/lib/geolocation";
+import { useGeolocation } from "@/hooks/useGeolocation";
 
 interface EditPropertyViewProps {
   token: string | null;
@@ -65,8 +65,7 @@ interface EditPropertyViewProps {
   }) => void;
 }
 
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL || "https://ez-pay.realestway.com/api";
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL;
 
 export default function EditPropertyView({
   token,
@@ -89,6 +88,58 @@ export default function EditPropertyView({
     comfort: false,
     compound: false,
   });
+
+  const { position, getPosition, error: geoError } = useGeolocation();
+
+  // Reverse geocoding when position is captured
+  useEffect(() => {
+    const reverseGeocode = async () => {
+      if (position && position?.lat && position?.lng) {
+        try {
+          // Store raw position
+          setLocationData({
+            lat: position.lat,
+            long: position.lng,
+            latitude: position.lat,
+            longitude: position.lng
+          });
+
+          // Perform reverse geocoding to fill form (only if empty)
+          const response = await fetch(
+            `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${position.lat}&longitude=${position.lng}`
+          );
+          const data = await response.json();
+
+          if (data) {
+            const newState = data.localityInfo?.administrative?.find(
+              (a: any) => a.adminLevel <= 4 && NIGERIAN_STATES_LGAS[a.name]
+            )?.name || data.principalSubdivision;
+
+            const newArea = data.locality || data.city || data.localityInfo?.administrative?.find(
+              (a: any) => a.adminLevel > 4
+            )?.name;
+
+            const newAddress = data.localityInfo?.administrative?.[0]?.name || data.label || "";
+
+            setFormData(prev => ({
+              ...prev,
+              state: prev.state || newState || "",
+              area: prev.area || newArea || "",
+              property_address: prev.property_address || newAddress || ""
+            }));
+
+            toast({
+              title: "Location Updated",
+              description: `Property location verified: ${newState || "Unknown State"}`,
+            });
+          }
+        } catch (error) {
+          console.error("Reverse geocoding failed:", error);
+        }
+      }
+    };
+    reverseGeocode();
+  }, [position]);
 
   const [cameraConfig, setCameraConfig] = useState<{
     open: boolean;
@@ -117,7 +168,7 @@ export default function EditPropertyView({
 
   const {
     uploadedFiles,
-    handleFileUpload,
+    handleFileUpload: originalHandleFileUpload,
     handleBulkInteriorUpload,
     removeFile,
     clearUploads,
@@ -125,6 +176,15 @@ export default function EditPropertyView({
     getFilesByType,
     getInteriorRoomFiles,
   } = useFileUpload(token);
+
+  const handleFileUpload = async (file: File, type: string, isMultiple?: boolean, ...args: any[]) => {
+    const interiorTypes = ["living_room", "bedroom", "kitchen", "rest_room", "others"];
+    if (interiorTypes.includes(type) && !locationData) {
+      getPosition();
+    }
+    // @ts-ignore
+    return originalHandleFileUpload(file, type, isMultiple, ...args);
+  };
 
   // Fetch initial draft data
   useEffect(() => {
@@ -138,24 +198,15 @@ export default function EditPropertyView({
         if (storedDraftStr) {
           try {
             property = JSON.parse(storedDraftStr);
-            // Optionally remove it so next time we fetch fresh if they come via direct link
-            localStorage.removeItem(`draft_${propertyId}`);
+            console.log("Loaded draft from local storage");
           } catch (e) {
             console.error("Failed to parse stored draft", e);
           }
         }
 
-        // 2. Fallback to API if not in local storage
+        // 2. No API fallback allowed as per requirement
         if (!property) {
-          const res = await fetch(`${API_BASE_URL}/listings/${propertyId}`, {
-            headers: {
-              Authorization: `Bearer ${token}`
-            }
-          });
-          if (res.ok) {
-            const data = await res.json();
-            property = data.data || data;
-          }
+          console.warn("Property draft not found in local storage", propertyId);
         }
 
         if (property && isMounted) {
@@ -174,15 +225,14 @@ export default function EditPropertyView({
               c_of_o: property.c_of_o || "",
             });
             setLocationData(property.locationData || property.location_data || null);
-            // If they had c_of_o, consent might be assumed if published, but for draft we reset or set true
             setConsentGiven(true);
         } else if (isMounted) {
+            console.error("Property not found or failed to load", propertyId);
             toast({
               variant: "destructive",
               title: "Property Not Found",
-              description: "Could not load the property details to edit. Please create a draft first.",
+              description: "Could not load the property details to edit. Please try again from the dashboard.",
             });
-            onCancel();
         }
       } catch (e) {
         console.error("Failed to fetch draft:", e);
@@ -265,13 +315,14 @@ export default function EditPropertyView({
     }
 
     if (isPublishingAction) {
-      setIsPublishing(true);
+           setIsPublishing(true);
     } else {
       setIsAutoSaving(true);
     }
 
     try {
       // 1. Update/Save Progress (PUT)
+      setIsAutoSaving(true); // Ensure it's set during the process
       const currentInteriorFiles = getInteriorRoomFiles().filter(f => f.type !== "c_of_o");
       const newInteriorUrls = currentInteriorFiles.map(f => f.url).filter(Boolean) as string[];
       const allInteriorUrls = Array.from(new Set([...(formData.interior_rooms || []), ...newInteriorUrls]));
@@ -286,11 +337,16 @@ export default function EditPropertyView({
         lead_image_url: exteriorShotUrl,
         interior_rooms: allInteriorUrls,
         c_of_o: getFileByType("c_of_o")?.url || formData.c_of_o,
-        locationData: locationData,
+        locationData: locationData ? {
+          ...locationData,
+          city: formData.area || "Unknown",
+          state: formData.state || "Unknown",
+          address: formData.property_address || "Unknown"
+        } : null,
       };
 
       const updateResponse = await fetch(`${API_BASE_URL}/listings/${propertyId}`, {
-        method: "PATCH",
+        method: "PUT",
         headers: {
           "Content-Type": "application/json",
           Accept: "application/json",
@@ -347,9 +403,26 @@ export default function EditPropertyView({
 
   if (isLoading) {
     return (
-      <div className="flex justify-center items-center py-20">
+      <div className="flex flex-col justify-center items-center py-20 bg-white rounded-3xl border border-slate-100 shadow-sm">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        <span className="ml-2 font-medium text-slate-500">Loading draft details...</span>
+        <span className="mt-4 font-medium text-slate-500">Loading draft details...</span>
+      </div>
+    );
+  }
+
+  if (!formData.property_address && !formData.state) {
+    return (
+      <div className="flex flex-col justify-center items-center py-20 bg-white rounded-3xl border border-slate-100 shadow-sm animate-in fade-in zoom-in-95 duration-300">
+         <div className="w-20 h-20 bg-amber-50 rounded-full flex items-center justify-center mb-6">
+            <AlertTriangle className="h-10 w-10 text-amber-500" />
+         </div>
+         <h3 className="text-2xl font-bold text-slate-900 mb-2 font-raleway">Property Not Found</h3>
+         <p className="text-slate-500 text-center max-w-sm mb-8 px-6">
+            We couldn't retrieve the data for this draft. It may have been deleted or the link is invalid.
+         </p>
+         <Button onClick={onCancel} className="gap-2 bg-primary hover:bg-primary/90 h-12 px-8 rounded-xl font-bold font-raleway shadow-lg shadow-primary/20">
+            <ArrowLeft className="h-4 w-4" /> Go back to Dashboard
+         </Button>
       </div>
     );
   }
@@ -551,7 +624,7 @@ export default function EditPropertyView({
                   </div>
                   
                   <div className="space-y-2">
-                    <Label htmlFor="rent">Monthly Rent (₦) *</Label>
+                    <Label htmlFor="rent">Annual Rent (₦) *</Label>
                     <Input
                       id="rent"
                       type="number"
@@ -562,6 +635,33 @@ export default function EditPropertyView({
                     />
                   </div>
                 </div>
+
+                {/* Google Maps Preview */}
+                {/* {locationData && (
+                  <div className="mt-6 animate-in fade-in duration-500">
+                    <Label className="mb-3 block font-bold text-slate-900 flex items-center gap-2">
+                      <div className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
+                      Verified Property Location
+                    </Label>
+                    <div className="rounded-[2rem] overflow-hidden border border-slate-100 shadow-xl shadow-slate-200/50 aspect-video w-full bg-slate-50 relative group">
+                      <iframe
+                        width="100%"
+                        height="100%"
+                        style={{ border: 0 }}
+                        loading="lazy"
+                        allowFullScreen
+                        referrerPolicy="no-referrer-when-downgrade"
+                        src={`https://www.google.com/maps/embed/v1/place?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}&q=${locationData.lat || locationData.latitude},${locationData.long || locationData.longitude}&zoom=16`}
+                        className="grayscale-[0.2] contrast-[1.1] brightness-[1.05]"
+                      ></iframe>
+                      <div className="absolute top-4 right-4 bg-white/90 backdrop-blur-md px-4 py-2 rounded-2xl text-[10px] font-bold text-slate-800 shadow-2xl border border-white/50 flex items-center gap-2 transition-transform group-hover:scale-105">
+                        <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+                        LAT: {(locationData.lat || locationData.latitude)?.toFixed(6)}, LNG: {(locationData.long || locationData.longitude)?.toFixed(6)}
+                      </div>
+                      <div className="absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-black/20 to-transparent pointer-events-none" />
+                    </div>
+                  </div>
+                )} */}
               </div>
 
               {formData.landlord_package === "prime" && (
@@ -919,16 +1019,7 @@ export default function EditPropertyView({
           if (cameraConfig.type) {
             const interiorTypes = ["living_room", "bedroom", "kitchen", "rest_room", "others"];
             if (interiorTypes.includes(cameraConfig.type) && !locationData) {
-              try {
-                const loc = await getCurrentLocation();
-                setLocationData(loc);
-                toast({
-                  title: "Location Captured",
-                  description: "Property location has been automatically recorded.",
-                });
-              } catch (error) {
-                console.error("Failed to fetch location", error);
-              }
+              getPosition();
             }
             handleFileUpload(file, cameraConfig.type, cameraConfig.isMultiple, undefined, isValidated, aiMetadata);
           }
@@ -964,10 +1055,19 @@ const UploadBox = ({
 }: UploadBoxProps) => {
   if ((file || initialImageUrl) && !multi) {
     const displayUrl = file?.url || initialImageUrl;
+    const isSuccess = (file?.url && !file?.uploading && !file?.error) || (!file && !!initialImageUrl);
+    const isError = !!file?.error;
+
     return (
-      <div className="border border-primary/20 bg-primary/5 rounded-2xl p-4 flex items-center justify-between animate-in zoom-in-95 duration-200">
+      <div className={`border rounded-2xl p-4 flex items-center justify-between animate-in zoom-in-95 duration-200 ${
+        isError ? "border-red-500 bg-red-50" : 
+        isSuccess ? "border-emerald-500 bg-emerald-50" : 
+        "border-primary/20 bg-primary/5"
+      }`}>
         <div className="flex items-center gap-4">
-          <div className="w-14 h-14 bg-white rounded-xl border flex items-center justify-center overflow-hidden shadow-sm">
+          <div className={`w-14 h-14 bg-white rounded-xl border flex items-center justify-center overflow-hidden shadow-sm ${
+            isError ? "border-red-200" : isSuccess ? "border-emerald-200" : "border-slate-200"
+          }`}>
             {displayUrl && type !== "c_of_o" ? (
               <img
                 src={displayUrl}
@@ -982,12 +1082,12 @@ const UploadBox = ({
             <p className="font-bold text-sm text-slate-900 truncate max-w-[150px]">
               {file?.file?.name || "Drafted File"}
             </p>
-            <p className="text-xs text-slate-500">
+            <p className={`text-xs ${isError ? "text-red-500 font-medium" : isSuccess ? "text-emerald-500 font-medium" : "text-slate-500"}`}>
               {file?.uploading
                 ? "Uploading..."
                 : file?.error
-                  ? "Error"
-                  : "Saved"}
+                  ? file.error
+                  : "Saved Successfully"}
             </p>
           </div>
         </div>
@@ -1055,12 +1155,10 @@ const StagingArea = ({ files, initialImageUrls = [], onRemove }: StagingAreaProp
     <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3 mt-4 p-4 bg-slate-50 rounded-2xl border border-slate-100 max-h-64 overflow-y-auto">
       {/* Render already saved initial draft images */}
       {initialImageUrls.map((url, index) => {
-        // Only render if this URL hasn't been uploaded as a new file in this session
-        // (to avoid duplicates if the hook somehow tracks it, though usually hook is fresh)
         return (
           <div
             key={`initial-${index}`}
-            className="relative aspect-square bg-white rounded-xl border border-slate-100 overflow-hidden group shadow-sm transition-transform hover:scale-95"
+            className="relative aspect-square bg-emerald-50 rounded-xl border border-emerald-500 overflow-hidden group shadow-sm transition-transform hover:scale-95"
           >
             <img
               src={url}
@@ -1073,39 +1171,56 @@ const StagingArea = ({ files, initialImageUrls = [], onRemove }: StagingAreaProp
             >
               <Trash2 className="h-3.5 w-3.5" />
             </button>
+            <div className="absolute bottom-0 left-0 right-0 bg-emerald-500 text-[8px] text-white text-center py-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+              Saved
+            </div>
           </div>
         );
       })}
 
       {/* Render newly staging files */}
-      {files.map((file: UploadedFile) => (
-        <div
-          key={file.id}
-          className="relative aspect-square bg-white rounded-xl border border-slate-100 overflow-hidden group shadow-sm transition-transform hover:scale-95"
-        >
-          {file.url ? (
-            <img
-              src={file.url}
-              alt="Staged"
-              className="w-full h-full object-cover"
-            />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center bg-slate-50">
-              {file.uploading ? (
-                <Loader2 className="h-5 w-5 animate-spin text-primary" />
-              ) : (
-                <ImageIcon className="h-5 w-5 text-slate-300" />
-              )}
-            </div>
-          )}
-          <button
-            onClick={() => onRemove(file.id)}
-            className="absolute top-1.5 right-1.5 bg-black/50 hover:bg-red-500 text-white rounded-lg p-1.5 opacity-0 group-hover:opacity-100 transition-all backdrop-blur-sm"
+      {files.map((file: UploadedFile) => {
+        const isSuccess = file.url && !file.uploading && !file.error;
+        const isError = !!file.error;
+        
+        return (
+          <div
+            key={file.id}
+            className={`relative aspect-square rounded-xl border overflow-hidden group shadow-sm transition-transform hover:scale-95 ${
+              isError ? "border-red-500 bg-red-50" : 
+              isSuccess ? "border-emerald-500 bg-emerald-50" : 
+              "border-slate-100 bg-white"
+            }`}
           >
-            <Trash2 className="h-3.5 w-3.5" />
-          </button>
-        </div>
-      ))}
+            {file.url ? (
+              <img
+                src={file.url}
+                alt="Staged"
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center bg-slate-50">
+                {file.uploading ? (
+                  <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                ) : (
+                  <ImageIcon className={`h-5 w-5 ${isError ? "text-red-300" : "text-slate-300"}`} />
+                )}
+              </div>
+            )}
+            <button
+              onClick={() => onRemove(file.id)}
+              className="absolute top-1.5 right-1.5 bg-black/50 hover:bg-red-500 text-white rounded-lg p-1.5 opacity-0 group-hover:opacity-100 transition-all backdrop-blur-sm"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </button>
+            {isSuccess && (
+              <div className="absolute bottom-0 left-0 right-0 bg-emerald-500 text-[8px] text-white text-center py-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                Success
+              </div>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 };

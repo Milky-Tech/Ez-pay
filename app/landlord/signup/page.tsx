@@ -18,7 +18,7 @@ import {
 import AuthLayout from "@/app/components/auth/AuthLayout";
 import Link from "next/link";
 
-const API_BASE_URL = "https://ez-pay.realestway.com/api";
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL;
 
 export default function LandlordSignUpPage() {
   const router = useRouter();

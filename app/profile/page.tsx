@@ -51,7 +51,7 @@ export default function ProfilePage() {
   const [isUpdating, setIsUpdating] = useState(false);
   const { toast } = useToast();
 
-  const API_BASE_URL = "https://ez-pay.realestway.com/api";
+  const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL;
 
   useEffect(() => {
     if (!loading && !isAuthenticated) {

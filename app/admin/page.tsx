@@ -36,8 +36,7 @@ import {
 } from "@/app/components/ui/alert-dialog";
 
 // API Base URL
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL || "https://ez-pay.realestway.com/api";
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL;
 
 // Interface definitions
 export interface Property {
@@ -49,7 +48,7 @@ export interface Property {
   area: string;
   state: string;
   monthly_cost: number | null;
-  availability_status: string;
+  listing_status: string;
   status?: string;
   role?: string;
   full_name: string;
@@ -151,11 +150,13 @@ export default function AdminDashboard() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [data, setData] = useState<{
     listings: Property[];
+    pendingListings: Property[];
     applications: Application[];
     users: Landlord[];
     landlords: Landlord[];
   }>({
     listings: [],
+    pendingListings: [],
     applications: [],
     users: [],
     landlords: [],
@@ -197,6 +198,22 @@ export default function AdminDashboard() {
     name: null,
   });
 
+  // Centralized stats calculation
+  useEffect(() => {
+    setStats({
+      totalProperties: data.listings.length + data.pendingListings.length,
+      availableProperties: data.listings.filter(
+        (l: Property) => l.listing_status === "available"
+      ).length,
+      totalApplications: data.applications.length,
+      pendingApplications: data.applications.filter(
+        (app: Application) => ["pending", "submitted", "vetting_pending"].includes(app.status)
+      ).length,
+      totalLandlords: data.landlords.length,
+      activeLandlords: data.landlords.filter((l: Landlord) => l.status === "active").length,
+    });
+  }, [data]);
+
   // Fetch all dashboard data
   const fetchDashboardData = useCallback(async () => {
     try {
@@ -211,6 +228,7 @@ export default function AdminDashboard() {
       await Promise.all([
         fetchApplications(),
         fetchListings(),
+        fetchPendingListings(),
         fetchUsers(),
         fetchLandlords(),
       ]);
@@ -234,25 +252,16 @@ export default function AdminDashboard() {
     try {
       setLoading((prev) => ({ ...prev, listings: true }));
       const response = await fetch(`${API_BASE_URL}/listings`, {
-        headers: { Authorization: `Bearer ${token}` },
+        headers: { 
+          "Accept": "application/json",
+          Authorization: `Bearer ${token || localStorage.getItem("token")}` 
+        },
       });
       if (!response.ok) throw new Error("Failed to fetch listings");
       const result = await response.json();
       const listingsData = result.data || result;
       setData((prev) => ({ ...prev, listings: listingsData }));
-
-      // Update stats based on listings as well for Overview
-      const maintenanceCount = listingsData.filter(
-        (l: Property) => l.availability_status === "maintenance"
-      ).length;
-
-      setStats((prev) => ({
-        ...prev,
-        // Using listings for available properties stat
-        availableProperties: listingsData.filter(
-          (l: Property) => l.availability_status === "available"
-        ).length,
-      }));
+      setData((prev) => ({ ...prev, listings: listingsData }));
     } catch (error) {
       console.error(error);
     } finally {
@@ -265,29 +274,45 @@ export default function AdminDashboard() {
     try {
       setLoading((prev) => ({ ...prev, applications: true }));
       const response = await fetch(`${API_BASE_URL}/applications`, {
-        headers: { Authorization: `Bearer ${token}` },
+        headers: { 
+          "Accept": "application/json",
+          Authorization: `Bearer ${token || localStorage.getItem("token")}` 
+        },
       });
       if (response.ok) {
         const result = await response.json();
         const apps = result.data || result;
         setData((prev) => ({ ...prev, applications: apps }));
-
-        const pendingCount = apps.filter(
-          (app: Application) =>
-            ["pending", "submitted", "vetting_pending"].includes(app.status)
-        ).length;
-        setStats((prev) => ({
-          ...prev,
-          totalApplications: apps.length,
-          pendingApplications: pendingCount,
-        }));
+        setData((prev) => ({ ...prev, applications: apps }));
       }
+
     } catch (error) {
       console.error(error);
     } finally {
       setLoading((prev) => ({ ...prev, applications: false }));
     }
   }, [token]);
+
+  // Fetch Pending Listings
+  const fetchPendingListings = useCallback(async () => {
+    try {
+      setLoading((prev) => ({ ...prev, listings: true }));
+      const response = await fetch(`${API_BASE_URL}/listings/pending`, {
+        headers: { 
+          "Accept": "application/json",
+          Authorization: `Bearer ${token || localStorage.getItem("token")}` 
+        },
+      });
+      if (!response.ok) throw new Error("Failed to fetch pending listings");
+      const result = await response.json();
+      setData((prev) => ({ ...prev, pendingListings: result.data || result }));
+      console.log(pendingListings)
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setLoading((prev) => ({ ...prev, listings: false }));
+    }
+  }, [token, API_BASE_URL]);
 
   // Application Actions
   const handleApproveApplication = async (id: string) => {
@@ -296,8 +321,8 @@ export default function AdminDashboard() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Accept: "application/json",
-          Authorization: `Bearer ${token}`,
+          "Accept": "application/json",
+          Authorization: `Bearer ${token || localStorage.getItem("token")}`,
         },
         body: JSON.stringify({ id }),
       });
@@ -320,8 +345,8 @@ export default function AdminDashboard() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Accept: "application/json",
-          Authorization: `Bearer ${token}`,
+          "Accept": "application/json",
+          Authorization: `Bearer ${token || localStorage.getItem("token")}`,
         },
         body: JSON.stringify({ id, comment }),
       });
@@ -343,7 +368,10 @@ export default function AdminDashboard() {
     try {
       setLoading((prev) => ({ ...prev, users: true }));
       const response = await fetch(`${API_BASE_URL}/users`, {
-        headers: { Authorization: `Bearer ${token}` },
+        headers: { 
+          "Accept": "application/json",
+          Authorization: `Bearer ${token || localStorage.getItem("token")}` 
+        },
       });
       if (!response.ok) throw new Error("Failed to fetch users");
       const result = await response.json();
@@ -359,21 +387,18 @@ export default function AdminDashboard() {
     try {
       setLoading((prev) => ({ ...prev, landlords: true }));
       const response = await fetch(`${API_BASE_URL}/landlords`, {
-        headers: { Authorization: `Bearer ${token}` },
+        headers: { 
+          "Accept": "application/json",
+          Authorization: `Bearer ${token || localStorage.getItem("token")}` 
+        },
       });
       if (response.ok) {
         const result = await response.json();
         const allLandlords = result.data || result;
         setData((prev) => ({ ...prev, landlords: allLandlords }));
-        const activeCount = allLandlords.filter(
-          (l: Landlord) => l.status === "active"
-        ).length;
-        setStats((prev) => ({
-          ...prev,
-          totalLandlords: allLandlords.length,
-          activeLandlords: activeCount,
-        }));
+        setData((prev) => ({ ...prev, landlords: allLandlords }));
       }
+
     } catch (error) {
       console.error(error);
     } finally {
@@ -430,7 +455,10 @@ export default function AdminDashboard() {
     try {
       const response = await fetch(`${API_BASE_URL}/users/${deleteDialog.id}`, {
         method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` },
+        headers: { 
+          "Accept": "application/json",
+          Authorization: `Bearer ${token || localStorage.getItem("token")}` 
+        },
       });
       if (!response.ok) throw new Error("Failed to delete user");
       toast({ title: "User Deleted", description: "User removed successfully." });
@@ -461,7 +489,10 @@ export default function AdminDashboard() {
     try {
       const response = await fetch(`${API_BASE_URL}/listings/${deleteDialog.id}`, {
         method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` },
+        headers: { 
+          "Accept": "application/json",
+          Authorization: `Bearer ${token || localStorage.getItem("token")}` 
+        },
       });
       if (!response.ok) throw new Error("Failed to delete listing");
       toast({ title: "Deleted", description: "Listing deleted successfully." });
@@ -481,27 +512,32 @@ export default function AdminDashboard() {
     property: Property,
     inspectionFee: number,
     monthlyRentAscend: number,
-    monthlyRentAnchor: number
+    monthlyRentAnchor: number,
+    upgradeLoan?: number,
+    amortizationPeriod?: number
   ) => {
     try {
       // Logic for status based on package
       // EZPRIME: status = "approved", availability_status = "available"
       // EZVANTAGE: status = "approved", availability_status = "upgrade_pending"
       const isPrime = property.landlord_package === "prime";
-      const availabilityStatus = isPrime ? "available" : "upgrade_pending";
+      const listingStatus = isPrime ? "available" : "upgrade_pending";
 
       const response = await fetch(`${API_BASE_URL}/listings/${property.id}`, {
         method: "PATCH",
         headers: {
+          "Accept": "application/json",
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
+          Authorization: `Bearer ${token || localStorage.getItem("token")}`,
         },
         body: JSON.stringify({
           inspection_fee: inspectionFee,
           monthly_rent_ascend: monthlyRentAscend,
           monthly_rent_anchor: monthlyRentAnchor,
+          upgrade_loan: upgradeLoan,
+          amortization_period: amortizationPeriod,
           status: "approved",
-          availability_status: availabilityStatus,
+          listing_status: listingStatus,
         }),
       });
 
@@ -512,9 +548,9 @@ export default function AdminDashboard() {
 
       toast({
         title: "Approved",
-        description: `Listing approved as ${isPrime ? "Prime" : "Vantage"}. Initial status: ${availabilityStatus}`,
+        description: `Listing approved as ${isPrime ? "Prime" : "Vantage"}. Initial status: ${listingStatus}`,
       });
-      fetchListings();
+      fetchDashboardData();
     } catch (error: any) {
       console.error(error);
       toast({
@@ -529,14 +565,15 @@ export default function AdminDashboard() {
   const handleRejectListing = async (property: Property, comment?: string) => {
     try {
       const response = await fetch(
-        `${API_BASE_URL}/property/${property.id}/status`,
+        `${API_BASE_URL}/listings/${property.id}`,
         {
           method: "PATCH",
           headers: {
+            "Accept": "application/json",
             "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
+            Authorization: `Bearer ${token || localStorage.getItem("token")}`,
           },
-          body: JSON.stringify({ status: "rejected", comment }),
+          body: JSON.stringify({ status: "rejected", comment, is_draft: "true" }),
         }
       );
       if (!response.ok) throw new Error("Failed to reject property");
@@ -558,10 +595,14 @@ export default function AdminDashboard() {
       const response = await fetch(`${API_BASE_URL}/listings/${id}/availability`, {
         method: "PATCH",
         headers: {
+          "Accept": "application/json",
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
+          Authorization: `Bearer ${token || localStorage.getItem("token")}`,
         },
-        body: JSON.stringify({ availability_status: status }),
+        body: JSON.stringify({ 
+          availability_status: status,
+          listing_status: status 
+        }),
       });
       if (!response.ok) throw new Error("Failed to update availability");
       toast({ title: "Updated", description: `Property marked as ${status}.` });
@@ -612,8 +653,8 @@ export default function AdminDashboard() {
   };
 
   // Listings for ListingsTab
-  // Since properties endpoint is removed, we use only the listings data
-  const combinedListings = data.listings;
+  // Combined Approved and Pending listings
+  const combinedListings = [...data.listings, ...data.pendingListings];
 
   return (
     <div className="flex min-h-screen bg-gray-50 font-sans">
@@ -644,6 +685,8 @@ export default function AdminDashboard() {
           title={activeTab}
           userName={user?.full_name || "Admin"}
           onMenuClick={() => setMobileMenuOpen(true)}
+          onRefresh={fetchDashboardData}
+          isRefreshing={Object.values(loading).some((v) => v)}
         />
 
         <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
@@ -667,6 +710,7 @@ export default function AdminDashboard() {
               loading={loading.listings}
               fetchListings={() => {
                 fetchListings();
+                fetchPendingListings();
               }}
               formatPrice={formatPrice}
               formatDate={formatDate}

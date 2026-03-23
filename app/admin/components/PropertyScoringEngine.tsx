@@ -26,8 +26,7 @@ import {
 import { useAI } from "@/context/aicontext";
 
 // API Base URL
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL || "https://ez-pay.realestway.com/api";
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL;
 
 // Scoring interfaces
 interface ImageQualityScore {
@@ -1028,10 +1027,10 @@ export default function PropertyScoringEngine({
       return score;
     }
 
-    // Ensure full URL for realestway.com images
+    const siteBaseUrl = process.env.NEXT_PUBLIC_API_URL?.replace("/api", "");
     const fullImageUrl = imageUrl.startsWith("http")
       ? imageUrl
-      : `https://ez-pay.realestway.com${
+      : `${siteBaseUrl}${
           imageUrl.startsWith("/") ? "" : "/"
         }${imageUrl}`;
 
@@ -1132,10 +1131,10 @@ export default function PropertyScoringEngine({
       return score;
     }
 
-    // Ensure full URL for realestway.com documents
+    const siteBaseUrl = process.env.NEXT_PUBLIC_API_URL?.replace("/api", "");
     const fullDocUrl = docUrl.startsWith("http")
       ? docUrl
-      : `https://ez-pay.realestway.com${
+      : `${siteBaseUrl}${
           docUrl.startsWith("/") ? "" : "/"
         }${docUrl}`;
 
@@ -1705,9 +1704,10 @@ export default function PropertyScoringEngine({
               onClick={() => {
                 const images = [];
                 if (propertyData.exteriorShot) {
+                  const siteBaseUrl = process.env.NEXT_PUBLIC_API_URL?.replace("/api", "");
                   const url = propertyData.exteriorShot.startsWith("http")
                     ? propertyData.exteriorShot
-                    : `https://ez-pay.realestway.com${
+                    : `${siteBaseUrl}${
                         propertyData.exteriorShot.startsWith("/") ? "" : "/"
                       }${propertyData.exteriorShot}`;
                   images.push(url);
@@ -1717,9 +1717,10 @@ export default function PropertyScoringEngine({
                   Array.isArray(propertyData.interiorRooms)
                 ) {
                   propertyData.interiorRooms.forEach((img: string) => {
+                    const siteBaseUrl = process.env.NEXT_PUBLIC_API_URL?.replace("/api", "");
                     const url = img.startsWith("http")
                       ? img
-                      : `https://ez-pay.realestway.com${
+                      : `${siteBaseUrl}${
                           img.startsWith("/") ? "" : "/"
                         }${img}`;
                     images.push(url);

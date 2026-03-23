@@ -33,7 +33,7 @@ interface PropertiesTabProps {
   drafts: any[];
   loading: boolean;
   onAddProperty: () => void;
-  onViewDetails: (id: string) => void;
+  onViewDetails: (id: string, status: string) => void;
   onEditDraft: (id: string) => void;
 }
 
@@ -47,7 +47,7 @@ export default function PropertiesTab({
 }: PropertiesTabProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const router = useRouter();
-
+// console.log(properties)
   const filteredProperties = properties.filter(
     (p) =>
       p.code_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -61,14 +61,14 @@ export default function PropertiesTab({
       p.area?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       p.property_address?.toLowerCase().includes(searchTerm.toLowerCase())
   );
-
+console.log(filteredProperties.map((p)=>p.listing_status))
   const stats = {
-    available: filteredProperties.filter((p) => p.availability_status === "available" && p.status === "approved").length,
-    rented: filteredProperties.filter((p) => p.availability_status === "rented" || p.availability_status === "occupied").length,
-    submitted: filteredProperties.filter((p) => p.status === "pending").length,
+    available: filteredProperties.filter((p) => (p.status === "approved") && (p.listing_status === "available")).length,
+    rented: filteredProperties.filter((p) => (p.status === "approved") && (p.listing_status === "rented" || p.listing_status === "occupied")).length,
+    submitted: filteredProperties.filter((p) => p.status !== "approved").length,
     drafts: filteredDrafts.length,
   };
-
+console.log(filteredProperties.filter((p) => p.status !== "approved"))
   const PropertyList = ({ items, emptyMessage, icon: Icon, isDraft = false }: { items: any[], emptyMessage: string, icon: any, isDraft?: boolean }) => (
     <div className="space-y-4">
       {items.length === 0 ? (
@@ -94,7 +94,7 @@ export default function PropertiesTab({
                 localStorage.setItem(`draft_${p.id}`, JSON.stringify(p));
                 onEditDraft(p.id);
               } else {
-                onViewDetails(p.id);
+                onViewDetails(p.id, p.status);
               }
             }} 
           />
@@ -152,21 +152,21 @@ export default function PropertiesTab({
 
         <TabsContent value="available" className="mt-0">
           <PropertyList 
-            items={filteredProperties.filter(p => p.availability_status === "available" && p.status === "approved")}
+            items={filteredProperties.filter(p => (p.status === "approved") && (p.listing_status === "available"))}
             emptyMessage="No available properties currently listed."
             icon={Building}
           />
         </TabsContent>
         <TabsContent value="rented" className="mt-0">
           <PropertyList 
-            items={filteredProperties.filter(p => p.availability_status === "rented" || p.availability_status === "occupied")}
+            items={filteredProperties.filter(p => (p.status === "approved") && (p.listing_status === "rented"))}
             emptyMessage="No rented properties found."
             icon={Key}
           />
         </TabsContent>
         <TabsContent value="submitted" className="mt-0">
           <PropertyList 
-            items={filteredProperties.filter(p => p.status === "pending")}
+            items={filteredProperties.filter(p => p.status !== "approved")}
             emptyMessage="No current submission requests."
             icon={Clock}
           />

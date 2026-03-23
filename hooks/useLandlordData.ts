@@ -3,8 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useToast } from "@/hooks/use-toast";
 
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL || "https://ez-pay.realestway.com/api";
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL;
 
 export const useLandlordData = (user: any, token: string | null) => {
   const [landlordData, setLandlordData] = useState<any | null>(null);
@@ -54,7 +53,7 @@ export const useLandlordData = (user: any, token: string | null) => {
 
     try {
       setLoading((prev) => ({ ...prev, properties: true }));
-      const response = await fetch(`${API_BASE_URL}/listings`, {
+      const response = await fetch(`${API_BASE_URL}/listings/landlord/${user?.id}`, {
         headers: {
           Accept: "application/json",
           Authorization: `Bearer ${token}`,
@@ -64,9 +63,7 @@ export const useLandlordData = (user: any, token: string | null) => {
       if (response.ok) {
         const data = await response.json();
         const allListings = data.data || data || [];
-        const landlordProperties = allListings.filter(
-          (property: any) => property.landlord?.id === user?.id,
-        );
+        const landlordProperties = allListings;
         setProperties(landlordProperties);
       } else {
         throw new Error("Failed to fetch properties");

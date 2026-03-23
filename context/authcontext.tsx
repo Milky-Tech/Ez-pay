@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useState, useEffect } from "react";
 
-const BASE_API =  process.env.NEXT_PUBLIC_API_URL || "https://ez-pay.realestway.com/api";
+const BASE_API =  process.env.NEXT_PUBLIC_API_URL
 // const BASE_API = 'http://127.0.0.1:8000/api'
 
 type User = {

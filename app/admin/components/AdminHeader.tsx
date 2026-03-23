@@ -1,17 +1,21 @@
 import React from "react";
-import { User, Menu } from "lucide-react";
+import { User, Menu, RefreshCw } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
 
 interface AdminHeaderProps {
   title: string;
   userName: string;
   onMenuClick?: () => void;
+  onRefresh?: () => void;
+  isRefreshing?: boolean;
 }
 
 export default function AdminHeader({
   title,
   userName,
   onMenuClick,
+  onRefresh,
+  isRefreshing = false,
 }: AdminHeaderProps) {
   return (
     <header className="bg-white border-b h-16 flex items-center justify-between px-6 sticky top-0 z-10 shadow-sm">
@@ -30,6 +34,18 @@ export default function AdminHeader({
       </div>
 
       <div className="flex items-center gap-4">
+        {onRefresh && (
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={onRefresh}
+            disabled={isRefreshing}
+            className="flex items-center gap-2"
+          >
+            <RefreshCw className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`} />
+            <span className="hidden sm:inline">Refresh Data</span>
+          </Button>
+        )}
         <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-100 rounded-full">
           <div className="bg-primary/10 p-1 rounded-full">
             <User className="h-4 w-4 text-primary" />
@@ -38,6 +54,7 @@ export default function AdminHeader({
             {userName}
           </span>
         </div>
+
       </div>
     </header>
   );

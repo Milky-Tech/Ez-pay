@@ -17,6 +17,12 @@ import {
   ChevronRight,
   X,
   Loader2,
+  MapPin,
+  Zap,
+  ShieldCheck,
+  Phone,
+  Mail,
+  Navigation,
 } from "lucide-react";
 import {
   AlertDialog,
@@ -32,63 +38,91 @@ import PropertyScoringEngine from "./PropertyScoringEngine";
 import { useAuth } from "@/context/authcontext";
 
 // API Base URL
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL || "https://ez-pay.realestway.com/api";
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL;
 
 // Interface definitions
 interface Property {
   id: string;
-  code_name: string;
+  code_name?: string;
   typology: string;
-  email: string;
-  phone: string;
+  email?: string;
+  phone?: string;
   area: string;
   state: string;
-  monthly_cost: number | null;
-  availability_status: string;
-  status?: string;
-  full_name: string;
-  property_address?: string;
+  monthly_cost?: number | null;
+  listing_status: string | null;
+  status: string;
+  full_name?: string;
+  property_address: string;
+  number_of_units?: number;
   no_of_units?: number;
   rent: number;
   compound_road?: string;
-  interior_rooms?: string;
+  power_system?: string;
+  interior_rooms?: string | string[];
   exterior_shot?: string;
+  landlord_package: string;
+  c_of_o?: string;
+  latitude?: number;
+  longitude?: number;
+  locationData?: {
+    lat: string;
+    long: string;
+    address: string;
+    state: string;
+    city: string;
+  };
+  landlord?: {
+    id: string;
+    full_name: string;
+    phone: string;
+    email: string;
+  };
   created_at: string;
   updated_at?: string;
+  [key: string]: any;
 }
 
 interface PropertyReviewDialogProps {
   property: Property;
-  onApprove: () => void;
-  onReject: () => void;
+  onApprove: (
+    property: Property,
+    inspectionFee: number,
+    monthlyRentAscend: number,
+    monthlyRentAnchor: number,
+    upgradeLoan?: number,
+    amortizationPeriod?: number
+  ) => Promise<void>;
+  onReject: (property: Property, reason?: string) => Promise<void>;
   refreshData?: () => void;
 }
 
 // Image Carousel Component
-const ImageCarousel = ({
+const CarouselDialog = ({
   images,
   isOpen,
   onClose,
+  currentIndex,
+  onIndexChange,
 }: {
   images: { url: string; label: string }[];
   isOpen: boolean;
   onClose: () => void;
+  currentIndex: number;
+  onIndexChange: (index: number) => void;
 }) => {
-  const [currentIndex, setCurrentIndex] = useState(0);
-
   if (!isOpen || images.length === 0) return null;
 
   const nextImage = () => {
-    setCurrentIndex((prev) => (prev + 1) % images.length);
+    onIndexChange((currentIndex + 1) % images.length);
   };
 
   const prevImage = () => {
-    setCurrentIndex((prev) => (prev - 1 + images.length) % images.length);
+    onIndexChange((currentIndex - 1 + images.length) % images.length);
   };
 
   const goToImage = (index: number) => {
-    setCurrentIndex(index);
+    onIndexChange(index);
   };
 
   return (
@@ -110,7 +144,11 @@ const ImageCarousel = ({
             className="max-w-full max-h-[70vh] object-contain rounded-lg"
             onError={(e) => {
               const target = e.target as HTMLImageElement;
-              target.src = "/placeholder-image.png"; // Fallback image
+              if (target.src.includes('data:image')) return; // Already a fallback
+              target.src = "/images/logo-ezpay.png"; // First fallback
+              target.onerror = () => {
+                target.src = "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7"; // Last resort
+              };
             }}
           />
 
@@ -159,10 +197,15 @@ const ImageCarousel = ({
                 <img
                   src={image.url}
                   alt={image.label}
+                  loading="lazy"
                   className="w-full h-full object-cover"
                   onError={(e) => {
                     const target = e.target as HTMLImageElement;
-                    target.src = "/placeholder-image.png";
+                    if (target.src.includes('data:image')) return;
+                    target.src = "/images/logo-ezpay.png";
+                    target.onerror = () => {
+                      target.src = "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
+                    };
                   }}
                 />
               </button>
@@ -180,8 +223,6 @@ const PropertyReviewDialog = ({
   onReject,
   refreshData,
 }: PropertyReviewDialogProps) => {
-  const [propertyDetails, setPropertyDetails] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
   const [isProcessing, setIsProcessing] = useState(false);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [isCarouselOpen, setIsCarouselOpen] = useState(false);
@@ -190,22 +231,35 @@ const PropertyReviewDialog = ({
     action: "" as "approve" | "reject",
   });
   const [rejectComment, setRejectComment] = useState("");
+  const [inspectionFee, setInspectionFee] = useState(0);
+  const [monthlyRentAscend, setMonthlyRentAscend] = useState(0);
+  const [monthlyRentAnchor, setMonthlyRentAnchor] = useState(0);
+  const [upgradeLoan, setUpgradeLoan] = useState(0);
+  const [amortizationPeriod, setAmortizationPeriod] = useState(0);
   const { token } = useAuth();
   // Helper function to ensure full URL
   const getFullImageUrl = (url: string) => {
-    if (!url) return "";
-    return url.startsWith("http")
-      ? url
-      : `https://ez-pay.realestway.com${url.startsWith("/") ? "" : "/"}${url}`;
+    if (!url || typeof url !== "string") return "";
+    if (url.startsWith("data:") || url.startsWith("blob:")) return url;
+    
+    const siteBaseUrl = process.env.NEXT_PUBLIC_API_URL?.replace("/api", "");
+    
+    // If it's already a full URL
+    if (url.startsWith("http")) return url;
+    
+    // Clean up leading slashes
+    const cleanPath = url.startsWith("/") ? url.slice(1) : url;
+    
+    return `${siteBaseUrl}/${cleanPath}`;
   };
 
   // Collect all available images
-  const getAllImages = (propertyDetails: any) => {
+  const getAllImages = (property: Property) => {
     const images: { url: string; label: string }[] = [];
 
     // Exterior Photo (Handle both casings)
     const exteriorShot =
-      propertyDetails?.exteriorShot || propertyDetails?.exterior_shot;
+      property.exteriorShot || property.exterior_shot;
     if (exteriorShot) {
       images.push({
         url: getFullImageUrl(exteriorShot),
@@ -215,17 +269,26 @@ const PropertyReviewDialog = ({
 
     // Compound/Road photo
     const compoundRoad =
-      propertyDetails?.compoundRoad || propertyDetails?.compound_road;
-    if (compoundRoad) {
+      property.compound_road || property.compoundRoad;
+    if (compoundRoad && typeof compoundRoad === "string" && compoundRoad.includes("/storage/")) {
       images.push({
         url: getFullImageUrl(compoundRoad),
         label: "Compound/Road Photo",
       });
     }
 
+    // Power System (Check if it's an image path)
+    const powerSystem = property.power_system || property.powerSystem;
+    if (powerSystem && typeof powerSystem === "string" && powerSystem.includes("/storage/")) {
+      images.push({
+        url: getFullImageUrl(powerSystem),
+        label: "Power System Photo",
+      });
+    }
+
     // Interior Rooms
     const interiorRoomsRaw =
-      propertyDetails?.interior_rooms || propertyDetails?.interiorRooms;
+      property.interior_rooms || property.interiorRooms;
     if (interiorRoomsRaw) {
       try {
         if (typeof interiorRoomsRaw === "string" && interiorRoomsRaw) {
@@ -290,53 +353,49 @@ const PropertyReviewDialog = ({
     });
   };
 
-  const handleApproveProperty = () => {
-    onApprove();
-    closeConfirmationDialog();
-  };
-
-  const handleRejectProperty = () => {
-    // If the parent handles the rejection dialog, we just call onReject
-    // If we want to pass the comment back:
-    onReject(); 
-    closeConfirmationDialog();
-  };
-
-  useEffect(() => {
-    const fetchPropertyDetails = async () => {
-      try {
-        const response = await fetch(
-          `${API_BASE_URL}/property/${property.id}`,
-          {
-            headers: {
-              Accept: "application/json",
-              Authorization: `Bearer ${token || localStorage.getItem("token")}`,
-            },
-          }
+  const handleApproveProperty = async () => {
+    setIsProcessing(true);
+    try {
+      if (property?.listing_status === "upgrade_pending") {
+        // Special case for completing upgrade
+        const response = await fetch(`${API_BASE_URL}/listings/${property.id}`, {
+          method: "PATCH",
+          headers: {
+            "Accept": "application/json",
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token || localStorage.getItem("token")}`,
+          },
+          body: JSON.stringify({ 
+            listing_status: "available" 
+          }),
+        });
+        if (!response.ok) throw new Error("Failed to update availability");
+        if (refreshData) refreshData();
+      } else {
+        await onApprove(
+          property,
+          inspectionFee,
+          monthlyRentAscend,
+          monthlyRentAnchor,
+          upgradeLoan,
+          amortizationPeriod
         );
-
-        if (response.ok) {
-          const data = await response.json();
-          setPropertyDetails(data.data);
-        }
-      } catch (error) {
-        console.error("Error fetching property details:", error);
-      } finally {
-        setLoading(false);
       }
-    };
+      closeConfirmationDialog();
+    } catch (error) {
+      console.error("Error approving property:", error);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
 
-    fetchPropertyDetails();
-  }, [property.id, token]);
+  const handleRejectProperty = async () => {
+    await onReject(property, rejectComment); 
+    closeConfirmationDialog();
+  };
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center py-8">
-        <RefreshCw className="h-6 w-6 animate-spin" />
-        <span className="ml-2">Loading property details...</span>
-      </div>
-    );
-  }
+  // No longer fetching from database as per user request
+
 
   return (
     <>
@@ -348,138 +407,202 @@ const PropertyReviewDialog = ({
             Property Information
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-3">
               <div>
                 <Label className="text-sm font-medium">Property Address</Label>
-                <p className="text-sm text-gray-600">
-                  {propertyDetails?.property_address ||
-                    property.property_address}
-                </p>
+                <div className="flex items-start mt-1">
+                  <MapPin className="h-4 w-4 mr-2 text-red-500 mt-0.5" />
+                  <p className="text-sm text-gray-600">
+                    {property.property_address}
+                  </p>
+                </div>
               </div>
               <div>
                 <Label className="text-sm font-medium">Location</Label>
                 <p className="text-sm text-gray-600">
-                  {propertyDetails?.area || property.area},{" "}
-                  {propertyDetails?.state || property.state}
+                  {property.city_location || property.locationData?.city || ""}{" "}
+                  {property.area ? `(${property.area})` : ""},{" "}
+                  {property.state}
                 </p>
               </div>
               <div>
                 <Label className="text-sm font-medium">Type</Label>
                 <p className="text-sm text-gray-600">
-                  {propertyDetails?.typology || property.typology}
+                  {property.typology}
                 </p>
               </div>
               <div>
                 <Label className="text-sm font-medium">Number of Units</Label>
                 <p className="text-sm text-gray-600">
-                  {propertyDetails?.no_of_units || property.no_of_units}
+                  {property.number_of_units || property.no_of_units}
                 </p>
               </div>
               <div>
-                <Label className="text-sm font-medium">Monthly Rent</Label>
-                <p className="text-sm text-gray-600 font-semibold">
-                  ₦
-                  {propertyDetails?.rent
-                    ? Math.round(
-                        (parseInt(propertyDetails.rent) * 1.1) /
-                          12 /
-                          (propertyDetails.no_of_units || 1)
-                      ).toLocaleString()
-                    : property.monthly_cost
-                    ? property.monthly_cost.toLocaleString()
-                    : "N/A"}
+                <Label className="text-sm font-medium">Power System</Label>
+                <div className="flex items-center mt-1">
+                  <Zap className="h-4 w-4 mr-2 text-yellow-500" />
+                  <p className="text-sm text-gray-600">
+                    {property.power_system && property.power_system.includes("/storage/") 
+                      ? "Available (See Photos)" 
+                      : property.power_system || "N/A"}
+                  </p>
+                </div>
+              </div>
+              <div>
+                <Label className="text-sm font-medium">Compound/Road</Label>
+                <div className="flex items-center mt-1">
+                  <Building2 className="h-4 w-4 mr-2 text-blue-400" />
+                  <p className="text-sm text-gray-600">
+                    {property.compound_road && property.compound_road.includes("/storage/") 
+                      ? "Available (See Photos)" 
+                      : property.compound_road || "N/A"}
+                  </p>
+                </div>
+              </div>
+            <div className="space-y-3">
+              <div>
+                <Label className="text-sm font-medium">Annual Rent</Label>
+                <p className="text-sm text-gray-900 font-bold">
+                  ₦{property.rent?.toLocaleString() || "N/A"}
                 </p>
+                <div className="mt-1 flex items-center gap-2">
+                  <Label className="text-xs text-gray-500 uppercase font-bold tracking-wider">Calculated Monthly:</Label>
+                  <span className="text-sm font-semibold text-green-600">
+                    ₦{property.rent 
+                      ? Math.round(property.rent / 12).toLocaleString() 
+                      : "N/A"}
+                  </span>
+                </div>
               </div>
               <div>
                 <Label className="text-sm font-medium">Landlord Package</Label>
                 <div className="mt-1">
                   <Badge
-                    variant={
-                      propertyDetails?.landlord_package === "prime"
-                        ? "default"
-                        : "secondary"
+                    className={
+                      property.landlord_package === "prime"
+                        ? "bg-purple-100 text-purple-700 border-purple-200"
+                        : "bg-blue-100 text-blue-700 border-blue-200"
                     }
                   >
-                    {propertyDetails?.landlord_package === "prime"
+                    {property.landlord_package === "prime"
                       ? "EZ-PRIME"
                       : "EZ-VANTAGE"}
                   </Badge>
                 </div>
               </div>
-            </div>
-            <div className="space-y-3">
               <div className="flex items-center space-x-2">
                 <Label className="text-sm font-medium">Status</Label>
                 <Badge
                   variant={
-                    propertyDetails?.status === "approved"
+                    property.status === "approved"
                       ? "default"
                       : "secondary"
                   }
                 >
-                  {propertyDetails?.status || property.status || "Pending"}
+                  {property.status || "Pending"}
                 </Badge>
               </div>
+              {property.listing_status && (
+                <div className="flex items-center space-x-2">
+                   <Label className="text-sm font-medium">Listing Status</Label>
+                   <Badge variant="outline" className="text-orange-600 border-orange-200 bg-orange-50 capitalize">
+                     {property.listing_status.replace("_", " ")}
+                   </Badge>
+                </div>
+              )}
               <div>
-                <Label className="text-sm font-medium">Compound & Road</Label>
+                <Label className="text-sm font-medium">Created At</Label>
                 <p className="text-sm text-gray-600">
-                  {propertyDetails?.compound_road || "N/A"}
-                </p>
-              </div>
-              <div>
-                <Label className="text-sm font-medium">Created</Label>
-                <p className="text-sm text-gray-600">
-                  {propertyDetails?.created_at
-                    ? new Date(propertyDetails.created_at).toLocaleDateString()
+                  {property.created_at
+                    ? new Date(property.created_at).toLocaleDateString()
                     : "N/A"}
                 </p>
               </div>
             </div>
           </div>
+          
+          {/* Location Map / Street View */}
+          {(property.latitude) && (
+            <div className="mt-6">
+              <Label className="text-sm font-medium mb-2 flex items-center">
+                <Navigation className="h-4 w-4 mr-1 text-blue-500" />
+                Location Visualization (Street View/Map)
+              </Label>
+              <div className="w-full h-[300px] rounded-lg overflow-hidden border bg-gray-100 relative">
+                <iframe
+                  width="100%"
+                  height="100%"
+                  style={{ border: 0 }}
+                  loading="lazy"
+                  allowFullScreen
+                  src={`https://maps.google.com/maps?q=${property.latitude || property?.locationData?.lat},${property?.locationData?.long || property.longitude}&layer=c&cbll=${property.latitude || property?.locationData?.lat},${property.longitude || property?.locationData?.long}&z=18&output=embed`}
+                ></iframe>
+                <div className="absolute bottom-2 right-2 flex gap-2">
+                  <a 
+                    href={`https://www.google.com/maps/search/?api=1&query=${property.latitude || property?.locationData?.lat},${property.longitude || property?.locationData?.long}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="bg-white px-3 py-1 text-xs font-medium rounded shadow hover:bg-gray-50 flex items-center"
+                  >
+                    <Eye className="h-3 w-3 mr-1" />
+                    Open in Maps
+                  </a>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Owner Personal Information */}
         <div>
           <h3 className="text-lg font-semibold mb-4 flex items-center">
-            <User className="h-5 w-5 mr-2" />
+            <User className="h-5 w-5 mr-2 text-indigo-500" />
             Owner Personal Information
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-3">
               <div>
                 <Label className="text-sm font-medium">Full Name</Label>
-                <p className="text-sm text-gray-600">
-                  {propertyDetails?.full_name || property.full_name}
-                </p>
+                <div className="flex items-center mt-1">
+                  <User className="h-4 w-4 mr-2 text-gray-400" />
+                  <p className="text-sm text-gray-600">
+                    {property.landlord?.full_name || property.full_name}
+                  </p>
+                </div>
               </div>
               <div>
-                <Label className="text-sm font-medium">Email</Label>
-                <p className="text-sm text-gray-600">
-                  {propertyDetails?.email || property.email}
-                </p>
+                <Label className="text-sm font-medium">Email Address</Label>
+                <div className="flex items-center mt-1">
+                  <Mail className="h-4 w-4 mr-2 text-gray-400" />
+                  <p className="text-sm text-gray-600">
+                    {property.landlord?.email || property.email}
+                  </p>
+                </div>
               </div>
               <div>
                 <Label className="text-sm font-medium">Phone Number</Label>
-                <p className="text-sm text-gray-600">
-                  {propertyDetails?.phone || property.phone}
-                </p>
+                <div className="flex items-center mt-1">
+                  <Phone className="h-4 w-4 mr-2 text-gray-400" />
+                  <p className="text-sm text-gray-600">
+                    {property.landlord?.phone || property.phone}
+                  </p>
+                </div>
               </div>
               <div>
                 <Label className="text-sm font-medium">Designation</Label>
                 <p className="text-sm text-gray-600">
-                  {propertyDetails?.designation || "N/A"}
+                  {property.designation || "N/A"}
                 </p>
               </div>
               <div>
                 <Label className="text-sm font-medium">Occupation</Label>
                 <p className="text-sm text-gray-600">
-                  {propertyDetails?.occupation || "N/A"}
+                  {property.occupation || "N/A"}
                 </p>
               </div>
               <div>
                 <Label className="text-sm font-medium">Place of Work</Label>
                 <p className="text-sm text-gray-600">
-                  {propertyDetails?.place_of_work || "N/A"}
+                  {property.place_of_work || "N/A"}
                 </p>
               </div>
             </div>
@@ -487,27 +610,25 @@ const PropertyReviewDialog = ({
               <div>
                 <Label className="text-sm font-medium">Nationality</Label>
                 <p className="text-sm text-gray-600">
-                  {propertyDetails?.nationality || "N/A"}
+                  {property.nationality || "N/A"}
                 </p>
               </div>
               <div>
                 <Label className="text-sm font-medium">State of Origin</Label>
                 <p className="text-sm text-gray-600">
-                  {propertyDetails?.state_of_origin || "N/A"}
+                  {property.state_of_origin || "N/A"}
                 </p>
               </div>
               <div>
                 <Label className="text-sm font-medium">LGA of Origin</Label>
                 <p className="text-sm text-gray-600">
-                  {propertyDetails?.lga_of_origin || "N/A"}
+                  {property.lga_of_origin || "N/A"}
                 </p>
               </div>
               <div>
-                <Label className="text-sm font-medium">
-                  Residential Address
-                </Label>
+                <Label className="text-sm font-medium">Residential Address</Label>
                 <p className="text-sm text-gray-600">
-                  {propertyDetails?.residential_address || "N/A"}
+                  {property.residential_address || "N/A"}
                 </p>
               </div>
             </div>
@@ -515,7 +636,7 @@ const PropertyReviewDialog = ({
         </div>
 
         {/* Business Information */}
-        {propertyDetails?.business_name && (
+        {property.business_name && (
           <div>
             <h3 className="text-lg font-semibold mb-4 flex items-center">
               <FileText className="h-5 w-5 mr-2" />
@@ -525,13 +646,13 @@ const PropertyReviewDialog = ({
               <div>
                 <Label className="text-sm font-medium">Business Name</Label>
                 <p className="text-sm text-gray-600">
-                  {propertyDetails.business_name}
+                  {property.business_name}
                 </p>
               </div>
               <div>
                 <Label className="text-sm font-medium">Business Address</Label>
                 <p className="text-sm text-gray-600">
-                  {propertyDetails.business_address}
+                  {property.business_address}
                 </p>
               </div>
             </div>
@@ -547,14 +668,14 @@ const PropertyReviewDialog = ({
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {/* Property Images Carousel */}
             {(() => {
-              const allImages = getAllImages(propertyDetails);
-              return allImages.length > 0 ? (
+              const images = getAllImages(property);
+              return images.length > 0 ? (
                 <div className="border rounded-lg p-3 bg-gray-50 md:col-span-2 lg:col-span-3">
                   <Label className="text-sm font-medium block mb-2">
-                    Property Photos ({allImages.length})
+                    Property Photos ({images.length})
                   </Label>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                    {allImages.slice(0, 4).map((image, index) => (
+                    {images.slice(0, 4).map((image, index) => (
                       <div
                         key={index}
                         className="relative cursor-pointer group"
@@ -566,10 +687,15 @@ const PropertyReviewDialog = ({
                         <img
                           src={image.url}
                           alt={image.label}
+                          loading="lazy"
                           className="w-full h-20 object-cover rounded border hover:opacity-80 transition-opacity"
                           onError={(e) => {
                             const target = e.target as HTMLImageElement;
-                            target.src = "/placeholder-image.png";
+                            if (target.src.includes('data:image')) return;
+                            target.src = "/images/logo-ezpay.png";
+                            target.onerror = () => {
+                              target.src = "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
+                            };
                           }}
                         />
                         <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all rounded flex items-center justify-center">
@@ -577,7 +703,7 @@ const PropertyReviewDialog = ({
                         </div>
                       </div>
                     ))}
-                    {allImages.length > 4 && (
+                    {images.length > 4 && (
                       <div
                         className="w-full h-20 bg-gray-200 rounded border flex items-center justify-center cursor-pointer hover:bg-gray-300 transition-colors"
                         onClick={() => {
@@ -586,7 +712,7 @@ const PropertyReviewDialog = ({
                         }}
                       >
                         <span className="text-sm text-gray-600 font-medium">
-                          +{allImages.length - 4} more
+                          +{images.length - 4} more
                         </span>
                       </div>
                     )}
@@ -599,19 +725,35 @@ const PropertyReviewDialog = ({
                     className="mt-2 text-blue-600 hover:underline text-sm flex items-center"
                   >
                     <Eye className="h-4 w-4 mr-1" />
-                    View All Photos ({allImages.length})
+                    View All Photos ({images.length})
                   </button>
                 </div>
               ) : null;
             })()}
 
-            {propertyDetails?.ownershipDoc && (
+            {property.c_of_o && (
+              <div className="border rounded-lg p-3 bg-gray-50">
+                <Label className="text-sm font-medium block mb-2">
+                  Certificate of Occupancy (C of O)
+                </Label>
+                <a
+                  href={getFullImageUrl(property.c_of_o)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-600 hover:underline text-sm flex items-center"
+                >
+                  <ShieldCheck className="h-4 w-4 mr-1" />
+                  View Document
+                </a>
+              </div>
+            )}
+            {property.ownershipDoc && (
               <div className="border rounded-lg p-3 bg-gray-50">
                 <Label className="text-sm font-medium block mb-2">
                   Ownership Document
                 </Label>
                 <a
-                  href={getFullImageUrl(propertyDetails.ownershipDoc)}
+                  href={getFullImageUrl(property.ownershipDoc)}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-blue-600 hover:underline text-sm flex items-center"
@@ -621,13 +763,13 @@ const PropertyReviewDialog = ({
                 </a>
               </div>
             )}
-            {propertyDetails?.govId && (
+            {property.govId && (
               <div className="border rounded-lg p-3 bg-gray-50">
                 <Label className="text-sm font-medium block mb-2">
                   Government ID
                 </Label>
                 <a
-                  href={getFullImageUrl(propertyDetails.govId)}
+                  href={getFullImageUrl(property.govId)}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-blue-600 hover:underline text-sm flex items-center"
@@ -637,13 +779,13 @@ const PropertyReviewDialog = ({
                 </a>
               </div>
             )}
-            {propertyDetails?.cacCert && (
+            {property.cacCert && (
               <div className="border rounded-lg p-3 bg-gray-50">
                 <Label className="text-sm font-medium block mb-2">
                   CAC Certificate
                 </Label>
                 <a
-                  href={getFullImageUrl(propertyDetails.cacCert)}
+                  href={getFullImageUrl(property.cacCert)}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-blue-600 hover:underline text-sm flex items-center"
@@ -656,54 +798,54 @@ const PropertyReviewDialog = ({
           </div>
 
           {/* Image Carousel Modal */}
-          <ImageCarousel
-            images={getAllImages(propertyDetails)}
+          <CarouselDialog
             isOpen={isCarouselOpen}
             onClose={() => setIsCarouselOpen(false)}
+            images={getAllImages(property)}
+            currentIndex={currentImageIndex}
+            onIndexChange={setCurrentImageIndex}
           />
         </div>
 
         {/* Property Scoring & Review */}
-        {propertyDetails && (
+        {/* {property && (
           <div>
             <h3 className="text-lg font-semibold mb-4 flex items-center">
               <CheckCircle className="h-5 w-5 mr-2" />
               Property Scoring & Review
             </h3>
-            <PropertyScoringEngine
+        <PropertyScoringEngine 
               propertyData={{
-                id: propertyDetails.id || property.id,
-                full_name: propertyDetails.full_name || property.full_name,
-                designation: propertyDetails.designation,
-                business_name: propertyDetails.business_name,
-                property_address:
-                  propertyDetails.property_address || property.property_address,
-                state: propertyDetails.state || property.state,
-                area: propertyDetails.area || property.area,
-                typology: propertyDetails.typology || property.typology,
-                no_of_units:
-                  propertyDetails.no_of_units || property.no_of_units,
-                rent: propertyDetails.rent || property.rent,
-                ownership_doc: propertyDetails.ownership_doc,
-                gov_id: propertyDetails.gov_id,
-                cac_cert: propertyDetails.cac_cert,
-                exterior_shot: propertyDetails.exterior_shot,
+                id: property.id,
+                full_name: property.full_name,
+                designation: property.designation,
+                business_name: property.business_name,
+                property_address: property.property_address,
+                state: property.state,
+                area: property.area,
+                typology: property.typology,
+                no_of_units: property.no_of_units || property.number_of_units,
+                rent: property.rent,
+                ownership_doc: property.ownership_doc,
+                gov_id: property.gov_id,
+                cac_cert: property.cac_cert,
+                exterior_shot: property.exterior_shot || property.exteriorShot,
                 interior_rooms: (() => {
-                  if (!propertyDetails.interior_rooms) return [];
-                  if (Array.isArray(propertyDetails.interior_rooms))
-                    return propertyDetails.interior_rooms;
+                  const roomsRaw = property.interior_rooms || property.interiorRooms;
+                  if (!roomsRaw) return [];
+                  if (Array.isArray(roomsRaw)) return roomsRaw;
                   try {
-                    if (typeof propertyDetails.interior_rooms === "string") {
-                      if (propertyDetails.interior_rooms.startsWith("[")) {
-                        return JSON.parse(propertyDetails.interior_rooms);
+                    if (typeof roomsRaw === "string") {
+                      if (roomsRaw.startsWith("[")) {
+                        return JSON.parse(roomsRaw);
                       }
-                      return propertyDetails.interior_rooms
+                      return roomsRaw
                         .split(",")
                         .map((r: string) => r.trim());
                     }
-                    return [propertyDetails.interior_rooms];
+                    return [roomsRaw];
                   } catch (e) {
-                    return [propertyDetails.interior_rooms];
+                    return [roomsRaw];
                   }
                 })(),
               }}
@@ -711,38 +853,44 @@ const PropertyReviewDialog = ({
                 // Handle score updates if needed
                 console.log("Property scores updated:", scores);
               }}
-            />
+            /> 
           </div>
-        )}
+        )}*/}
 
         <div className="flex justify-end gap-4 pt-4 border-t">
-          {propertyDetails?.status === "approved" ? (
+          {property.status === "approved" || ["available", "rented", "maintenance", "upgrade_pending"].includes(property.listing_status || "") ? (
             <>
-              <Button
-                variant="outline"
-                onClick={() => {
-                  /* TODO: Implement edit functionality */
-                }}
-              >
-                <Edit className="h-4 w-4 mr-2" />
-                Edit Details
-              </Button>
-              <Button
-                variant="destructive"
-                onClick={() => {
-                  /* TODO: Implement deactivate functionality */
-                }}
-              >
-                <XCircle className="h-4 w-4 mr-2" />
-                Deactivate
-              </Button>
-              <Button
-                variant="default"
-                className="bg-blue-600 hover:bg-blue-700"
-              >
-                <Eye className="h-4 w-4 mr-2" />
-                View Listing
-              </Button>
+              {property.listing_status === "upgrade_pending" ? (
+                <Button
+                  onClick={() => openConfirmationDialog("approve")}
+                  className="bg-green-600 hover:bg-green-700"
+                  disabled={isProcessing}
+                >
+                  <CheckCircle className="h-4 w-4 mr-2" />
+                  Complete Upgrade & List
+                </Button>
+              ) : (
+                <>
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      /* TODO: Implement edit functionality */
+                    }}
+                  >
+                    <Edit className="h-4 w-4 mr-2" />
+                    Edit Details
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    onClick={() => {
+                      /* TODO: Implement deactivate functionality */
+                    }}
+                  >
+                    <XCircle className="h-4 w-4 mr-2" />
+                    Deactivate
+                  </Button>
+                </>
+              )}
             </>
           ) : (
             <>
@@ -760,7 +908,9 @@ const PropertyReviewDialog = ({
                 disabled={isProcessing}
               >
                 <CheckCircle className="h-4 w-4 mr-2" />
-                Approve & List Property
+                {property.landlord_package === "prime" 
+                  ? "Approve & List Property" 
+                  : "Approve for Upgrade"}
               </Button>
             </>
           )}
@@ -774,88 +924,160 @@ const PropertyReviewDialog = ({
           if (!open) closeConfirmationDialog();
         }}
       >
-        <AlertDialogContent>
+        <AlertDialogContent className="max-w-2xl">
           <AlertDialogHeader>
             <AlertDialogTitle>
               {confirmationDialog.action === "approve"
                 ? "Approve Property Submission"
                 : "Reject Property Submission"}
             </AlertDialogTitle>
-            <AlertDialogDescription>
-              {confirmationDialog.action === "approve" ? (
-                <div className="space-y-4">
-                  <p>
-                    Are you sure you want to approve this property submission?
-                  </p>
-                  <div className="bg-green-50 p-4 rounded-lg">
-                    <p className="text-sm font-medium text-green-800">
-                      This will:
+            <AlertDialogDescription asChild>
+              <div className="mt-4">
+                {confirmationDialog.action === "approve" ? (
+                  <div className="space-y-4">
+                    <p className="text-sm">
+                      {property.listing_status === "upgrade_pending"
+                        ? "Confirm that the upgrade is complete. This will make the listing available to the public."
+                        : "Set the final pricing and package details for this listing."}
                     </p>
-                    <ul className="text-sm text-green-700 mt-2 list-disc pl-4 space-y-1">
-                      <li>Approve the property for listing</li>
-                      <li>Create landlord account if needed</li>
-                      <li>
-                        Make the property available for rental applications
-                      </li>
-                      <li>Send confirmation email to the property owner</li>
-                    </ul>
+                    
+                    {property.listing_status !== "upgrade_pending" && (
+                      <div className="grid grid-cols-1 gap-4 bg-gray-50 p-4 rounded-lg">
+                        <div className="space-y-2">
+                           <Label htmlFor="inspection-fee" className="text-xs font-bold uppercase text-slate-500">Inspection Fee (₦) *</Label>
+                           <input
+                             id="inspection-fee"
+                             type="number"
+                             className="w-full p-2 border rounded-md"
+                             value={inspectionFee || ""}
+                             onChange={(e) => setInspectionFee(Number(e.target.value))}
+                             placeholder="0"
+                           />
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                             <Label htmlFor="rent-ascend" className="text-xs font-bold uppercase text-slate-500">Rent Ascend (₦)</Label>
+                             <input
+                               id="rent-ascend"
+                               type="number"
+                               className="w-full p-2 border rounded-md"
+                               value={monthlyRentAscend || ""}
+                               onChange={(e) => setMonthlyRentAscend(Number(e.target.value))}
+                               placeholder="0"
+                             />
+                          </div>
+                          <div className="space-y-2">
+                             <Label htmlFor="rent-anchor" className="text-xs font-bold uppercase text-slate-500">Rent Anchor (₦)</Label>
+                             <input
+                               id="rent-anchor"
+                               type="number"
+                               className="w-full p-2 border rounded-md"
+                               value={monthlyRentAnchor || ""}
+                               onChange={(e) => setMonthlyRentAnchor(Number(e.target.value))}
+                               placeholder="0"
+                             />
+                          </div>
+                        </div>
+
+                        {property.landlord_package !== "prime" && (
+                          <div className="grid grid-cols-2 gap-4 border-t pt-4 mt-2">
+                            <div className="space-y-2">
+                               <Label htmlFor="upgrade-loan" className="text-xs font-bold uppercase text-slate-500">Upgrade Loan (₦)</Label>
+                               <input
+                                 id="upgrade-loan"
+                                 type="number"
+                                 className="w-full p-2 border rounded-md"
+                                 placeholder="Amount"
+                                 value={upgradeLoan || ""}
+                                 onChange={(e) => setUpgradeLoan(Number(e.target.value))}
+                               />
+                            </div>
+                            <div className="space-y-2">
+                               <Label htmlFor="amortization" className="text-xs font-bold uppercase text-slate-500">Period (Months)</Label>
+                               <input
+                                 id="amortization"
+                                 type="number"
+                                 className="w-full p-2 border rounded-md"
+                                 placeholder="e.g. 12"
+                                 value={amortizationPeriod || ""}
+                                 onChange={(e) => setAmortizationPeriod(Number(e.target.value))}
+                               />
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    <div className={property.listing_status === "upgrade_pending" ? "bg-blue-50 p-4 rounded-lg" : "bg-green-50 p-4 rounded-lg"}>
+                      <p className={`text-sm font-medium ${property.listing_status === "upgrade_pending" ? "text-blue-800" : "text-green-800"}`}>
+                         {property.listing_status === "upgrade_pending" ? "Completing upgrade will:" : "Approval will:"}
+                      </p>
+                      <ul className={`text-sm mt-2 list-disc pl-4 space-y-1 ${property.listing_status === "upgrade_pending" ? "text-blue-700" : "text-green-700"}`}>
+                        <li>{property.listing_status === "upgrade_pending" ? "Move listing status to 'Available'" : "Activate the listing with designated pricing"}</li>
+                        <li>Make it visible to potential tenants on the platform</li>
+                        {property.landlord_package !== "prime" && property.listing_status !== "upgrade_pending" && (
+                          <li className="font-bold">Initial status will be 'Pending Upgrade'</li>
+                        )}
+                      </ul>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    <p className="text-sm">
+                      Are you sure you want to reject this property submission? Please provide a reason below.
+                    </p>
+                    <div className="space-y-2">
+                      <Label htmlFor="reject-comment" className="text-xs font-bold uppercase text-slate-500">Reason for Rejection *</Label>
+                      <textarea
+                        id="reject-comment"
+                        className="w-full min-h-[100px] p-3 text-sm border rounded-md focus:outline-none focus:ring-2 focus:ring-red-500"
+                        placeholder="Explain why this submission is being rejected..."
+                        value={rejectComment}
+                        onChange={(e) => setRejectComment(e.target.value)}
+                      />
+                    </div>
+                    <div className="bg-red-50 p-4 rounded-lg">
+                      <p className="text-sm font-medium text-red-800">This will:</p>
+                      <ul className="text-sm text-red-700 mt-2 list-disc pl-4 space-y-1">
+                        <li>Notify the property owner of the rejection</li>
+                        <li>Allow the owner to make corrections and resubmit</li>
+                      </ul>
+                    </div>
+                  </div>
+                )}
+
+                <div className="mt-6 p-4 bg-gray-100 rounded-lg border border-gray-200">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs font-bold uppercase text-gray-500 tracking-wider">Property Detail Summary</span>
+                    <Badge variant="outline" className="bg-white capitalize">{property.landlord_package}</Badge>
+                  </div>
+                  <p className="font-semibold text-gray-900">{property.property_address}</p>
+                  <div className="flex gap-4 mt-1 text-xs text-gray-600">
+                    <span>{property.typology}</span>
+                    <span>•</span>
+                    <span>{property.area}, {property.state}</span>
                   </div>
                 </div>
-              ) : (
-                <div className="space-y-4">
-                  <p>
-                    Are you sure you want to reject this property submission?
-                  </p>
-                  <div className="bg-red-50 p-4 rounded-lg">
-                    <p className="text-sm font-medium text-red-800">
-                      This will:
-                    </p>
-                    <ul className="text-sm text-red-700 mt-2 list-disc pl-4 space-y-1">
-                      <li>Mark the property as rejected</li>
-                      <li>Notify the property owner via email</li>
-                      <li>Remove the property from pending submissions</li>
-                    </ul>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="reject-comment" className="text-sm font-semibold">Reason for Rejection</Label>
-                    <textarea
-                      id="reject-comment"
-                      className="w-full min-h-[100px] p-3 text-sm border rounded-md focus:outline-none focus:ring-2 focus:ring-red-500"
-                      placeholder="Enter the reason for rejection (e.g., poor image quality, missing documents...)"
-                      value={rejectComment}
-                      onChange={(e) => setRejectComment(e.target.value)}
-                    />
-                  </div>
-                </div>
-              )}
-              <div className="mt-4 p-3 bg-gray-50 rounded-lg">
-                <p className="font-medium">Property Details:</p>
-                <p className="text-sm mt-1">{property.typology}</p>
-                <p className="text-sm text-gray-600">
-                  {property.area}, {property.state}
-                </p>
-                <p className="text-sm text-gray-600">
-                  Owner: {property.full_name}
-                </p>
-                <p className="text-sm text-gray-600">ID: {property.id}</p>
               </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={isProcessing}>
-              Cancel
-            </AlertDialogCancel>
+          <AlertDialogFooter className="mt-6">
+            <AlertDialogCancel disabled={isProcessing}>Cancel</AlertDialogCancel>
             <AlertDialogAction
               onClick={
                 confirmationDialog.action === "approve"
                   ? handleApproveProperty
                   : handleRejectProperty
               }
-              disabled={isProcessing || (confirmationDialog.action === "reject" && !rejectComment)}
+              disabled={
+                isProcessing || 
+                (confirmationDialog.action === "reject" && !rejectComment) ||
+                (confirmationDialog.action === "approve" && property.listing_status !== "upgrade_pending" && !inspectionFee)
+              }
               className={
                 confirmationDialog.action === "approve"
-                  ? "bg-green-600 hover:bg-green-700"
-                  : "bg-red-600 hover:bg-red-700 disabled:opacity-50"
+                  ? "bg-green-600 hover:bg-green-700 text-white"
+                  : "bg-red-600 hover:bg-red-700 text-white"
               }
             >
               {isProcessing ? (
@@ -864,9 +1086,9 @@ const PropertyReviewDialog = ({
                   Processing...
                 </>
               ) : confirmationDialog.action === "approve" ? (
-                "Approve Property"
+                property.listing_status === "upgrade_pending" ? "Complete & List" : "Approve Submission"
               ) : (
-                "Reject Property"
+                "Confirm Rejection"
               )}
             </AlertDialogAction>
           </AlertDialogFooter>

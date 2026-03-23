@@ -3,8 +3,7 @@
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL || "https://ez-pay.realestway.com/api";
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL;
 
 export interface UploadedFile {
   id: string;
