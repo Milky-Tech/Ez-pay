@@ -30,7 +30,7 @@ interface OverviewTabProps {
   properties: any[];
   applications: any[];
   loading: {
-    properties: boolean;
+    listings: boolean;
     applications: boolean;
   };
   getStatusBadge: (status: string) => JSX.Element;
@@ -127,18 +127,18 @@ export default function OverviewTab({
                 variant="ghost"
                 size="sm"
                 onClick={fetchProperties}
-                disabled={loading.properties}
+                disabled={loading.listings}
               >
                 View All
               </Button>
             </div>
           </CardHeader>
           <CardContent>
-            {loading.properties ? (
+            {loading.listings ? (
               <div className="text-center py-4">
                 <RefreshCw className="h-8 w-8 animate-spin mx-auto text-gray-400" />
                 <p className="text-sm text-gray-500 mt-2">
-                  Loading properties...
+                  Loading listings...
                 </p>
               </div>
             ) : properties.length === 0 ? (

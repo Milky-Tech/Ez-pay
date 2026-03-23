@@ -30,8 +30,7 @@ import { type Property } from "@/lib/types";
 import PropertyFilter from "./component/filter";
 import Footer from "../components/footer";
 
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL || "https://ez-pay.realestway.com/api";
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL;
 
 export default function ListingsPage() {
   const [properties, setProperties] = useState<Property[]>([]);
@@ -155,9 +154,9 @@ export default function ListingsPage() {
       </section>
       <div className="pt-24 pb-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="sticky top-20 z-40 bg-gray-50 pb-4 w-1/3">
+          {/* <div className="sticky top-20 z-40 bg-gray-50 pb-4 w-1/3">
             <PropertyFilter maxPrice={maxPrice} setMaxPrice={setMaxPrice} />
-          </div>
+          </div> */}
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             {/* Listings */}
@@ -198,7 +197,7 @@ export default function ListingsPage() {
 
                           return roomsArray && roomsArray.length > 0 ? (
                             <img
-                              src={`https://ez-pay.realestway.com/${roomsArray[0]}`}
+                              src={`${process.env.NEXT_PUBLIC_API_URL?.replace("/api", "")}/${roomsArray[0]}`}
                               alt={property.typology}
                               className="h-full w-full object-cover"
                             />

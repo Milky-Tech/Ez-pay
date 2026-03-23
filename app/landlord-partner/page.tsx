@@ -60,7 +60,7 @@ export default function LandlordPartnerPage() {
         <div className="relative z-10 w-full max-w-[96%] md:max-w-[70%] lg:max-w-1/3 mx-auto my-auto flex pt-6">
           <div className="px-6 md:px-12 text-center m-auto">
             <h1 className="text-5xl font-bold text-white mb-4 font-raleway">
-              EZ-PAY LANDLORD
+              EZPAY LANDLORD
             </h1>
           </div>
         </div>
@@ -69,6 +69,10 @@ export default function LandlordPartnerPage() {
       <div className="pt-4 pb-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
+            <div className="flex flex-col gap-3 items-center text-center mt-12">
+          <div className="bg-white shadow-lg shadow-primary/50 text-primary rounded-md py-2 px-6 mb-4">
+           LANDLORD
+          </div></div>
             <h2 className="text-3xl font-extrabold text-gray-900 mb-4 font-raleway">
               Securing Your Legacy Asset
             </h2>
@@ -86,7 +90,7 @@ export default function LandlordPartnerPage() {
               >
                 <div className="flex justify-between items-center">
                   <CardTitle className="font-raleway">
-                    EZ-Prime Landlord
+                    EZPAY PRIME Landlord
                   </CardTitle>
                   {expandedSections.prime ? <ChevronUp /> : <ChevronDown />}
                 </div>
@@ -115,7 +119,7 @@ export default function LandlordPartnerPage() {
                 {expandedSections.prime && (
                   <div className="mt-4 p-4 bg-secondary/10 rounded-lg">
                     <h4 className="font-semibold mb-2">
-                      Prime Partner Benefits:
+                      PRIME Partner Benefits:
                     </h4>
                     <ul className="space-y-1 text-sm">
                       <li>
@@ -141,7 +145,7 @@ export default function LandlordPartnerPage() {
               >
                 <div className="flex justify-between items-center">
                   <CardTitle className="font-raleway">
-                    EZ-Vantage Landlord
+                    EZPAY VANTAGE Landlord
                   </CardTitle>
                   {expandedSections.vantage ? <ChevronUp /> : <ChevronDown />}
                 </div>
@@ -174,7 +178,7 @@ export default function LandlordPartnerPage() {
                 {expandedSections.vantage && (
                   <div className="mt-4 p-4 bg-primary/10 rounded-lg">
                     <h4 className="font-semibold mb-2">
-                      Vantage Partner Features:
+                      VANTAGE Partner Features:
                     </h4>
                     <ul className="space-y-1 text-sm">
                       <li>
@@ -469,7 +473,7 @@ export default function LandlordPartnerPage() {
             
             <div className="relative z-10 px-8 text-center max-w-4xl mx-auto">
               <h2 className="text-4xl font-bold text-gray-900 mb-6 font-raleway">
-                Ready to Become an EZ-PAY Landlord?
+                Ready to Become an EZPAY Landlord?
               </h2>
               <p className="text-xl text-gray-600 mb-10 leading-relaxed">
                 Join our exclusive network of property owners. Start your journey towards 

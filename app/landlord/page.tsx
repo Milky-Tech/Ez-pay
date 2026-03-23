@@ -10,7 +10,6 @@ import {
   RefreshCw,
   Plus,
   Building,
-  Users,
   CreditCard,
   Home,
   LogOut,
@@ -23,19 +22,13 @@ import {
   Upload,
   Trash2,
   Paperclip,
+  Users,
 } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/app/components/ui/button";
 import { Input } from "@/app/components/ui/input";
 import { Label } from "@/app/components/ui/label";
 import { Textarea } from "@/app/components/ui/textarea";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/app/components/ui/dialog";
 import { Badge } from "@/app/components/ui/badge";
 import { Card, CardContent } from "@/app/components/ui/card";
 import {
@@ -46,9 +39,10 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { useLandlordData } from "@/hooks/useLandlordData";
 import { useFileUpload } from "@/hooks/useFileUpload";
-import { PropertyCard } from "@/app/components/landlord/PropertyCard";
 import { ApplicationItem } from "@/app/components/landlord/ApplicationItem";
-import { AddPropertyDialog } from "@/app/components/landlord/AddPropertyDialog";
+import PropertiesTab from "@/app/components/landlord/PropertiesTab";
+import AddPropertyView from "@/app/components/landlord/AddPropertyView";
+import { getCurrentLocation } from "@/lib/geolocation";
 
 export default function LandlordDashboard() {
   const {
@@ -64,11 +58,11 @@ export default function LandlordDashboard() {
   const [activeTab, setActiveTab] = useState("dashboard");
   const [searchTerm, setSearchTerm] = useState("");
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
-  const [addPropertyDialog, setAddPropertyDialog] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const {
     landlordData,
     properties,
+    drafts,
     applications,
     loading: dataLoading,
     refreshData,
@@ -160,8 +154,7 @@ export default function LandlordDashboard() {
     try {
       const response = await fetch(
         `${
-          process.env.NEXT_PUBLIC_API_URL || "https://ez-pay.realestway.com/api"
-        }/landlords/${user.id}`,
+          process.env.NEXT_PUBLIC_API_URL }/landlords/${user.id}`,
         {
           method: "PATCH",
           headers: {
@@ -193,6 +186,73 @@ export default function LandlordDashboard() {
     }
   };
 
+  const handleCreateDraft = async () => {
+    if (!token || !user?.id) return;
+    
+    if (!draftData.property_address || !draftData.state || !draftData.area || !draftData.typology) {
+      toast({
+        variant: "destructive",
+        title: "Missing Information",
+        description: "Please provide the state, area, property type, and property address.",
+      });
+      return;
+    }
+
+    setIsCreatingDraft(true);
+    try {
+      let locationData = null;
+      try {
+        locationData = await getCurrentLocation();
+      } catch (locError) {
+        console.warn("Failed to capture location during draft creation:", locError);
+      }
+
+      const response = await fetch(
+        `${
+          process.env.NEXT_PUBLIC_API_URL
+        }/listings`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            ...draftData,
+            landlord_id: user.id,
+            is_draft: true,
+            landlord_package: "prime",
+            locationData: locationData,
+          }),
+        }
+      );
+
+      if (response.ok) {
+        const result = await response.json();
+        const propertyId = result.data?.id || result.id;
+        
+        if (typeof window !== "undefined") {
+          localStorage.setItem(`draft_${propertyId}`, JSON.stringify(result.data || result));
+        }
+        
+        router.push(`/listings/${propertyId}/edit`);
+      } else {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to create draft");
+      }
+    } catch (error) {
+       toast({
+        variant: "destructive",
+        title: "Draft Creation Failed",
+        description: error instanceof Error ? error.message : "Failed to create draft",
+      });
+    } finally {
+      setIsCreatingDraft(false);
+    }
+  };
+  
+
   const filteredProperties = properties.filter(
     (p) =>
       p.code_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -204,15 +264,14 @@ export default function LandlordDashboard() {
     totalProperties: properties.length,
     occupiedUnits: properties.filter(
       (p) =>
-        p.availability_status === "rented" ||
-        p.availability_status === "occupied",
+        p.listing_status === "rented"
     ).length,
     totalUnits: properties.reduce(
-      (acc, p) => acc + (p.noOfUnits || p.number_of_units || 1),
+      (acc, p) => acc + (p.number_of_units || 1),
       0,
     ),
     pendingApplications: applications.filter(
-      (a) => a.status === "pending" || a.status === "submitted",
+      (a) => a.status === "pending",
     ).length,
     totalRevenue: properties.reduce((acc, p) => acc + (p.monthly_cost || 0), 0),
   };
@@ -256,7 +315,12 @@ export default function LandlordDashboard() {
         {isProfileComplete && (
           <Button
             size="sm"
-            onClick={() => setAddPropertyDialog(true)}
+            onClick={() => {
+              setActiveTab("properties");
+              // We'll let PropertiesTab handle its own Add Property button or provide a way to trigger it
+              // For simplicity, switching to properties tab is a good start, or add-property tab if available
+              setMobileSidebarOpen(false);
+            }}
             className="bg-primary"
           >
             <Plus className="h-4 w-4" />
@@ -297,7 +361,6 @@ export default function LandlordDashboard() {
           {[
             { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
             { id: "properties", label: "My Properties", icon: Building },
-            { id: "applicants", label: "Applicants", icon: Users },
             { id: "finance", label: "Finance", icon: BarChart3 },
             { id: "settings", label: "Profile Settings", icon: Settings },
           ].map((item) => (
@@ -381,7 +444,7 @@ export default function LandlordDashboard() {
             </Button>
             {isProfileComplete && (
               <Button
-                onClick={() => setAddPropertyDialog(true)}
+                onClick={() => setActiveTab("add-property")}
                 className="bg-primary hover:bg-primary/90 transition-all font-raleway font-bold shadow-lg shadow-primary/20"
               >
                 <Plus className="h-4 w-4 mr-2" /> Add Property
@@ -441,12 +504,6 @@ export default function LandlordDashboard() {
                       color: "bg-emerald-600 shadow-emerald-200",
                     },
                     {
-                      label: "Pending Apps",
-                      value: stats.pendingApplications,
-                      icon: Users,
-                      color: "bg-amber-600 shadow-amber-200",
-                    },
-                    {
                       label: "Monthly Revenue",
                       value: `₦${stats.totalRevenue.toLocaleString()}`,
                       icon: CreditCard,
@@ -478,102 +535,12 @@ export default function LandlordDashboard() {
 
                 {/* Main Content Areas */}
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                  {/* Properties List */}
-                  <div className="lg:col-span-2 space-y-6">
-                    <div className="flex items-center justify-between">
-                      <h2 className="text-xl font-bold text-slate-900 font-raleway">
-                        My Properties
-                      </h2>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="text-primary hover:text-primary hover:bg-primary/5"
-                        onClick={() => setActiveTab("properties")}
-                      >
-                        View All
-                      </Button>
-                    </div>
-
-                    {dataLoading.properties ? (
-                      <div className="flex flex-col items-center justify-center py-20 bg-white rounded-2xl border border-dashed">
-                        <Loader2 className="h-8 w-8 animate-spin text-primary mb-4" />
-                        <p className="text-slate-400">Fetching properties...</p>
-                      </div>
-                    ) : filteredProperties.length === 0 ? (
-                      <Card className="border-dashed border-2 py-12 text-center">
-                        <CardContent className="space-y-4">
-                          <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto">
-                            <Building className="h-8 w-8 text-slate-300" />
-                          </div>
-                          <p className="text-slate-500">
-                            {searchTerm
-                              ? "No match found."
-                              : "No properties listed yet."}
-                          </p>
-                          {!searchTerm && isProfileComplete && (
-                            <Button onClick={() => setAddPropertyDialog(true)}>
-                              Add Your First Property
-                            </Button>
-                          )}
-                          {!isProfileComplete && (
-                            <div className="space-y-2">
-                              <p className="text-amber-600 text-sm flex items-center justify-center gap-2">
-                                <AlertTriangle className="h-4 w-4" />
-                                Property upload is hidden until profile is 100%
-                                complete
-                              </p>
-                              <Button
-                                variant="outline"
-                                onClick={() => setActiveTab("settings")}
-                              >
-                                Complete Profile Now
-                              </Button>
-                            </div>
-                          )}
-                        </CardContent>
-                      </Card>
-                    ) : (
-                      <div className="space-y-4">
-                        {filteredProperties.map((p) => (
-                          <PropertyCard
-                            key={p.id}
-                            property={p}
-                            onViewDetails={(id) =>
-                              router.push(`/listings/${id}`)
-                            }
-                          />
-                        ))}
-                      </div>
-                    )}
+                  {/* Quick Actions or Placeholders if needed */}
+                  <div className="lg:col-span-2 space-y-8">
+                    {/* You could add a quick guide or empty state summary here */}
                   </div>
 
-                  {/* Sidebar: Applications & Summary */}
                   <div className="space-y-8">
-                    <div className="space-y-6">
-                      <h2 className="text-xl font-bold text-slate-900 font-raleway">
-                        Recent Activity
-                      </h2>
-                      {dataLoading.applications ? (
-                        <div className="flex justify-center py-10">
-                          <Loader2 className="h-6 w-6 animate-spin text-primary" />
-                        </div>
-                      ) : applications.length === 0 ? (
-                        <p className="text-sm text-slate-400 text-center py-10 bg-white rounded-2xl border border-dashed">
-                          No recent activity.
-                        </p>
-                      ) : (
-                        <div className="space-y-3">
-                          {applications.slice(0, 5).map((a) => (
-                            <ApplicationItem
-                              key={a.id}
-                              application={a}
-                              onClick={(id) => router.push(`/listings/apply/${id}`)}
-                            />
-                          ))}
-                        </div>
-                      )}
-                    </div>
-
                     <Card
                       className={`${isProfileComplete ? "bg-primary" : "bg-slate-900"} text-white border-none shadow-xl overflow-hidden relative group`}
                     >
@@ -620,16 +587,14 @@ export default function LandlordDashboard() {
                         ) : (
                           <>
                             <p className="text-sm text-primary-foreground/80 mb-6">
-                              You have {stats.pendingApplications} pending
-                              applications. Faster responses typically lead to
-                              higher conversion.
+                              Your profile is complete! You can now upload and manage your properties efficiently.
                             </p>
                             <Button
                               variant="secondary"
                               className="w-full font-bold"
-                              onClick={() => setActiveTab("applicants")}
+                              onClick={() => setActiveTab("properties")}
                             >
-                              Go to Applications
+                              Manage Properties
                             </Button>
                           </>
                         )}
@@ -638,6 +603,79 @@ export default function LandlordDashboard() {
                   </div>
                 </div>
               </>
+            )}
+
+            {activeTab === "properties" && (
+              <PropertiesTab 
+                properties={properties} 
+                drafts={drafts}
+                loading={dataLoading} 
+                onAddProperty={() => {
+                  if (isProfileComplete) {
+                    setActiveTab("add-property");
+                  } else {
+                    toast({
+                      variant: "destructive",
+                      title: "Profile Incomplete",
+                      description: "Please complete your profile to 100% before adding a property.",
+                    });
+                    setActiveTab("settings");
+                  }
+                }}
+                onViewDetails={(id, status) => {
+                  if (status !== "approved") {
+                    router.push(`/landlord/listings/${id}/preview`);
+                  } else {
+                    router.push(`/listings/${id}`);
+                  }
+                }}
+                onEditDraft={(id) => router.push(`/listings/${id}/edit`)}
+              />
+            )}
+
+            {activeTab === "add-property" && (
+              isProfileComplete ? (
+                <AddPropertyView 
+                  token={token} 
+                  user_id={String(user.id)} 
+                  onSuccess={() => {
+                    refreshData();
+                    setActiveTab("properties");
+                  }} 
+                  onCancel={() => setActiveTab("properties")}
+                  toast={toast}
+                />
+              ) : (
+                <div className="flex flex-col items-center justify-center py-20 bg-white rounded-2xl border border-dashed border-amber-200">
+                  <AlertTriangle className="h-12 w-12 text-amber-500 mb-4" />
+                  <h3 className="text-xl font-bold text-slate-900 mb-2">Profile Incomplete</h3>
+                  <p className="text-slate-500 text-center max-w-md mb-6">
+                    You must complete your profile to 100% before you can upload properties.
+                  </p>
+                  <Button onClick={() => setActiveTab("settings")}>
+                    Complete Profile Now
+                  </Button>
+                </div>
+              )
+            )}
+
+
+            {activeTab === "finance" && (
+              <div className="space-y-6">
+                <div>
+                  <h2 className="text-2xl font-bold text-slate-900 font-raleway">Financial Overview</h2>
+                  <p className="text-slate-500 text-sm">Track your earnings and payout history.</p>
+                </div>
+                <Card className="border-dashed border-2 py-12 text-center bg-transparent">
+                  <CardContent className="space-y-4">
+                    <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto">
+                      <CreditCard className="h-8 w-8 text-slate-300" />
+                    </div>
+                    <p className="text-slate-500 font-medium">Financial tracking will be available soon.</p>
+                    <p className="text-xs text-slate-400">We're finalizing your payout dashboard.</p>
+                  </CardContent>
+                </Card>
+              </div>
             )}
 
             {activeTab === "settings" && (
@@ -1042,17 +1080,7 @@ export default function LandlordDashboard() {
         </div>
       </main>
 
-      {/* Dialogs */}
-      {addPropertyDialog && (
-        <AddPropertyDialog
-          open={addPropertyDialog}
-          onOpenChange={setAddPropertyDialog}
-          token={token}
-          user_id={user.id}
-          onSuccess={refreshData}
-          toast={toast}
-        />
-      )}
+
     </div>
   );
 }

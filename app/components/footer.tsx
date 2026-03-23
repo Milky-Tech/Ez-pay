@@ -42,12 +42,12 @@ const Footer = () => {
               <img
                 src="/images/logo-ezpay.png"
                 className="text-primary h-8 w-auto"
-                alt="EZ-Pay Logo"
+                alt="EZPAY Logo"
               />
             </div>
 
             <p className="text-sm md:max-w-xs">
-              EZ-Pay helps you rent quality homes and pay monthly instead of
+              EZPAY helps you rent quality homes and pay monthly instead of
               yearly. Everything you need.
             </p>
 
@@ -134,7 +134,7 @@ const Footer = () => {
 
         {/* Bottom Bar */}
         <div className="border-t border-zinc-800 py-6 text-center text-xs text-gray-500">
-          © 2025 Bridgett Homestep EZ-Pay. All Rights Reserved
+          © 2025 Bridgett Homestep EZPAY. All Rights Reserved
         </div>
       </footer>
     </div>

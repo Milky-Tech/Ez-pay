@@ -64,21 +64,29 @@ export const PropertyCard = ({
               ).toLocaleString()}
             </p>
             <p className="text-xs text-slate-500">per month</p>
+            {property.listing_status === "upgrade_pending" &&  <Badge  className={`mt-1 sm:mt-2 text-xs bg-blue-50 text-blue-700 hover:bg-blue-50 border-blue-100`}> "Upgrade Pending"</Badge>}
             <Badge
               className={`mt-1 sm:mt-2 text-xs ${
-                property.availability_status === "available"
+                property.status === "pending"
+                  ? "bg-amber-50 text-amber-700 hover:bg-amber-50 border-amber-100"
+                  : property.status === "rejected" ? "bg-red-50 text-red-700 hover:bg-red-50 border-red-100" 
+                  : property.listing_status === "available"
                   ? "bg-green-50 text-green-700 hover:bg-green-50 border-green-100"
-                  : property.availability_status === "rented"
+                  : property.listing_status === "rented"
                   ? "bg-blue-50 text-blue-700 hover:bg-blue-50 border-blue-100"
                   : "bg-gray-50 text-gray-700 hover:bg-gray-50 border-gray-100"
               }`}
             >
-              {property.availability_status === "available"
+              {(property.is_draft && property.status !=='rejected')? "Unsubmitted":property.status === "pending" 
+                ? "Pending Approval" 
+                : property.status === "rejected" ? "Action Required"
+                : property.listing_status === "available"
                 ? "Available"
-                : property.availability_status === "rented"
+                : property.listing_status === "rented"
                 ? "Rented"
-                : property.availability_status}
+                : property.listing_status}
             </Badge>
+            <Badge  className={`mt-1 sm:mt-2 text-xs bg-amber-50 text-amber-700 hover:bg-amber-50 border-amber-100`}>{property.is_draft && "Draft"}</Badge>
           </div>
           <Button variant="ghost" size="icon" className="hidden sm:flex">
             <ChevronRight className="h-5 w-5 text-slate-400" />

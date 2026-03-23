@@ -3,8 +3,7 @@
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL || "https://ez-pay.realestway.com/api";
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL;
 
 export interface UploadedFile {
   id: string;
@@ -29,6 +28,8 @@ export interface UploadedFile {
     | "govt_id"
     | "live_photo"
     | "live_video"
+    | "guarantor_id"
+    | "attestation_letter"
     | "others";
 }
 
@@ -39,7 +40,7 @@ export const useFileUpload = (token: string | null) => {
   const uploadFile = async (
     file: File,
     type: string,
-    endpoint: string = "upload/single"
+    endpoint: string = "upload/single",
   ): Promise<string> => {
     const formData = new FormData();
     formData.append("file", file);
@@ -55,6 +56,7 @@ export const useFileUpload = (token: string | null) => {
       "rest_room",
       "live_photo",
       "govt_id",
+      "guarantor_id",
       "others",
     ];
     let apiType = "document";
@@ -80,18 +82,18 @@ export const useFileUpload = (token: string | null) => {
 
     const data = await response.json();
     return (
-      data.url || 
-      data.path || 
-      data.filePath || 
-      data.data?.url || 
-      data.data?.path || 
+      data.url ||
+      data.path ||
+      data.filePath ||
+      data.data?.url ||
+      data.data?.path ||
       `/storage/uploads/${apiType === "image" ? "images" : apiType === "video" ? "videos" : "documents"}/${file.name}`
     );
   };
 
   const bulkUploadFiles = async (
     files: File[],
-    type: string = "image"
+    type: string = "image",
   ): Promise<string[]> => {
     const formData = new FormData();
     files.forEach((file) => {
@@ -113,7 +115,14 @@ export const useFileUpload = (token: string | null) => {
     }
 
     const data = await response.json();
-    return data.urls || data.paths || data.filePaths || data.data?.urls || data.data?.paths || [];
+    return (
+      data.urls ||
+      data.paths ||
+      data.filePaths ||
+      data.data?.urls ||
+      data.data?.paths ||
+      []
+    );
   };
 
   const handleFileUpload = async (
@@ -123,7 +132,7 @@ export const useFileUpload = (token: string | null) => {
     onSuccess?: (url: string) => void,
     aiValidated: boolean = false,
     aiMetadata?: any,
-    endpoint?: string
+    endpoint?: string,
   ) => {
     const id = `${type}_${Date.now()}_${Math.random()
       .toString(36)
@@ -150,14 +159,16 @@ export const useFileUpload = (token: string | null) => {
       const url = await uploadFile(file, type, endpoint);
 
       setUploadedFiles((prev) =>
-        prev.map((f) => (f.id === id ? { ...f, url, uploading: false } : f))
+        prev.map((f) => (f.id === id ? { ...f, url, uploading: false } : f)),
       );
 
       if (onSuccess) onSuccess(url);
 
       toast({
         title: "Upload Successful",
-        description: aiValidated ? "AI Validated! File uploaded successfully" : "File uploaded successfully",
+        description: aiValidated
+          ? "AI Validated! File uploaded successfully"
+          : "File uploaded successfully",
       });
       return url;
     } catch (error) {
@@ -165,8 +176,8 @@ export const useFileUpload = (token: string | null) => {
         prev.map((f) =>
           f.id === id
             ? { ...f, uploading: false, error: "Failed to upload file" }
-            : f
-        )
+            : f,
+        ),
       );
       toast({
         variant: "destructive",
@@ -179,12 +190,10 @@ export const useFileUpload = (token: string | null) => {
 
   const handleBulkInteriorUpload = async (
     files: File[],
-    onSuccess?: (urls: string[]) => void
+    onSuccess?: (urls: string[]) => void,
   ) => {
     const newFiles: UploadedFile[] = files.map((file) => ({
-      id: `interior_${Date.now()}_${Math.random()
-        .toString(36)
-        .substr(2, 9)}`,
+      id: `interior_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       file,
       url: null,
       uploading: true,
@@ -224,13 +233,15 @@ export const useFileUpload = (token: string | null) => {
             return { ...f, uploading: false, error: "Failed to upload file" };
           }
           return f;
-        })
+        }),
       );
       toast({
         variant: "destructive",
         title: "Upload Failed",
         description:
-          error instanceof Error ? error.message : "Failed to upload interior photos",
+          error instanceof Error
+            ? error.message
+            : "Failed to upload interior photos",
       });
       return null;
     }
@@ -264,8 +275,9 @@ export const useFileUpload = (token: string | null) => {
           "bedroom",
           "kitchen",
           "rest_room",
+          "c_of_o",
           "others",
-        ].includes(f.type)
+        ].includes(f.type),
       ),
   };
 };

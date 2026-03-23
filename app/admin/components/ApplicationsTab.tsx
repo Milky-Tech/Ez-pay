@@ -1,3 +1,4 @@
+import { useState } from "react";
 import {
   Card,
   CardContent,
@@ -97,7 +98,7 @@ interface ApplicationsTabProps {
   formatDate: (dateString: string) => string;
   fetchApplications: () => void;
   approveApplication: (id: string) => void;
-  rejectApplication: (id: string) => void;
+  rejectApplication: (id: string, comment?: string) => void;
 }
 
 export default function ApplicationsTab({
@@ -113,6 +114,23 @@ export default function ApplicationsTab({
   approveApplication,
   rejectApplication,
 }: ApplicationsTabProps) {
+  const [rejectionDialog, setRejectionDialog] = useState<{
+    open: boolean;
+    applicationId: string | null;
+  }>({
+    open: false,
+    applicationId: null,
+  });
+  const [rejectionComment, setRejectionComment] = useState("");
+
+  const handleConfirmReject = () => {
+    if (rejectionDialog.applicationId) {
+      rejectApplication(rejectionDialog.applicationId, rejectionComment);
+      setRejectionDialog({ open: false, applicationId: null });
+      setRejectionComment("");
+    }
+  };
+
   const filteredApplications = applications.filter((app) => {
     const matchesSearch =
       searchTerm === "" ||
@@ -558,7 +576,10 @@ export default function ApplicationsTab({
                                     variant="destructive"
                                     className="min-w-[120px]"
                                     onClick={() =>
-                                      rejectApplication(app.unique_id)
+                                      setRejectionDialog({
+                                        open: true,
+                                        applicationId: app.unique_id,
+                                      })
                                     }
                                   >
                                     <XCircle className="h-4 w-4 mr-2" />
@@ -583,6 +604,51 @@ export default function ApplicationsTab({
           </div>
         )}
       </CardContent>
+
+      <Dialog
+        open={rejectionDialog.open}
+        onOpenChange={(open) =>
+          setRejectionDialog((prev) => ({ ...prev, open }))
+        }
+      >
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Reason for Rejection</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="comment">
+                Please provide a reason for rejecting this application. This
+                will be shared with the applicant.
+              </Label>
+              <Textarea
+                id="comment"
+                placeholder="e.g. Incomplete documents, insufficient income, etc."
+                value={rejectionComment}
+                onChange={(e) => setRejectionComment(e.target.value)}
+                className="min-h-[100px]"
+              />
+            </div>
+          </div>
+          <div className="flex justify-end gap-3">
+            <Button
+              variant="outline"
+              onClick={() =>
+                setRejectionDialog({ open: false, applicationId: null })
+              }
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleConfirmReject}
+              disabled={!rejectionComment.trim()}
+            >
+              Confirm Rejection
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }

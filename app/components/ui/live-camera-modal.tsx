@@ -10,6 +10,7 @@ import {
 import { Button } from "@/app/components/ui/button";
 import { Camera, RefreshCw, X, Check, FlipHorizontal, AlertCircle, Info, CheckCircle2, AlertTriangle } from "lucide-react";
 import * as cocoSsd from "@tensorflow-models/coco-ssd";
+import * as tf from "@tensorflow/tfjs";
 import { UploadedFile } from "@/hooks/useFileUpload";
 import { useAI } from "@/context/aicontext";
 import { validateRoomFrame, RoomType, ValidationResult } from "@/lib/ai/room-validation";
@@ -21,6 +22,7 @@ interface LiveCameraModalProps {
   title?: string;
   type?: UploadedFile["type"] | null;
   packageType?: "prime" | "vantage";
+  disableAI?: boolean;
 }
 
 export const LiveCameraModal = ({
@@ -30,6 +32,7 @@ export const LiveCameraModal = ({
   title = "Capture Live Photo",
   type,
   packageType = "prime",
+  disableAI = false,
 }: LiveCameraModalProps) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -44,6 +47,7 @@ export const LiveCameraModal = ({
   const { model, isModelLoading, error: aiError } = useAI();
   const [detections, setDetections] = useState<cocoSsd.DetectedObject[]>([]);
   const [brightness, setBrightness] = useState<number>(0);
+  const [sharpness, setSharpness] = useState<number>(0);
   const [currentValidation, setCurrentValidation] = useState<ValidationResult | null>(null);
   const [guidance, setGuidance] = useState<{ message: string; type: "info" | "warning" | "success" }>({
     message: isModelLoading ? "AI is initializing..." : "Initializing AI guidance...",
@@ -81,25 +85,44 @@ export const LiveCameraModal = ({
     }
   }, [model, isModelLoading, aiError]);
 
-  const calculateBrightness = (video: HTMLVideoElement) => {
-    const canvas = document.createElement("canvas");
-    canvas.width = 100;
-    canvas.height = 100;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return 0;
-    ctx.drawImage(video, 0, 0, 100, 100);
-    const imageData = ctx.getImageData(0, 0, 100, 100);
-    const data = imageData.data;
-    let colorSum = 0;
-    for (let x = 0; x < data.length; x += 4) {
-      const avg = (data[x] + data[x + 1] + data[x + 2]) / 3;
-      colorSum += avg;
+  const checkImageQuality = async (video: HTMLVideoElement) => {
+    try {
+      if (!tf.engine().backendName) {
+        await tf.ready();
+      }
+      return tf.tidy(() => {
+        const tensor = tf.browser.fromPixels(video);
+        
+        // Calculate brightness
+        const grayscale = tf.image.rgbToGrayscale(tensor);
+        const brightnessScore = grayscale.mean().dataSync()[0];
+
+        // Calculate sharpness (variance of Laplacian)
+        const laplacianKernel = tf.tensor2d([
+          [0,  1, 0],
+          [1, -4, 1],
+          [0,  1, 0]
+        ], [3, 3]).expandDims(2).expandDims(3);
+
+        const floatGrayscale = grayscale.asType('float32').expandDims(0);
+        const edges = tf.conv2d(floatGrayscale, laplacianKernel, 1, 'same');
+        
+        const variance = tf.moments(edges).variance.dataSync()[0];
+
+        return {
+          brightness: brightnessScore,
+          sharpness: variance
+        };
+      });
+    } catch (err) {
+      console.error("TFJS QA Error:", err);
+      // Fallback
+      return { brightness: 128, sharpness: 1000 };
     }
-    return colorSum / (100 * 100);
   };
 
   const runDetection = useCallback(async () => {
-    if (!open || capturedImage || !model) return;
+    if (!open || capturedImage || !model || disableAI) return;
 
     const video = videoRef.current;
     if (video && video.readyState === 4) {
@@ -109,8 +132,11 @@ export const LiveCameraModal = ({
         setDetections(predictions);
         
         // Quality Check
-        const b = calculateBrightness(video);
+        const qualityResult = await checkImageQuality(video);
+        const b = qualityResult.brightness;
+        const s = qualityResult.sharpness;
         setBrightness(b);
+        setSharpness(s);
 
         // Map component type to validation room type
         let roomKey: RoomType = "living_room";
@@ -120,7 +146,6 @@ export const LiveCameraModal = ({
         else if (type === "living_room") roomKey = "living_room";
         else if (type === "compound_road") roomKey = "compound_road";
         else if (type === "exterior_shot") roomKey = "exterior_shot";
-        else if (type === "compound") roomKey = "compound";
         else if (type === "power_system") roomKey = "power_system";
 
         const result = validateRoomFrame(predictions, roomKey, b);
@@ -130,7 +155,20 @@ export const LiveCameraModal = ({
         let message = result.user_hint;
         let gType: "info" | "warning" | "success" = result.scene_match ? "success" : "info";
 
-        if (b < 30 || b > 230) gType = "warning";
+        // Strict thresholds for validation state
+        if (b < 40) {
+          message = "Too dark! Need more light";
+          gType = "warning";
+          result.scene_match = false;
+        } else if (b > 240) {
+          message = "Too bright or glaring";
+          gType = "warning";
+          result.scene_match = false;
+        } else if (s < 100) {
+          message = "Hold steady, camera is unfocused/blurry";
+          gType = "warning";
+          result.scene_match = false;
+        }
 
         setGuidance({ message, type: gType });
       } catch (err) {
@@ -145,7 +183,7 @@ export const LiveCameraModal = ({
   }, [model, capturedImage, type, open]);
 
   useEffect(() => {
-    if (open && model && !capturedImage) {
+    if (open && model && !capturedImage && !disableAI) {
       detectionRequestId.current = requestAnimationFrame(runDetection);
       return () => {
         if (detectionRequestId.current) {
@@ -198,8 +236,8 @@ export const LiveCameraModal = ({
         context.drawImage(video, 0, 0, canvas.width, canvas.height);
         const imageData = canvas.toDataURL("image/jpeg", 0.9);
         setCapturedImage(imageData);
-        setIsValidatedAtCapture(currentValidation?.scene_match || false);
-        setCaptureMetadata(currentValidation);
+        setIsValidatedAtCapture(disableAI ? true : (currentValidation?.scene_match || false));
+        setCaptureMetadata(disableAI ? null : currentValidation);
         
         if (stream) {
           stream.getTracks().forEach((track) => track.stop());
@@ -215,7 +253,7 @@ export const LiveCameraModal = ({
     startCamera();
   };
 
-  const handleDone = () => {
+  const handleDone = (force: boolean = false) => {
     if (capturedImage) {
       fetch(capturedImage)
         .then((res) => res.blob())
@@ -223,7 +261,7 @@ export const LiveCameraModal = ({
           const file = new File([blob], `AI_capture_${Date.now()}.jpg`, {
             type: "image/jpeg",
           });
-          onCapture(file, isValidatedAtCapture, captureMetadata);
+          onCapture(file, force ? false : isValidatedAtCapture, captureMetadata);
           onOpenChange(false);
           setCapturedImage(null);
           setCaptureMetadata(null);
@@ -267,32 +305,34 @@ export const LiveCameraModal = ({
               />
               
               {/* Guidance Overlay */}
-              <div className="absolute inset-0 pointer-events-none border-[12px] border-white/5 flex flex-col items-center justify-end pb-24">
-                <div className={`px-4 py-2 rounded-full backdrop-blur-md flex flex-col items-center gap-1 transition-all duration-300 max-w-[85%] ${
-                  guidance.type === "warning" ? "bg-red-500/80 text-white" : 
-                  guidance.type === "success" ? "bg-green-500/80 text-white" : 
-                  "bg-white/20 text-white"
-                }`}>
-                  <div className="flex items-center gap-2">
-                    {guidance.type === "warning" ? <AlertCircle className="h-4 w-4" /> : 
-                     guidance.type === "success" ? <CheckCircle2 className="h-4 w-4" /> : 
-                     <Info className="h-4 w-4" />}
-                    <span className="text-xs font-bold font-raleway text-center">{guidance.message}</span>
-                  </div>
-                  
-                  {currentValidation && currentValidation.missing_objects.length > 0 && (
-                    <div className="text-[10px] opacity-90 flex flex-wrap justify-center gap-1 mt-1">
-                      <span className="font-bold">Missing:</span>
-                      {currentValidation.missing_objects.map((obj, i) => (
-                        <span key={i} className="bg-black/20 px-1.5 rounded">{obj}</span>
-                      ))}
+              {!disableAI && (
+                <div className="absolute inset-0 pointer-events-none border-[12px] border-white/5 flex flex-col items-center justify-end pb-24">
+                  <div className={`px-4 py-2 rounded-full backdrop-blur-md flex flex-col items-center gap-1 transition-all duration-300 max-w-[85%] ${
+                    guidance.type === "warning" ? "bg-red-500/80 text-white" : 
+                    guidance.type === "success" ? "bg-green-500/80 text-white" : 
+                    "bg-white/20 text-white"
+                  }`}>
+                    <div className="flex items-center gap-2">
+                      {guidance.type === "warning" ? <AlertCircle className="h-4 w-4" /> : 
+                       guidance.type === "success" ? <CheckCircle2 className="h-4 w-4" /> : 
+                       <Info className="h-4 w-4" />}
+                      <span className="text-xs font-bold font-raleway text-center">{guidance.message}</span>
                     </div>
-                  )}
+                    
+                    {currentValidation && currentValidation.missing_objects.length > 0 && (
+                      <div className="text-[10px] opacity-90 flex flex-wrap justify-center gap-1 mt-1">
+                        <span className="font-bold">Missing:</span>
+                        {currentValidation.missing_objects.map((obj, i) => (
+                          <span key={i} className="bg-black/20 px-1.5 rounded">{obj}</span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
+              )}
 
               {/* Detections Box */}
-              {detections.map((det, i) => (
+              {!disableAI && detections.map((det, i) => (
                 <div 
                   key={i}
                   className="absolute border-2 border-primary/40 pointer-events-none rounded transition-all duration-200"
@@ -327,16 +367,16 @@ export const LiveCameraModal = ({
               </Button>
               <div className="relative group">
                 <div className={`absolute -inset-1 rounded-full blur opacity-50 transition duration-500 ${
-                  currentValidation?.scene_match ? 'bg-green-500 opacity-75' : 'bg-primary'
+                  currentValidation?.scene_match && !disableAI ? 'bg-green-500 opacity-75' : 'bg-primary'
                 }`} />
                 <Button
                   size="icon"
                   className={`h-20 w-20 rounded-full text-black hover:scale-105 active:scale-95 transition-all shadow-2xl relative border-8 border-black ${
-                    guidance.type === 'warning' ? 'bg-gray-300' : 'bg-white'
+                    guidance.type === 'warning' && !disableAI ? 'bg-gray-300' : 'bg-white'
                   }`}
                   onClick={handleCapture}
                 >
-                  <Camera className={`h-10 w-10 ${currentValidation?.scene_match ? 'text-green-600' : ''}`} />
+                  <Camera className={`h-10 w-10 ${(currentValidation?.scene_match && !disableAI) ? 'text-green-600' : ''}`} />
                 </Button>
               </div>
               <Button
@@ -371,18 +411,24 @@ export const LiveCameraModal = ({
                   <RefreshCw className="mr-2 h-4 w-4" />
                   Retake
                 </Button>
-                <Button
-                  className={`flex-1 h-14 rounded-xl font-bold shadow-lg ${
-                    packageType === "prime" && !isValidatedAtCapture
-                      ? "bg-gray-600 cursor-not-allowed opacity-50"
-                      : "bg-primary hover:bg-primary/90 text-white shadow-primary/20"
-                  }`}
-                  onClick={handleDone}
-                  disabled={packageType === "prime" && !isValidatedAtCapture}
-                >
-                  <Check className="mr-2 h-5 w-5" />
-                  Continue
-                </Button>
+                
+                {packageType === "prime" && !isValidatedAtCapture ? (
+                  <Button
+                    className="flex-1 h-14 rounded-xl font-bold bg-amber-500 hover:bg-amber-600 text-white shadow-lg shadow-amber-500/20"
+                    onClick={() => handleDone(true)}
+                  >
+                    <CheckCircle2 className="mr-2 h-5 w-5" />
+                    Submit Anyway
+                  </Button>
+                ) : (
+                  <Button
+                    className="flex-1 h-14 rounded-xl font-bold bg-primary hover:bg-primary/90 text-white shadow-lg shadow-primary/20"
+                    onClick={() => handleDone(false)}
+                  >
+                    <Check className="mr-2 h-5 w-5" />
+                    Continue
+                  </Button>
+                )}
               </div>
             </div>
           )}

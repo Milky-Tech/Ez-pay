@@ -37,16 +37,7 @@ import { useFileUpload } from "@/hooks/useFileUpload";
 import { LiveCameraModal } from "@/app/components/ui/live-camera-modal";
 import { LiveVideoModal } from "@/app/components/ui/live-video-modal";
 
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL || "https://ez-pay.realestway.com/api";
-
-const stepTitles = [
-  "Personal Information",
-  "Current Residency",
-  "Employment & Income",
-  "Identification",
-  "Terms & Review",
-];
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL;
 
 export default function RentalApplicationContent() {
   const params = useParams();
@@ -79,7 +70,27 @@ export default function RentalApplicationContent() {
     paymentPlan: "ez_anchor" as "ez_anchor" | "ez_ascend",
     emergencyContactName: "",
     emergencyContactPhone: "",
+    // Guarantor fields
+    guarantorName: "",
+    guarantorPhone: "",
+    guarantorEmail: "",
+    guarantorIdNumber: "",
+    guarantorWorkplace: "",
   });
+
+  // Calculate steps dynamically based on package
+  const baseSteps = [
+    "Select Package",
+    "Personal Information",
+    "Current Residency",
+    "Employment & Income",
+    "Identification",
+    "Terms & Review",
+  ];
+
+  const stepTitles = formData.paymentPlan === "ez_ascend" 
+    ? [...baseSteps.slice(0, 5), "Guarantor Information", ...baseSteps.slice(5)]
+    : baseSteps;
 
   const propertyCode = params?.codename as string;
 
@@ -165,6 +176,10 @@ export default function RentalApplicationContent() {
     const govtIdUrl = getFileByType("govt_id")?.url;
     const livePhotoUrl = getFileByType("live_photo")?.url;
     const liveVideoUrl = getFileByType("live_video")?.url;
+    
+    // Guarantor files
+    const guarantorIdUrl = getFileByType("guarantor_id")?.url;
+    const attestationLetterUrl = getFileByType("attestation_letter")?.url;
 
     // Validate required files
     if (
@@ -180,6 +195,27 @@ export default function RentalApplicationContent() {
           "Please ensure all required documents, live captures, and verification video are uploaded.",
       });
       return;
+    }
+
+    // Validate Guarantor for Ascend
+    if (formData.paymentPlan === "ez_ascend") {
+      if (
+        !formData.guarantorName ||
+        !formData.guarantorPhone ||
+        !formData.guarantorEmail ||
+        !formData.guarantorIdNumber ||
+        !formData.guarantorWorkplace ||
+        !guarantorIdUrl ||
+        !attestationLetterUrl
+      ) {
+        toast({
+          variant: "destructive",
+          title: "Missing Guarantor Information",
+          description:
+            "EZPAY Ascend requires complete guarantor details and documents (ID & Attestation Letter).",
+        });
+        return;
+      }
     }
 
     setIsSubmitting(true);
@@ -211,10 +247,18 @@ export default function RentalApplicationContent() {
         tenant_package: payloadPaymentPlan,
         emergency_contact_name: formData.emergencyContactName,
         emergency_contact_phone: formData.emergencyContactPhone,
-        bank_statement: bankStatements[0], // Using the first statement as required singular field
-        government_id: govtIdUrl,
-        live_photo: livePhotoUrl,
-        verification_video: liveVideoUrl,
+        bank_statement_path: bankStatements[0], // Using the first statement as required singular field
+        government_id_path: govtIdUrl,
+        live_photo_path: livePhotoUrl,
+        verification_video_path: liveVideoUrl,
+        // Guarantor Data (only if ascend, but sending as optional/null for anchor is fine)
+        guarantor_name: formData.paymentPlan === "ez_ascend" ? formData.guarantorName : undefined,
+        guarantor_phone: formData.paymentPlan === "ez_ascend" ? formData.guarantorPhone : undefined,
+        guarantor_email: formData.paymentPlan === "ez_ascend" ? formData.guarantorEmail : undefined,
+        guarantor_id_number: formData.paymentPlan === "ez_ascend" ? formData.guarantorIdNumber : undefined,
+        guarantor_workplace: formData.paymentPlan === "ez_ascend" ? formData.guarantorWorkplace : undefined,
+        guarantor_id_path: formData.paymentPlan === "ez_ascend" ? guarantorIdUrl : undefined,
+        attestation_letter_path: formData.paymentPlan === "ez_ascend" ? attestationLetterUrl : undefined,
       };
 
       const response = await fetch(`${API_BASE_URL}/applications/apply`, {
@@ -251,6 +295,11 @@ export default function RentalApplicationContent() {
           paymentPlan: "ez_anchor",
           emergencyContactName: "",
           emergencyContactPhone: "",
+          guarantorName: "",
+          guarantorPhone: "",
+          guarantorEmail: "",
+          guarantorIdNumber: "",
+          guarantorWorkplace: "",
         });
 
         // Redirect to listings or dashboard
@@ -301,8 +350,22 @@ export default function RentalApplicationContent() {
     <div className="min-h-screen bg-gray-50">
       <Header />
       <ChatWidget />
-
-      <div className="pt-24 pb-12">
+      <section className="relative h-[45vh] flex pt-auto justify-center bg-[#000000] bg-transparent-[60%]">
+        <div
+          className="absolute inset-0 bg-cover bg-center opacity-20"
+          style={{
+            backgroundImage: "url('/images/aboutUs.jpg')",
+          }}
+        />
+        <div className="relative z-10 w-full max-w-[96%] md:max-w-[70%] lg:max-w-1/3 mx-auto my-auto flex pt-6">
+          <div className="px-6 md:px-12 text-center m-auto">
+            <h1 className="text-5xl font-bold text-white mb-2 font-raleway">
+              {property.typology}<br/> <span className="text-primary text-2xl">{property.area}, {property.state}</span>
+            </h1>
+            </div>
+        </div>
+      </section>
+      <div className="pt-12 pb-12">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="mb-8">
             <Link
@@ -339,11 +402,11 @@ export default function RentalApplicationContent() {
                       <div className="flex justify-between items-center mb-2">
                         <span className="text-gray-600">Monthly Rent:</span>
                         <span className="text-2xl font-bold text-primary font-raleway">
-                          {formatPrice(property.monthly_cost || property.rent)}
+                          {formatPrice(property.monthly_rent_anchor || property.monthly_cost || property.rent)}
                         </span>
                       </div>
                       <p className="text-sm text-gray-500">
-                        EZ-Pay monthly rate
+                        EZPAY monthly rate
                       </p>
                     </div>
 
@@ -405,8 +468,143 @@ export default function RentalApplicationContent() {
                 </CardHeader>
                 <CardContent>
                   <form onSubmit={handleSubmit}>
-                    {/* Step 1: Personal Information */}
+                    {/* Step 1: Select Package */}
                     {currentStep === 0 && (
+                      <div className="space-y-6">
+                        <h3 className="text-xl font-semibold text-primary font-montserrat">
+                          Select Your Package
+                        </h3>
+                        <div className="space-y-4">
+                            <div>
+                                <Label className="mb-3 block text-lg font-semibold">
+                                  Choose a Payment Plan *
+                                </Label>
+                                <RadioGroup
+                                  value={formData.paymentPlan}
+                                  onValueChange={(
+                                    value: "ez_anchor" | "ez_ascend",
+                                  ) =>
+                                    setFormData({ ...formData, paymentPlan: value })
+                                  }
+                                >
+                                  <div className="flex items-start space-x-3 border rounded-lg p-4 hover:border-primary hover:bg-primary/5 transition-colors">
+                                    <RadioGroupItem
+                                      value="ez_anchor"
+                                      id="ez_anchor"
+                                      className="mt-1"
+                                    />
+                                    <div className="flex-1">
+                                      <Label
+                                        htmlFor="ez_anchor"
+                                        className="cursor-pointer"
+                                      >
+                                        <div className="flex justify-between items-start">
+                                          <div>
+                                            <div className="flex items-center gap-2">
+                                              <p className="font-bold text-primary text-lg">
+                                                EZPAY ANCHOR
+                                              </p>
+                                            </div>
+                                            <p className="text-sm text-gray-600 mt-1">
+                                              3 months rent as refundable caution fee.
+                                              <br/>
+                                              Standard monthly payments.
+                                            </p>
+                                            <div className="mt-2">
+                                              <p className="font-semibold text-primary">
+                                                {formatPrice(
+                                                  property.monthly_rent_anchor ||
+                                                    property.monthly_cost ||
+                                                    property.rent,
+                                                )}{" "}
+                                                / month
+                                              </p>
+                                            </div>
+                                          </div>
+                                        </div>
+                                      </Label>
+                                    </div>
+                                  </div>
+    
+                                  <div className="mt-4 flex items-start space-x-3 border rounded-lg p-4 hover:border-primary hover:bg-primary/5 transition-colors">
+                                    <RadioGroupItem
+                                      value="ez_ascend"
+                                      id="ez_ascend"
+                                      className="mt-1"
+                                    />
+                                    <div className="flex-1">
+                                      <Label
+                                        htmlFor="ez_ascend"
+                                        className="cursor-pointer"
+                                      >
+                                        <div className="flex justify-between items-start">
+                                          <div>
+                                            <div className="flex items-center gap-2">
+                                              <p className="font-bold text-primary text-lg">
+                                                EZPAY ASCEND
+                                              </p>
+                                              <span className="inline-flex items-center rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-800">
+                                                Zero Caution Fee
+                                              </span>
+                                            </div>
+                                            <p className="text-sm text-gray-600 mt-1">
+                                              No upfront caution fee (financed by Capital Legacy Partner).
+                                              <br/>
+                                              <span className="font-medium text-red-600">Requires a strong Guarantor.</span>
+                                              <br/>
+                                              <span className="text-xs text-gray-500">Graduated payment plan with lower initial payments.</span>
+                                            </p>
+                                            <div className="mt-2">
+                                              <p className="font-semibold text-primary">
+                                                Starting from{" "}
+                                                {formatPrice(
+                                                  property.monthly_rent_ascend ||
+                                                  ((property.monthly_rent_anchor || property.monthly_cost || property.rent) * 0.8),
+                                                )}{" "}
+                                                / month
+                                              </p>
+                                            </div>
+                                          </div>
+                                        </div>
+                                      </Label>
+                                    </div>
+                                  </div>
+                                </RadioGroup>
+    
+                                {/* Package Details Info Box */}
+                                <div className="mt-6 bg-blue-50 border border-blue-100 rounded-lg p-4">
+                                  <h4 className="font-semibold text-blue-800 mb-2 flex items-center">
+                                    <AlertCircle className="h-4 w-4 mr-2" />
+                                    Package Comparison
+                                  </h4>
+                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                                    <div>
+                                      <p className="font-bold text-blue-900 mb-1">EZPAY ANCHOR</p>
+                                      <ul className="list-disc list-inside text-blue-800 space-y-1">
+                                        <li>3 months rent as refundable caution fee</li>
+                                        <li>1st month rent payment to start</li>
+                                        <li>Standard monthly payments thereafter</li>
+                                        <li>No guarantor required</li>
+                                      </ul>
+                                    </div>
+                                    <div>
+                                      <p className="font-bold text-blue-900 mb-1">EZPAY ASCEND</p>
+                                      <ul className="list-disc list-inside text-blue-800 space-y-1">
+                                        <li><strong>Zero caution fee</strong></li>
+                                        <li>Financed by Capital Legacy Partner</li>
+                                        <li>Standard monthly payments</li>
+                                        <li><strong>Compulsory Guarantor</strong> (ID, Work, Attestation)</li>
+                                      </ul>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Step 2: Personal Information */}
+                    {currentStep === 1 && (
                       <div className="space-y-6">
                         <h3 className="text-xl font-semibold text-primary font-montserrat">
                           Personal Information
@@ -502,8 +700,8 @@ export default function RentalApplicationContent() {
                       </div>
                     )}
 
-                    {/* Step 2: Current Residency */}
-                    {currentStep === 1 && (
+                    {/* Step 3: Current Residency */}
+                    {currentStep === 2 && (
                       <div className="space-y-6">
                         <h3 className="text-xl font-semibold text-primary font-montserrat">
                           Current Residency Details
@@ -602,8 +800,8 @@ export default function RentalApplicationContent() {
                       </div>
                     )}
 
-                    {/* Step 3: Employment & Income */}
-                    {currentStep === 2 && (
+                    {/* Step 4: Employment & Income */}
+                    {currentStep === 3 && (
                       <div className="space-y-6">
                         <h3 className="text-xl font-semibold text-primary font-montserrat">
                           Employment & Financial Information
@@ -750,8 +948,8 @@ export default function RentalApplicationContent() {
                       </div>
                     )}
 
-                    {/* Step 4: Identification */}
-                    {currentStep === 3 && (
+                    {/* Step 5: Identification */}
+                    {currentStep === 4 && (
                       <div className="space-y-6">
                         <h3 className="text-xl font-semibold text-primary font-montserrat">
                           Identification & Verification
@@ -882,8 +1080,189 @@ export default function RentalApplicationContent() {
                       </div>
                     )}
 
-                    {/* Step 5: Terms & Review */}
-                    {currentStep === 4 && (
+                    {/* Step 6: Guarantor Information (Only for Ascend) */}
+                    {currentStep === 5 && formData.paymentPlan === "ez_ascend" && (
+                      <div className="space-y-6">
+                        <h3 className="text-xl font-semibold text-primary font-montserrat">
+                          Guarantor Information
+                        </h3>
+                        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+                          <p className="text-sm text-blue-800">
+                            <strong>EZPAY Ascend Requirement:</strong> Since this package involves no caution fee, a verified guarantor is required. Please provide accurate details.
+                          </p>
+                        </div>
+                        <div className="space-y-4">
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                              <Label htmlFor="guarantorName">Guarantor Full Name *</Label>
+                              <Input
+                                id="guarantorName"
+                                value={formData.guarantorName}
+                                onChange={(e) =>
+                                  setFormData({
+                                    ...formData,
+                                    guarantorName: e.target.value,
+                                  })
+                                }
+                                placeholder="Enter guarantor's full name"
+                                required
+                              />
+                            </div>
+                            <div>
+                              <Label htmlFor="guarantorPhone">Guarantor Phone Number *</Label>
+                              <Input
+                                id="guarantorPhone"
+                                type="tel"
+                                value={formData.guarantorPhone}
+                                onChange={(e) =>
+                                  setFormData({
+                                    ...formData,
+                                    guarantorPhone: e.target.value,
+                                  })
+                                }
+                                placeholder="+234 800 000 0000"
+                                required
+                              />
+                            </div>
+                          </div>
+                          
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                              <Label htmlFor="guarantorEmail">Guarantor Email Address *</Label>
+                              <Input
+                                id="guarantorEmail"
+                                type="email"
+                                value={formData.guarantorEmail}
+                                onChange={(e) =>
+                                  setFormData({
+                                    ...formData,
+                                    guarantorEmail: e.target.value,
+                                  })
+                                }
+                                placeholder="guarantor@example.com"
+                                required
+                              />
+                            </div>
+                            <div>
+                              <Label htmlFor="guarantorIdNumber">Guarantor ID Number *</Label>
+                              <Input
+                                id="guarantorIdNumber"
+                                value={formData.guarantorIdNumber}
+                                onChange={(e) =>
+                                  setFormData({
+                                    ...formData,
+                                    guarantorIdNumber: e.target.value,
+                                  })
+                                }
+                                placeholder="NIN, Voter's Card, or Passport Number"
+                                required
+                              />
+                            </div>
+                          </div>
+
+                          <div>
+                            <Label htmlFor="guarantorWorkplace">Place of Work or Business *</Label>
+                            <Input
+                              id="guarantorWorkplace"
+                              value={formData.guarantorWorkplace}
+                              onChange={(e) =>
+                                setFormData({
+                                  ...formData,
+                                  guarantorWorkplace: e.target.value,
+                                })
+                              }
+                              placeholder="Company name and address"
+                              required
+                            />
+                          </div>
+
+                          {/* Guarantor ID Upload */}
+                          <div className="border-2 border-dashed border-gray-300 rounded-lg p-6">
+                            <div className="text-center">
+                              {getFileByType("guarantor_id")?.uploading ? (
+                                <Loader2 className="h-10 w-10 animate-spin text-primary mx-auto mb-3" />
+                              ) : (
+                                <Upload className="h-10 w-10 text-gray-400 mx-auto mb-3" />
+                              )}
+                              <Label
+                                htmlFor="guarantorId"
+                                className="block text-center cursor-pointer"
+                              >
+                                <span className="text-primary font-semibold">
+                                  {getFileByType("guarantor_id")?.url
+                                    ? "Guarantor ID Uploaded"
+                                    : "Upload Guarantor's ID (Image)"}
+                                </span>{" "}
+                                *
+                              </Label>
+                              <p className="text-sm text-gray-500 mt-1">
+                                Clear image of valid ID (National ID, Drivers License, Passport)
+                              </p>
+                              <Input
+                                id="guarantorId"
+                                type="file"
+                                accept="image/*"
+                                className="hidden"
+                                onChange={(e) => {
+                                  const file = e.target.files?.[0];
+                                  if (file) handleFileUpload(file, "guarantor_id");
+                                }}
+                              />
+                              {getFileByType("guarantor_id")?.url && (
+                                <p className="text-xs text-green-600 mt-2 flex items-center justify-center">
+                                  <CheckCircle className="h-3 w-3 mr-1" />
+                                  File uploaded successfully
+                                </p>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Attestation Letter Upload */}
+                          <div className="border-2 border-dashed border-gray-300 rounded-lg p-6">
+                            <div className="text-center">
+                              {getFileByType("attestation_letter")?.uploading ? (
+                                <Loader2 className="h-10 w-10 animate-spin text-primary mx-auto mb-3" />
+                              ) : (
+                                <FileText className="h-10 w-10 text-gray-400 mx-auto mb-3" />
+                              )}
+                              <Label
+                                htmlFor="attestationLetter"
+                                className="block text-center cursor-pointer"
+                              >
+                                <span className="text-primary font-semibold">
+                                  {getFileByType("attestation_letter")?.url
+                                    ? "Attestation Letter Uploaded"
+                                    : "Upload Attestation Letter"}
+                                </span>{" "}
+                                *
+                              </Label>
+                              <p className="text-sm text-gray-500 mt-1">
+                                Signed letter from guarantor attesting to their role
+                              </p>
+                              <Input
+                                id="attestationLetter"
+                                type="file"
+                                accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                                className="hidden"
+                                onChange={(e) => {
+                                  const file = e.target.files?.[0];
+                                  if (file) handleFileUpload(file, "attestation_letter");
+                                }}
+                              />
+                              {getFileByType("attestation_letter")?.url && (
+                                <p className="text-xs text-green-600 mt-2 flex items-center justify-center">
+                                  <CheckCircle className="h-3 w-3 mr-1" />
+                                  File uploaded successfully
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Step 6/7: Final Review & Terms */}
+                    {((currentStep === 5 && formData.paymentPlan !== "ez_ascend") || (currentStep === 6 && formData.paymentPlan === "ez_ascend")) && (
                       <div className="space-y-6">
                         <h3 className="text-xl font-semibold text-primary font-montserrat">
                           Final Review & Terms
@@ -918,95 +1297,11 @@ export default function RentalApplicationContent() {
                             </p>
                             <p className="text-sm text-gray-600">
                               <strong>4 months minimum stay</strong> is required
-                              as per EZ-Pay terms. Early termination fees apply.
+                              as per EZPAY terms. Early termination fees apply.
                             </p>
                           </div>
 
-                          <div>
-                            <Label className="mb-3 block text-lg font-semibold">
-                              Select Payment Plan *
-                            </Label>
-                            <RadioGroup
-                              value={formData.paymentPlan}
-                              onValueChange={(
-                                value: "ez_anchor" | "ez_ascend",
-                              ) =>
-                                setFormData({ ...formData, paymentPlan: value })
-                              }
-                            >
-                              <div className="flex items-start space-x-3 border rounded-lg p-4 hover:border-primary hover:bg-primary/5 transition-colors">
-                                <RadioGroupItem
-                                  value="ez_anchor"
-                                  id="ez_anchor"
-                                  className="mt-1"
-                                />
-                                <div className="flex-1">
-                                  <Label
-                                    htmlFor="ez_anchor"
-                                    className="cursor-pointer"
-                                  >
-                                    <div className="flex justify-between items-start">
-                                      <div>
-                                        <p className="font-bold text-primary text-lg">
-                                          EZ-Anchor
-                                        </p>
-                                        <p className="text-sm text-gray-600 mt-1">
-                                          Fixed monthly rate throughout your
-                                          stay. Predictable and stable payments.
-                                        </p>
-                                        <div className="mt-2">
-                                          <p className="font-semibold text-primary">
-                                            {formatPrice(
-                                              property.monthly_cost ||
-                                                property.rent,
-                                            )}{" "}
-                                            / month
-                                          </p>
-                                        </div>
-                                      </div>
-                                      <span className="inline-flex items-center rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800">
-                                        Most Popular
-                                      </span>
-                                    </div>
-                                  </Label>
-                                </div>
-                              </div>
-                              <div className="flex items-start space-x-3 border rounded-lg p-4 hover:border-primary hover:bg-primary/5 transition-colors mt-3">
-                                <RadioGroupItem
-                                  value="ez_ascend"
-                                  id="ez_ascend"
-                                  className="mt-1"
-                                />
-                                <div className="flex-1">
-                                  <Label
-                                    htmlFor="ez_ascend"
-                                    className="cursor-pointer"
-                                  >
-                                    <div>
-                                      <p className="font-bold text-primary text-lg">
-                                        EZ-Ascend
-                                      </p>
-                                      <p className="text-sm text-gray-600 mt-1">
-                                        Graduated payment plan with lower
-                                        initial payments that increase over
-                                        time.
-                                      </p>
-                                      <div className="mt-2">
-                                        <p className="font-semibold text-primary">
-                                          Starting from{" "}
-                                          {formatPrice(
-                                            (property.monthly_cost ||
-                                              property.rent) * 0.8,
-                                          )}{" "}
-                                          / month
-                                        </p>
-                                      </div>
-                                    </div>
-                                  </Label>
-                                </div>
-                              </div>
-                            </RadioGroup>
-                          </div>
+
 
                           <div className="bg-secondary/10 rounded-lg p-4">
                             <h4 className="font-semibold text-gray-700 mb-2">
@@ -1031,8 +1326,8 @@ export default function RentalApplicationContent() {
                                 </span>
                                 <span className="font-medium">
                                   {formData.paymentPlan === "ez_anchor"
-                                    ? "EZ-Anchor (Fixed)"
-                                    : "EZ-Ascend (Graduated)"}
+                                    ? "EZPAY ANCHOR (Fixed)"
+                                    : "EZPAY ASCEND (Graduated)"}
                                 </span>
                               </div>
                               <div className="flex justify-between">
@@ -1121,6 +1416,7 @@ export default function RentalApplicationContent() {
         onCapture={(file) => handleFileUpload(file, "live_photo")}
         title="Identity Verification Selfie"
         type="live_photo"
+        disableAI={true}
       />
 
       <LiveVideoModal

@@ -65,8 +65,7 @@ interface AddPropertyDialogProps {
   }) => void;
 }
 
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL || "https://ez-pay.realestway.com/api";
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL;
 
 export const AddPropertyDialog = ({
   open,
@@ -437,7 +436,7 @@ export const AddPropertyDialog = ({
                       <SelectContent>
                         {["prime", "vantage"].map((t) => (
                           <SelectItem key={t} value={t}>
-                            {t}
+                            {t === "prime" ? "EZPAY PRIME" : "EZPAY VANTAGE"}
                           </SelectItem>
                         ))}
                       </SelectContent>

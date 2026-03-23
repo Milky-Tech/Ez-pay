@@ -14,6 +14,7 @@ const config: Config = {
         'open-sans': ['var(--font-open-sans)'],
         montserrat: ['var(--font-montserrat)'],
         'great-vibes': ['var(--font-great-vibes)'],
+        Redressed: ['var(--font-redressed)'],
       },
       backgroundImage: {
         'gradient-radial': 'radial-gradient(var(--tw-gradient-stops))',

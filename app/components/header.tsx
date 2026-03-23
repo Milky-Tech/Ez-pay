@@ -47,8 +47,8 @@ export default function Header() {
                   isScrolled ? "text-white" : "text-primary"
                 }`}
               >
-                <img src="/images/logo-ezpay.png" alt="Logo" className="h-8" />
-                {/* <span className="text-accent">Bridgent</span> HomeStep EZ-Pay */}
+                 {isScrolled?<img src="images/EZPAY-20.png" alt="EZPAY Logo" className="h-20"/>: <img src="/images/EZPAY-16.png" alt="EZPAY Logo" className="h-20" />}
+                {/* <span className="text-accent">Bridgent</span> HomeStep EZPAY */}
               </span>
             </div>
           </Link>

@@ -14,6 +14,12 @@ export type Property = {
   square_feet: number;
   desired_annual_rent: number;
   monthly_cost: number | null;
+  monthly_rent_ascend: number;
+  monthly_rent_anchor: number;
+  inspection_fee: number;
+  listing_status: "available" | "rented" | "occupied" | "maintenance";
+  availability: "available" | "rented" | "occupied" | "maintenance";
+  status: "pending" | "approved" | "rejected" | "published";
   availability_status:
     | "available"
     | "inspection_pending"

@@ -3,16 +3,17 @@
 import { useState, useEffect, useCallback } from "react";
 import { useToast } from "@/hooks/use-toast";
 
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL || "https://ez-pay.realestway.com/api";
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL;
 
 export const useLandlordData = (user: any, token: string | null) => {
   const [landlordData, setLandlordData] = useState<any | null>(null);
   const [properties, setProperties] = useState<any[]>([]);
+  const [drafts, setDrafts] = useState<any[]>([]);
   const [applications, setApplications] = useState<any[]>([]);
   const [loading, setLoading] = useState({
     profile: false,
     properties: false,
+    drafts: false,
     applications: false,
   });
   const { toast } = useToast();
@@ -52,7 +53,7 @@ export const useLandlordData = (user: any, token: string | null) => {
 
     try {
       setLoading((prev) => ({ ...prev, properties: true }));
-      const response = await fetch(`${API_BASE_URL}/listings`, {
+      const response = await fetch(`${API_BASE_URL}/listings/landlord/${user?.id}`, {
         headers: {
           Accept: "application/json",
           Authorization: `Bearer ${token}`,
@@ -62,9 +63,7 @@ export const useLandlordData = (user: any, token: string | null) => {
       if (response.ok) {
         const data = await response.json();
         const allListings = data.data || data || [];
-        const landlordProperties = allListings.filter(
-          (property: any) => property.landlord?.id === user?.id,
-        );
+        const landlordProperties = allListings;
         setProperties(landlordProperties);
       } else {
         throw new Error("Failed to fetch properties");
@@ -80,6 +79,32 @@ export const useLandlordData = (user: any, token: string | null) => {
       setLoading((prev) => ({ ...prev, properties: false }));
     }
   }, [token, user?.id, toast]);
+
+  const fetchDrafts = useCallback(async () => {
+    if (!token) return;
+
+    try {
+      setLoading((prev) => ({ ...prev, drafts: true }));
+      const response = await fetch(`${API_BASE_URL}/listings/drafts`, {
+        headers: {
+          Accept: "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const allDrafts = data.data || data || [];
+        setDrafts(allDrafts);
+      } else {
+        console.warn("Could not fetch drafts");
+      }
+    } catch (error) {
+      console.error("Error fetching drafts:", error);
+    } finally {
+      setLoading((prev) => ({ ...prev, drafts: false }));
+    }
+  }, [token]);
 
   const fetchApplications = useCallback(
     async (currentProperties: any[]) => {
@@ -118,8 +143,9 @@ export const useLandlordData = (user: any, token: string | null) => {
     if (token && user?.id) {
       fetchLandlordProfile();
       fetchLandlordProperties();
+      fetchDrafts();
     }
-  }, [token, user?.id, fetchLandlordProfile, fetchLandlordProperties]);
+  }, [token, user?.id, fetchLandlordProfile, fetchLandlordProperties, fetchDrafts]);
 
   useEffect(() => {
     if (properties.length > 0) {
@@ -131,12 +157,14 @@ export const useLandlordData = (user: any, token: string | null) => {
 
   const refreshData = () => {
     fetchLandlordProperties();
+    fetchDrafts();
     fetchApplications(properties);
   };
 
   return {
     landlordData,
     properties,
+    drafts,
     applications,
     loading,
     refreshData,
