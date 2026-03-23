@@ -48,6 +48,22 @@ import {
 } from "@/app/components/ui/select";
 import Link from "next/link";
 import PropertyReviewDialog from "./PropertyReviewDialog";
+import AdminEditPropertyDialog from "./AdminEditPropertyDialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/app/components/ui/dropdown-menu";
+import {
+  MoreVertical,
+  Edit,
+  ExternalLink,
+  CheckCircle2,
+  Wrench as WrenchIcon,
+} from "lucide-react";
 
 interface Property {
   id: string;
@@ -102,6 +118,8 @@ export default function ListingsTab({
   const [activeSubTab, setActiveSubTab] = useState("approved");
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [editingProperty, setEditingProperty] = useState<Property | null>(null);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
 
   // Filter Logic
 
@@ -123,7 +141,7 @@ export default function ListingsTab({
         : listing.status === statusFilter);
 
     // Tab Filter (Pending vs Approved vs Upgrading)
-    const isUpgradePending = listing.status === "approved" && listing.listing_status === "upgrade_pending";
+    const isUpgradePending = listing.listing_status === "upgrade_pending" || listing.listing_status === "unavailable";
     const isApproved =
       listing.status === "approved" && !isUpgradePending;
 
@@ -150,7 +168,7 @@ export default function ListingsTab({
             <TabsList>
               <TabsTrigger value="pending">Submission Requests</TabsTrigger>
               <TabsTrigger value="approved">Manage Properties</TabsTrigger>
-              <TabsTrigger value="upgrading">Pending Upgrades</TabsTrigger>
+              <TabsTrigger value="upgrading">Pending Upgrade</TabsTrigger>
             </TabsList>
           </Tabs>
 
@@ -194,7 +212,10 @@ export default function ListingsTab({
                   <SelectItem value="maintenance">Maintenance</SelectItem>
                 </>
               ) : activeSubTab === "upgrading" ? (
-                <SelectItem value="upgrade_pending">Upgrade Pending</SelectItem>
+                <>
+                  <SelectItem value="upgrade_pending">Upgrade Pending</SelectItem>
+                  <SelectItem value="unavailable">Unavailable</SelectItem>
+                </>
               ) : (
                 <>
                   <SelectItem value="pending">Pending</SelectItem>
@@ -226,7 +247,7 @@ export default function ListingsTab({
                   <TableHead>Type</TableHead>
                   <TableHead>Location</TableHead>
                   <TableHead>
-                    {activeSubTab === "approved" ? "Monthly Rent" : "Owner"}
+                    {(activeSubTab === "approved" || activeSubTab === "upgrading") ? "Monthly Rent" : "Owner"}
                   </TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Actions</TableHead>
@@ -236,7 +257,7 @@ export default function ListingsTab({
                 {filteredListings.map((item) => (
                   <TableRow key={item.id}>
                     <TableCell className="font-medium">
-                      {activeSubTab === "approved" ? (
+                      {(activeSubTab === "approved" || activeSubTab === "upgrading") ? (
                         item.code_name
                       ) : (
                         <span className="text-xs">
@@ -263,7 +284,7 @@ export default function ListingsTab({
                       </div>
                     </TableCell>
                     <TableCell>
-                      {activeSubTab === "approved" ? (
+                      {(activeSubTab === "approved" || activeSubTab === "upgrading") ? (
                         <span className="fontWeight-semibold">
                           {formatPrice(item.monthly_cost)}
                         </span>
@@ -276,26 +297,40 @@ export default function ListingsTab({
                     </TableCell>
                     <TableCell>
                       {getStatusBadge(
-                        activeSubTab === "approved"
+                        (activeSubTab === "approved" || activeSubTab === "upgrading")
                           ? item.listing_status
                           : item.status || "pending"
                       )}
                     </TableCell>
                     <TableCell>
-                      <div className="flex gap-2">
-                        {activeSubTab === "pending" ? (
-                          <>
-                            <Dialog>
-                              <DialogTrigger asChild>
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  title="Review"
-                                >
-                                  <Eye className="h-4 w-4 mr-1" /> Reivew
-                                </Button>
-                              </DialogTrigger>
-                              <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+                      <div className="flex justify-end">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" className="h-8 w-8 p-0">
+                              <span className="sr-only">Open menu</span>
+                              <MoreVertical className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="w-[180px]">
+                            <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                            
+                            <DropdownMenuItem 
+                              onClick={() => {
+                                setEditingProperty(item);
+                                setIsEditDialogOpen(true);
+                              }}
+                            >
+                              <Edit className="mr-2 h-4 w-4" /> Edit Details
+                            </DropdownMenuItem>
+
+                            {activeSubTab === "pending" && (
+                              <Dialog>
+                                <DialogTrigger asChild>
+                                  <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                                    <Eye className="mr-2 h-4 w-4" /> Review Submission
+                                  </DropdownMenuItem>
+                                </DialogTrigger>
+                                <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
                                   <PropertyReviewDialog
                                     property={item}
                                     onApprove={onApprove}
@@ -304,51 +339,42 @@ export default function ListingsTab({
                                   />
                                 </DialogContent>
                               </Dialog>
-                          </>
-                        ) : (
-                          <>
+                            )}
+
+                            {activeSubTab !== "pending" && (
+                              <DropdownMenuItem asChild>
+                                <Link
+                                  href={`/listings/${item.code_name || item.id}`}
+                                  target="_blank"
+                                  className="w-full"
+                                >
+                                  <ExternalLink className="mr-2 h-4 w-4" /> View Publicly
+                                </Link>
+                              </DropdownMenuItem>
+                            )}
+
+                            <DropdownMenuSeparator />
+                            
+                            {/* Listing State Specific Actions */}
                             {item.listing_status === "upgrade_pending" && (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="bg-green-50 text-green-700 hover:bg-green-100 border-green-200"
-                                onClick={() => onUpdateAvailability(item.id, "available")}
-                              >
-                                Mark Available
-                              </Button>
+                              <DropdownMenuItem onClick={() => onUpdateAvailability(item.id, "available")}>
+                                <CheckCircle2 className="mr-2 h-4 w-4 text-green-600" /> Mark Available
+                              </DropdownMenuItem>
                             )}
                             {item.listing_status === "available" && (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="bg-orange-50 text-orange-700 hover:bg-orange-100 border-orange-200"
-                                onClick={() => onUpdateAvailability(item.id, "maintenance")}
-                              >
-                                Maintenance
-                              </Button>
+                              <DropdownMenuItem onClick={() => onUpdateAvailability(item.id, "maintenance")}>
+                                <WrenchIcon className="mr-2 h-4 w-4 text-orange-600" /> Maintenance
+                              </DropdownMenuItem>
                             )}
-                            <Link
-                              href={`/listings/${item.code_name || item.id}`}
-                              target="_blank"
-                            >
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                title="View Publicly"
-                              >
-                                <Eye className="h-4 w-4" />
-                              </Button>
-                            </Link>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="text-destructive hover:bg-destructive/10"
+
+                            <DropdownMenuItem 
+                              className="text-destructive focus:text-destructive"
                               onClick={() => onDelete(item.id, item.code_name)}
                             >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </>
-                        )}
+                              <Trash2 className="mr-2 h-4 w-4" /> Delete Listing
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </div>
                     </TableCell>
                   </TableRow>
@@ -359,6 +385,12 @@ export default function ListingsTab({
         )}
       </CardContent>
 
+      <AdminEditPropertyDialog
+        isOpen={isEditDialogOpen}
+        property={editingProperty}
+        onClose={() => setIsEditDialogOpen(false)}
+        onSuccess={fetchListings}
+      />
     </Card>
   );
 }

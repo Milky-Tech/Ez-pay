@@ -150,16 +150,16 @@ export default function AdminDashboard() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [data, setData] = useState<{
     listings: Property[];
-    pendingListings: Property[];
-    applications: Application[];
     users: Landlord[];
     landlords: Landlord[];
+    unavailableListings: Property[];
   }>({
     listings: [],
     pendingListings: [],
     applications: [],
     users: [],
     landlords: [],
+    unavailableListings: [],
   });
 
   const [stats, setStats] = useState({
@@ -229,6 +229,7 @@ export default function AdminDashboard() {
         fetchApplications(),
         fetchListings(),
         fetchPendingListings(),
+        fetchUnavailableListings(),
         fetchUsers(),
         fetchLandlords(),
       ]);
@@ -307,6 +308,26 @@ export default function AdminDashboard() {
       const result = await response.json();
       setData((prev) => ({ ...prev, pendingListings: result.data || result }));
       console.log(pendingListings)
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setLoading((prev) => ({ ...prev, listings: false }));
+    }
+  }, [token, API_BASE_URL]);
+
+  // Fetch Unavailable Listings
+  const fetchUnavailableListings = useCallback(async () => {
+    try {
+      setLoading((prev) => ({ ...prev, listings: true }));
+      const response = await fetch(`${API_BASE_URL}/listings/unavailable`, {
+        headers: { 
+          "Accept": "application/json",
+          Authorization: `Bearer ${token || localStorage.getItem("token")}` 
+        },
+      });
+      if (!response.ok) throw new Error("Failed to fetch unavailable listings");
+      const result = await response.json();
+      setData((prev) => ({ ...prev, unavailableListings: result.data || result }));
     } catch (error) {
       console.error(error);
     } finally {
@@ -498,6 +519,7 @@ export default function AdminDashboard() {
       toast({ title: "Deleted", description: "Listing deleted successfully." });
       setDeleteDialog({ open: false, type: null, id: null, name: null });
       fetchListings(); // refresh listings
+      fetchUnavailableListings();
     } catch (error) {
       console.error(error);
       toast({
@@ -607,6 +629,7 @@ export default function AdminDashboard() {
       if (!response.ok) throw new Error("Failed to update availability");
       toast({ title: "Updated", description: `Property marked as ${status}.` });
       fetchListings();
+      fetchUnavailableListings();
     } catch (error) {
       console.error(error);
       toast({
@@ -653,8 +676,12 @@ export default function AdminDashboard() {
   };
 
   // Listings for ListingsTab
-  // Combined Approved and Pending listings
-  const combinedListings = [...data.listings, ...data.pendingListings];
+  // Combined Approved, Pending and Unavailable listings
+  const combinedListings = [
+    ...data.listings, 
+    ...data.pendingListings,
+    ...data.unavailableListings
+  ];
 
   return (
     <div className="flex min-h-screen bg-gray-50 font-sans">
@@ -711,6 +738,7 @@ export default function AdminDashboard() {
               fetchListings={() => {
                 fetchListings();
                 fetchPendingListings();
+                fetchUnavailableListings();
               }}
               formatPrice={formatPrice}
               formatDate={formatDate}

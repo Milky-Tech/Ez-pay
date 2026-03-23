@@ -64,6 +64,7 @@ export const PropertyCard = ({
               ).toLocaleString()}
             </p>
             <p className="text-xs text-slate-500">per month</p>
+            {property.listing_status === "upgrade_pending" &&  <Badge  className={`mt-1 sm:mt-2 text-xs bg-blue-50 text-blue-700 hover:bg-blue-50 border-blue-100`}> "Upgrade Pending"</Badge>}
             <Badge
               className={`mt-1 sm:mt-2 text-xs ${
                 property.status === "pending"
