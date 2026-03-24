@@ -104,8 +104,8 @@ export const LiveCameraModal = ({
           [0,  1, 0]
         ], [3, 3]).expandDims(2).expandDims(3);
 
-        const floatGrayscale = grayscale.asType('float32').expandDims(0);
-        const edges = tf.conv2d(floatGrayscale, laplacianKernel, 1, 'same');
+        const floatGrayscale = grayscale.asType('float32').expandDims(0) as tf.Tensor4D;
+        const edges = tf.conv2d(floatGrayscale, laplacianKernel as tf.Tensor4D, 1, 'same');
         
         const variance = tf.moments(edges).variance.dataSync()[0];
 

@@ -454,9 +454,17 @@ export default function PropertyDetailsPage() {
   }
 
   // Calculate price breakdown
-  const monthlyCost = property.monthly_rent_anchor || (property.rent * 1.1 / 12);
-  const annualCost = property.desired_annual_rent || (property.rent * 1.1);
-  const securityDeposit = monthlyCost * 3; // EZPAY Anchor standard
+  const rentPremium = property.rent * 1.1;
+  const monthlyRentAnchor = property.monthly_rent_anchor || (rentPremium / 12);
+  const monthlyRentAscend = property.monthly_rent_ascend || ((property.rent - (rentPremium * 4 / 12)) / 11);
+  const annualCost = property.desired_annual_rent || rentPremium;
+  const upfrontAscend = (rentPremium * 4) / 12; // 1 month rent + 3 months caution
+  const cautionFeeAscend = (rentPremium * 3) / 12;
+  const cautionFeeAnchor = 0; // Anchor now has zero caution fee
+
+  // Added for Price Breakdown - Defaulting to Anchor (Zero Caution)
+  const monthlyCost = property.monthly_cost || monthlyRentAnchor;
+  const securityDeposit = cautionFeeAnchor; // Anchor has zero caution fee
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -593,39 +601,50 @@ export default function PropertyDetailsPage() {
                 <CardContent className="p-8">
                   <div className="mb-8">
                     <div className="flex flex-col gap-4">
-                      <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                      <div className="bg-slate-50 p-5 rounded-3xl border border-slate-100 transition-all hover:shadow-md">
                         <div className="flex justify-between items-center mb-1">
                           <p className="text-[10px] font-bold text-primary uppercase tracking-wider">EZPAY ANCHOR</p>
-                          <Badge variant="outline" className="text-[10px] h-5">Standard</Badge>
+                          <Badge variant="outline" className="text-[10px] h-5 bg-white border-slate-200">Standard</Badge>
                         </div>
                         <div className="flex items-baseline gap-1">
                           <p className="text-3xl font-bold text-[#8B2323] font-montserrat">
-                            {formatPrice(property.monthly_rent_anchor || monthlyCost)}
+                            {formatPrice(monthlyRentAnchor)}
                           </p>
                           <span className="text-gray-400 text-xs">/month</span>
                         </div>
-                        <p className="text-[10px] text-gray-400 font-montserrat mt-1">
-                          Refundable Caution Fee: {formatPrice((property.monthly_rent_anchor || monthlyCost) * 3)} • Requires Guarantor
-                        </p>
+                        <div className="mt-2 space-y-1">
+                          <p className="text-[10px] text-gray-500 font-medium">
+                            First Payment: <span className="text-gray-900">{formatPrice(monthlyRentAnchor)}</span>
+                          </p>
+                          <p className="text-[10px] text-gray-400 font-montserrat italic">
+                            No caution fee required • Zero upfront deposit
+                          </p>
+                        </div>
                       </div>
 
-                      <div className="bg-primary/5 p-4 rounded-2xl border border-primary/10">
+                      <div className="bg-primary/5 p-5 rounded-3xl border border-primary/10 transition-all hover:shadow-md relative overflow-hidden group">
+                        <div className="absolute -right-4 -top-4 w-16 h-16 bg-primary/10 rounded-full blur-2xl group-hover:bg-primary/20 transition-all"></div>
                         <div className="flex justify-between items-center mb-1">
                           <p className="text-[10px] font-bold text-primary uppercase tracking-wider">EZPAY ASCEND</p>
-                          <Badge className="bg-primary text-white text-[10px] h-5 border-none">Zero Caution</Badge>
+                          <Badge className="bg-primary text-white text-[10px] h-5 border-none shadow-sm">Graduated</Badge>
                         </div>
                         <div className="flex items-baseline gap-1">
                           <p className="text-3xl font-bold text-[#8B2323] font-montserrat">
-                            {formatPrice(property.monthly_rent_ascend || (monthlyCost * 0.8))}
+                            {formatPrice(monthlyRentAscend)}
                           </p>
                           <span className="text-gray-400 text-xs">/month</span>
                         </div>
-                        <p className="text-[10px] text-gray-400 font-montserrat mt-1">
-                          No caution fee required • Zero upfront costs
-                        </p>
+                        <div className="mt-2 space-y-1">
+                          <p className="text-[10px] text-primary font-bold">
+                            First Payment: <span className="text-gray-900">{formatPrice(upfrontAscend)}</span>
+                          </p>
+                          <p className="text-[10px] text-gray-400 font-montserrat">
+                            Includes 1st Month Rent + {formatPrice(cautionFeeAscend)} Caution
+                          </p>
+                        </div>
                       </div>
                     </div>
-                    <p className="text-xs text-gray-400 mt-4 font-montserrat">
+                    <p className="text-[11px] text-gray-400 mt-5 font-medium text-center">
                       Annual Total: {formatPrice(annualCost)}
                     </p>
                   </div>
@@ -972,11 +991,15 @@ export default function PropertyDetailsPage() {
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-600">
-                        Security Deposit (2 months):
+                        Security Deposit (EZ Anchor):
                       </span>
-                      <span className="font-semibold text-lg">
+                      <span className="font-semibold text-lg text-green-600">
                         {formatPrice(securityDeposit)}
                       </span>
+                    </div>
+                    <div className="flex justify-between items-center text-xs text-gray-500 italic">
+                      <span>* Requires verified guarantor</span>
+                      <span>* No hidden fees</span>
                     </div>
                     <div className="border-t border-[#8B2323]/20 pt-4 mt-2">
                       <div className="flex justify-between text-xl font-bold text-[#8B2323]">

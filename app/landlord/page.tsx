@@ -72,6 +72,13 @@ export default function LandlordDashboard() {
   const { handleFileUpload, uploadedFiles } = useFileUpload(token);
 
   const [editFormData, setEditFormData] = useState<any>({});
+  const [draftData, setDraftData] = useState<any>({
+    property_address: "",
+    state: "",
+    area: "",
+    typology: "",
+  });
+  const [isCreatingDraft, setIsCreatingDraft] = useState(false);
 
   const calculateCompletion = () => {
     if (!editFormData || Object.keys(editFormData).length === 0) return 0;
@@ -609,7 +616,7 @@ export default function LandlordDashboard() {
               <PropertiesTab 
                 properties={properties} 
                 drafts={drafts}
-                loading={dataLoading} 
+                loading={dataLoading.properties} 
                 onAddProperty={() => {
                   if (isProfileComplete) {
                     setActiveTab("add-property");
@@ -931,7 +938,7 @@ export default function LandlordDashboard() {
                                             file,
                                             "cac_cert",
                                             false,
-                                            (url) => {
+                                            (url: string) => {
                                               setEditFormData((prev: any) => ({
                                                 ...prev,
                                                 cac_cert: url,
@@ -949,7 +956,7 @@ export default function LandlordDashboard() {
                                     >
                                       <div className="flex items-center gap-2">
                                         {uploadedFiles.find(
-                                          (f) =>
+                                          (f: any) =>
                                             f.type === "cac_cert" &&
                                             f.uploading,
                                         ) ? (
@@ -959,7 +966,7 @@ export default function LandlordDashboard() {
                                         )}
                                         <span className="text-sm font-medium text-slate-500 group-hover:text-slate-700">
                                           {uploadedFiles.find(
-                                            (f) =>
+                                            (f: any) =>
                                               f.type === "cac_cert" &&
                                               f.uploading,
                                           )

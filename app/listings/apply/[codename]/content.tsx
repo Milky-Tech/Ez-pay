@@ -70,7 +70,6 @@ export default function RentalApplicationContent() {
     paymentPlan: "ez_anchor" as "ez_anchor" | "ez_ascend",
     emergencyContactName: "",
     emergencyContactPhone: "",
-    // Guarantor fields
     guarantorName: "",
     guarantorPhone: "",
     guarantorEmail: "",
@@ -88,7 +87,7 @@ export default function RentalApplicationContent() {
     "Terms & Review",
   ];
 
-  const stepTitles = formData.paymentPlan === "ez_ascend" 
+  const stepTitles = formData.paymentPlan === "ez_anchor" 
     ? [...baseSteps.slice(0, 5), "Guarantor Information", ...baseSteps.slice(5)]
     : baseSteps;
 
@@ -197,8 +196,8 @@ export default function RentalApplicationContent() {
       return;
     }
 
-    // Validate Guarantor for Ascend
-    if (formData.paymentPlan === "ez_ascend") {
+    // Validate Guarantor for Anchor
+    if (formData.paymentPlan === "ez_anchor") {
       if (
         !formData.guarantorName ||
         !formData.guarantorPhone ||
@@ -212,7 +211,7 @@ export default function RentalApplicationContent() {
           variant: "destructive",
           title: "Missing Guarantor Information",
           description:
-            "EZPAY Ascend requires complete guarantor details and documents (ID & Attestation Letter).",
+            "EZPAY Anchor requires complete guarantor details and documents (ID & Attestation Letter).",
         });
         return;
       }
@@ -251,14 +250,14 @@ export default function RentalApplicationContent() {
         government_id_path: govtIdUrl,
         live_photo_path: livePhotoUrl,
         verification_video_path: liveVideoUrl,
-        // Guarantor Data (only if ascend, but sending as optional/null for anchor is fine)
-        guarantor_name: formData.paymentPlan === "ez_ascend" ? formData.guarantorName : undefined,
-        guarantor_phone: formData.paymentPlan === "ez_ascend" ? formData.guarantorPhone : undefined,
-        guarantor_email: formData.paymentPlan === "ez_ascend" ? formData.guarantorEmail : undefined,
-        guarantor_id_number: formData.paymentPlan === "ez_ascend" ? formData.guarantorIdNumber : undefined,
-        guarantor_workplace: formData.paymentPlan === "ez_ascend" ? formData.guarantorWorkplace : undefined,
-        guarantor_id_path: formData.paymentPlan === "ez_ascend" ? guarantorIdUrl : undefined,
-        attestation_letter_path: formData.paymentPlan === "ez_ascend" ? attestationLetterUrl : undefined,
+        // Guarantor Data (only if anchor, but sending as optional/null for ascend is fine)
+        guarantor_name: formData.paymentPlan === "ez_anchor" ? formData.guarantorName : undefined,
+        guarantor_phone: formData.paymentPlan === "ez_anchor" ? formData.guarantorPhone : undefined,
+        guarantor_email: formData.paymentPlan === "ez_anchor" ? formData.guarantorEmail : undefined,
+        guarantor_id_number: formData.paymentPlan === "ez_anchor" ? formData.guarantorIdNumber : undefined,
+        guarantor_workplace: formData.paymentPlan === "ez_anchor" ? formData.guarantorWorkplace : undefined,
+        guarantor_id_path: formData.paymentPlan === "ez_anchor" ? guarantorIdUrl : undefined,
+        attestation_letter_path: formData.paymentPlan === "ez_anchor" ? attestationLetterUrl : undefined,
       };
 
       const response = await fetch(`${API_BASE_URL}/applications/apply`, {
@@ -399,14 +398,18 @@ export default function RentalApplicationContent() {
                     </div>
 
                     <div className="border-t pt-4 mb-4">
-                      <div className="flex justify-between items-center mb-2">
+                      <div className="flex justify-between items-center mb-1">
                         <span className="text-gray-600">Monthly Rent:</span>
                         <span className="text-2xl font-bold text-primary font-raleway">
-                          {formatPrice(property.monthly_rent_anchor || property.monthly_cost || property.rent)}
+                          {formatPrice(
+                            formData.paymentPlan === "ez_anchor"
+                              ? (property.monthly_rent_anchor || (property.rent * 1.1 / 12))
+                              : (property.monthly_rent_ascend || ((property.rent - (property.rent * 1.1 * 4 / 12)) / 11))
+                          )}
                         </span>
                       </div>
                       <p className="text-sm text-gray-500">
-                        EZPAY monthly rate
+                        {formData.paymentPlan === "ez_anchor" ? "Anchor standard rate" : "Ascend graduated rate"}
                       </p>
                     </div>
 
@@ -506,16 +509,15 @@ export default function RentalApplicationContent() {
                                               </p>
                                             </div>
                                             <p className="text-sm text-gray-600 mt-1">
-                                              3 months rent as refundable caution fee.
+                                              Zero caution fee.
                                               <br/>
-                                              Standard monthly payments.
+                                              Requires a verified Guarantor.
                                             </p>
                                             <div className="mt-2">
                                               <p className="font-semibold text-primary">
                                                 {formatPrice(
                                                   property.monthly_rent_anchor ||
-                                                    property.monthly_cost ||
-                                                    property.rent,
+                                                    (property.rent * 1.1 / 12)
                                                 )}{" "}
                                                 / month
                                               </p>
@@ -544,22 +546,21 @@ export default function RentalApplicationContent() {
                                                 EZPAY ASCEND
                                               </p>
                                               <span className="inline-flex items-center rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-800">
-                                                Zero Caution Fee
+                                                Graduated Payments
                                               </span>
                                             </div>
                                             <p className="text-sm text-gray-600 mt-1">
-                                              No upfront caution fee (financed by Capital Legacy Partner).
+                                              3 months rent as refundable caution fee.
                                               <br/>
-                                              <span className="font-medium text-red-600">Requires a strong Guarantor.</span>
+                                              Financed by Capital Legacy Partner.
                                               <br/>
-                                              <span className="text-xs text-gray-500">Graduated payment plan with lower initial payments.</span>
+                                              <span className="text-xs text-gray-500 italic block mt-1">First payment: {formatPrice((property.rent * 1.1 * 4) / 12)} (1st Mo + 3 Mo Caution)</span>
                                             </p>
                                             <div className="mt-2">
                                               <p className="font-semibold text-primary">
-                                                Starting from{" "}
                                                 {formatPrice(
                                                   property.monthly_rent_ascend ||
-                                                  ((property.monthly_rent_anchor || property.monthly_cost || property.rent) * 0.8),
+                                                  ((property.rent - (property.rent * 1.1 * 4 / 12)) / 11),
                                                 )}{" "}
                                                 / month
                                               </p>
@@ -581,19 +582,19 @@ export default function RentalApplicationContent() {
                                     <div>
                                       <p className="font-bold text-blue-900 mb-1">EZPAY ANCHOR</p>
                                       <ul className="list-disc list-inside text-blue-800 space-y-1">
-                                        <li>3 months rent as refundable caution fee</li>
+                                        <li><strong>Zero caution fee</strong></li>
                                         <li>1st month rent payment to start</li>
-                                        <li>Standard monthly payments thereafter</li>
-                                        <li>No guarantor required</li>
+                                        <li>Standard monthly payments</li>
+                                        <li><strong>Compulsory Guarantor</strong> (ID, Work, Attestation)</li>
                                       </ul>
                                     </div>
                                     <div>
                                       <p className="font-bold text-blue-900 mb-1">EZPAY ASCEND</p>
                                       <ul className="list-disc list-inside text-blue-800 space-y-1">
-                                        <li><strong>Zero caution fee</strong></li>
+                                        <li>3 months rent as refundable caution fee</li>
                                         <li>Financed by Capital Legacy Partner</li>
-                                        <li>Standard monthly payments</li>
-                                        <li><strong>Compulsory Guarantor</strong> (ID, Work, Attestation)</li>
+                                        <li>Graduated monthly payments</li>
+                                        <li>No guarantor required</li>
                                       </ul>
                                     </div>
                                   </div>
@@ -1080,15 +1081,15 @@ export default function RentalApplicationContent() {
                       </div>
                     )}
 
-                    {/* Step 6: Guarantor Information (Only for Ascend) */}
-                    {currentStep === 5 && formData.paymentPlan === "ez_ascend" && (
+                    {/* Step 6: Guarantor Information (Only for Anchor) */}
+                    {currentStep === 5 && formData.paymentPlan === "ez_anchor" && (
                       <div className="space-y-6">
                         <h3 className="text-xl font-semibold text-primary font-montserrat">
                           Guarantor Information
                         </h3>
                         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
                           <p className="text-sm text-blue-800">
-                            <strong>EZPAY Ascend Requirement:</strong> Since this package involves no caution fee, a verified guarantor is required. Please provide accurate details.
+                            <strong>EZPAY Anchor Requirement:</strong> Since this package involves no caution fee, a verified guarantor is required. Please provide accurate details.
                           </p>
                         </div>
                         <div className="space-y-4">
@@ -1262,7 +1263,7 @@ export default function RentalApplicationContent() {
                     )}
 
                     {/* Step 6/7: Final Review & Terms */}
-                    {((currentStep === 5 && formData.paymentPlan !== "ez_ascend") || (currentStep === 6 && formData.paymentPlan === "ez_ascend")) && (
+                    {((currentStep === 5 && formData.paymentPlan !== "ez_anchor") || (currentStep === 6 && formData.paymentPlan === "ez_anchor")) && (
                       <div className="space-y-6">
                         <h3 className="text-xl font-semibold text-primary font-montserrat">
                           Final Review & Terms

@@ -35,18 +35,7 @@ import {
   ArrowRight,
 } from "lucide-react";
 
-interface Landlord {
-  id: string | number;
-  full_name: string;
-  email: string;
-  phone: string;
-  status: string;
-  business_name?: string;
-  business_address?: string;
-  occupation?: string;
-  designation?: string;
-  created_at: string;
-}
+import { Landlord } from "@/app/types/property";
 
 interface LandlordsTabProps {
   landlords: Landlord[];

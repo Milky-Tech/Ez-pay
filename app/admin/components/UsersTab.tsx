@@ -46,18 +46,10 @@ import {
   Trash2,
 } from "lucide-react";
 
-interface UserItem {
-  id: string | number;
-  full_name: string;
-  email: string;
-  phone: string;
-  role: string;
-  status?: string;
-  created_at?: string;
-}
+import { Landlord } from "@/app/types/property";
 
 interface UsersTabProps {
-  users: UserItem[];
+  users: Landlord[];
   loading: boolean;
   fetchUsers: () => void;
   formatDate: (dateString: string) => string;
@@ -112,7 +104,7 @@ export default function UsersTab({
     }
   };
 
-  const getRoleBadge = (role: string) => {
+  const getRoleBadge = (role: string | null) => {
     switch (role?.toLowerCase()) {
       case "admin":
         return <Badge className="bg-purple-100 text-purple-800 border-none"><Shield className="h-3 w-3 mr-1" /> Admin</Badge>;

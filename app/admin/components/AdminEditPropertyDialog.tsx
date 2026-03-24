@@ -23,26 +23,7 @@ import { Loader2, Save, X } from "lucide-react";
 import { useAuth } from "@/context/authcontext";
 import { useToast } from "@/hooks/use-toast";
 
-interface Property {
-  id: string;
-  code_name: string;
-  typology: string;
-  number_of_units: number;
-  rent: number;
-  monthly_rent_ascend: number;
-  monthly_rent_anchor: number;
-  inspection_fee: number;
-  exterior_shot: string;
-  compound_road: string;
-  power_system: string;
-  interior_rooms: string | string[];
-  listing_status: string;
-  landlord_package: string;
-  tenant_package: string | null;
-  upgrade_loan: number | null;
-  amortization_period: number | null;
-  [key: string]: any;
-}
+import { Property } from "@/app/types/property";
 
 interface AdminEditPropertyDialogProps {
   property: Property | null;

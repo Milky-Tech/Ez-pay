@@ -31,6 +31,8 @@ export type Property = {
   compound_road: string;
   created_at: string;
   updated_at: string;
+  locationData?: { latitude: number; longitude: number };
+  location_data?: { latitude: number; longitude: number };
 };
 
 export type RentalApplication = {

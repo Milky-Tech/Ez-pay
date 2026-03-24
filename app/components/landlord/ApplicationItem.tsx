@@ -2,9 +2,10 @@
 
 import { Avatar, AvatarFallback } from "@/app/components/ui/avatar";
 import { Badge } from "@/app/components/ui/badge";
+import { RentalApplication } from "@/lib/types";
 
 interface ApplicationItemProps {
-  application: any;
+  application: RentalApplication & { applicant_name?: string; property?: any };
   onClick: (id: string) => void;
 }
 

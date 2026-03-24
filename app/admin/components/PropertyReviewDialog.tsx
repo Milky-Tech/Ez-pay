@@ -23,6 +23,9 @@ import {
   Phone,
   Mail,
   Navigation,
+  Check,
+  CheckSquare,
+  Square as SquareIcon,
 } from "lucide-react";
 import {
   AlertDialog,
@@ -40,48 +43,7 @@ import { useAuth } from "@/context/authcontext";
 // API Base URL
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL;
 
-// Interface definitions
-interface Property {
-  id: string;
-  code_name?: string;
-  typology: string;
-  email?: string;
-  phone?: string;
-  area: string;
-  state: string;
-  monthly_cost?: number | null;
-  listing_status: string | null;
-  status: string;
-  full_name?: string;
-  property_address: string;
-  number_of_units?: number;
-  no_of_units?: number;
-  rent: number;
-  compound_road?: string;
-  power_system?: string;
-  interior_rooms?: string | string[];
-  exterior_shot?: string;
-  landlord_package: string;
-  c_of_o?: string;
-  latitude?: number;
-  longitude?: number;
-  locationData?: {
-    lat: string;
-    long: string;
-    address: string;
-    state: string;
-    city: string;
-  };
-  landlord?: {
-    id: string;
-    full_name: string;
-    phone: string;
-    email: string;
-  };
-  created_at: string;
-  updated_at?: string;
-  [key: string]: any;
-}
+import { Property } from "@/app/types/property";
 
 interface PropertyReviewDialogProps {
   property: Property;
@@ -111,6 +73,20 @@ const CarouselDialog = ({
   currentIndex: number;
   onIndexChange: (index: number) => void;
 }) => {
+  // Handle keyboard navigation
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "ArrowRight") nextImage();
+      if (e.key === "ArrowLeft") prevImage();
+      if (e.key === "Escape") onClose();
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen, currentIndex, images.length]);
+
   if (!isOpen || images.length === 0) return null;
 
   const nextImage = () => {
@@ -126,72 +102,82 @@ const CarouselDialog = ({
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
-      <div className="relative max-w-4xl max-h-full p-4">
-        {/* Close button */}
-        <button
-          onClick={onClose}
-          className="absolute top-2 right-2 z-10 bg-black bg-opacity-50 text-white rounded-full p-2 hover:bg-opacity-75"
-        >
-          <X className="h-6 w-6" />
-        </button>
+    <div 
+      className="fixed inset-0 bg-black/95 backdrop-blur-xl flex flex-col items-center justify-center z-[9999] transition-all duration-500 animate-in fade-in"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      {/* Close button - Top Right */}
+      <button
+        onClick={onClose}
+        className="absolute top-6 right-6 z-[100] bg-white/10 hover:bg-white/20 text-white rounded-full p-4 transition-all hover:rotate-90 backdrop-blur-md border border-white/20 shadow-xl"
+        title="Close (Esc)"
+      >
+        <X className="h-6 w-6" />
+      </button>
 
-        {/* Main image */}
-        <div className="relative">
+      <div className="relative w-full max-w-7xl h-[85vh] flex items-center justify-center p-4">
+        {/* Floating arrows */}
+        {images.length > 1 && (
+          <>
+            <button
+              onClick={(e) => { e.stopPropagation(); prevImage(); }}
+              className="absolute left-4 md:left-8 z-[100] bg-white/10 hover:bg-white/20 text-white rounded-2xl p-5 transition-all hover:-translate-x-1 border border-white/10 backdrop-blur-md shadow-2xl group flex items-center justify-center"
+            >
+              <ChevronLeft className="h-10 w-10 group-hover:scale-110 transition-transform" />
+            </button>
+            <button
+              onClick={(e) => { e.stopPropagation(); nextImage(); }}
+              className="absolute right-4 md:right-8 z-[100] bg-white/10 hover:bg-white/20 text-white rounded-2xl p-5 transition-all hover:translate-x-1 border border-white/10 backdrop-blur-md shadow-2xl group flex items-center justify-center"
+            >
+              <ChevronRight className="h-10 w-10 group-hover:scale-110 transition-transform" />
+            </button>
+
+            {/* Invisible click areas on the image sides for easier navigation */}
+            <div className="absolute inset-y-0 left-0 w-1/4 z-50 cursor-w-resize" onClick={(e) => { e.stopPropagation(); prevImage(); }} title="Previous" />
+            <div className="absolute inset-y-0 right-0 w-1/4 z-50 cursor-e-resize" onClick={(e) => { e.stopPropagation(); nextImage(); }} title="Next" />
+          </>
+        )}
+
+        <div className="relative w-full h-full flex items-center justify-center animate-in fade-in zoom-in duration-500 pointer-events-none">
           <img
             src={images[currentIndex].url}
             alt={images[currentIndex].label}
-            className="max-w-full max-h-[70vh] object-contain rounded-lg"
+            className="max-w-full max-h-full object-contain rounded-2xl shadow-2xl border border-white/10"
             onError={(e) => {
               const target = e.target as HTMLImageElement;
-              if (target.src.includes('data:image')) return; // Already a fallback
-              target.src = "/images/logo-ezpay.png"; // First fallback
+              if (target.src.includes('data:image')) return;
+              target.src = "/images/logo-ezpay.png";
               target.onerror = () => {
-                target.src = "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7"; // Last resort
+                target.src = "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
               };
             }}
           />
-
-          {/* Navigation arrows */}
-          {images.length > 1 && (
-            <>
-              <button
-                onClick={prevImage}
-                className="absolute left-2 top-1/2 transform -translate-y-1/2 bg-black bg-opacity-50 text-white rounded-full p-2 hover:bg-opacity-75"
-              >
-                <ChevronLeft className="h-6 w-6" />
-              </button>
-              <button
-                onClick={nextImage}
-                className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-black bg-opacity-50 text-white rounded-full p-2 hover:bg-opacity-75"
-              >
-                <ChevronRight className="h-6 w-6" />
-              </button>
-            </>
-          )}
         </div>
+      </div>
 
-        {/* Image label */}
-        <div className="text-center mt-4">
-          <p className="text-white text-lg font-medium">
+      {/* Info & Thumbnails Strip */}
+      <div className="w-full bg-black/40 backdrop-blur-xl border-t border-white/10 p-6 flex flex-col items-center">
+        <div className="mb-4 text-center">
+          <p className="text-white text-xl font-bold font-raleway tracking-tight">
             {images[currentIndex].label}
           </p>
-          <p className="text-gray-300 text-sm">
-            {currentIndex + 1} of {images.length}
+          <p className="text-gray-400 text-xs mt-1 uppercase tracking-widest font-medium">
+            Screenshot {currentIndex + 1} of {images.length}
           </p>
         </div>
 
-        {/* Thumbnail indicators */}
         {images.length > 1 && (
-          <div className="flex justify-center mt-4 space-x-2 overflow-x-auto">
+          <div className="flex justify-center gap-3 overflow-x-auto pb-2 max-w-full no-scrollbar">
             {images.map((image, index) => (
               <button
                 key={index}
                 onClick={() => goToImage(index)}
-                className={`flex-shrink-0 w-16 h-16 rounded border-2 overflow-hidden ${
+                className={`flex-shrink-0 w-20 h-20 rounded-xl border-2 transition-all overflow-hidden ${
                   index === currentIndex
-                    ? "border-white"
-                    : "border-gray-500 hover:border-gray-300"
+                    ? "border-blue-500 scale-110 shadow-lg shadow-blue-500/20"
+                    : "border-transparent opacity-40 hover:opacity-100"
                 }`}
               >
                 <img
@@ -199,14 +185,6 @@ const CarouselDialog = ({
                   alt={image.label}
                   loading="lazy"
                   className="w-full h-full object-cover"
-                  onError={(e) => {
-                    const target = e.target as HTMLImageElement;
-                    if (target.src.includes('data:image')) return;
-                    target.src = "/images/logo-ezpay.png";
-                    target.onerror = () => {
-                      target.src = "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
-                    };
-                  }}
                 />
               </button>
             ))}
@@ -236,7 +214,67 @@ const PropertyReviewDialog = ({
   const [monthlyRentAnchor, setMonthlyRentAnchor] = useState(0);
   const [upgradeLoan, setUpgradeLoan] = useState(0);
   const [amortizationPeriod, setAmortizationPeriod] = useState(0);
+  
+  // Verification checklist state
+  const [verifications, setVerifications] = useState({
+    details: false,
+    ownership: false,
+    media: false,
+    terms: false,
+  });
+
   const { token } = useAuth();
+
+  // Haversine formula to calculate distance in km
+  const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
+    const R = 6371; // Radius of the earth in km
+    const dLat = (lat2 - lat1) * (Math.PI / 180);
+    const dLon = (lon2 - lon1) * (Math.PI / 180);
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(lat1 * (Math.PI / 180)) *
+        Math.cos(lat2 * (Math.PI / 180)) *
+        Math.sin(dLon / 2) *
+        Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c; // Distance in km
+  };
+
+  // Prefill calculations
+  useEffect(() => {
+    if (!property) return;
+
+    const rent = property.rent || 0;
+    const isPrime = property.landlord_package === "prime";
+    const rentPremium = rent * 1.1;
+    const upfrontPremium = (rentPremium * 4) / 12;
+
+    // 1. Calculate Inspection Fee
+    // Dummy office location in Sangotedo, Lekki-Epe Expressway, Lagos
+    const officeLat = 6.4735;
+    const officeLng = 3.6190;
+    const propLat = property.latitude || Number(property.locationData?.lat) || officeLat;
+    const propLng = property.longitude || Number(property.locationData?.long) || officeLng;
+    
+    const distance = calculateDistance(propLat, propLng, officeLat, officeLng);
+    const calculatedInspectionFee = 10000 + Math.round(distance * 500); // 10k base + 500/km
+    setInspectionFee(calculatedInspectionFee);
+
+    // 2. Calculate Rent variations
+    let baseAscend = (rent - upfrontPremium) / 11;
+    let baseAnchor = rentPremium / 12;
+
+    if (!isPrime) {
+      const loan = upgradeLoan || 0;
+      const period = amortizationPeriod || 12;
+      const loanMonthly = loan / period;
+      setMonthlyRentAscend(Math.round(baseAscend + loanMonthly));
+      setMonthlyRentAnchor(Math.round(baseAnchor + loanMonthly));
+    } else {
+      setMonthlyRentAscend(Math.round(baseAscend));
+      setMonthlyRentAnchor(Math.round(baseAnchor));
+    }
+  }, [property, upgradeLoan, amortizationPeriod]);
   // Helper function to ensure full URL
   const getFullImageUrl = (url: string) => {
     if (!url || typeof url !== "string") return "";
@@ -669,66 +707,100 @@ const PropertyReviewDialog = ({
             {/* Property Images Carousel */}
             {(() => {
               const images = getAllImages(property);
-              return images.length > 0 ? (
-                <div className="border rounded-lg p-3 bg-gray-50 md:col-span-2 lg:col-span-3">
-                  <Label className="text-sm font-medium block mb-2">
-                    Property Photos ({images.length})
-                  </Label>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                    {images.slice(0, 4).map((image, index) => (
-                      <div
-                        key={index}
-                        className="relative cursor-pointer group"
-                        onClick={() => {
-                          setCurrentImageIndex(index);
-                          setIsCarouselOpen(true);
-                        }}
-                      >
-                        <img
-                          src={image.url}
-                          alt={image.label}
-                          loading="lazy"
-                          className="w-full h-20 object-cover rounded border hover:opacity-80 transition-opacity"
-                          onError={(e) => {
-                            const target = e.target as HTMLImageElement;
-                            if (target.src.includes('data:image')) return;
-                            target.src = "/images/logo-ezpay.png";
-                            target.onerror = () => {
-                              target.src = "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
-                            };
-                          }}
-                        />
-                        <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all rounded flex items-center justify-center">
-                          <Eye className="h-5 w-5 text-white opacity-0 group-hover:opacity-100" />
-                        </div>
-                      </div>
-                    ))}
-                    {images.length > 4 && (
-                      <div
-                        className="w-full h-20 bg-gray-200 rounded border flex items-center justify-center cursor-pointer hover:bg-gray-300 transition-colors"
-                        onClick={() => {
-                          setCurrentImageIndex(0);
-                          setIsCarouselOpen(true);
-                        }}
-                      >
-                        <span className="text-sm text-gray-600 font-medium">
-                          +{images.length - 4} more
-                        </span>
-                      </div>
-                    )}
+              if (images.length === 0) return null;
+
+              const displayImages = images.slice(0, 5);
+              const remainingCount = images.length - 5;
+
+              return (
+                <div className="col-span-full space-y-4">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-sm font-semibold text-gray-900 uppercase tracking-wider flex items-center">
+                      <Eye className="h-4 w-4 mr-2 text-blue-500" />
+                      Property Media Gallery
+                    </Label>
+                    <Badge variant="secondary" className="bg-gray-100 text-gray-600 border-none font-medium">
+                      {images.length} {images.length === 1 ? 'Photo' : 'Photos'}
+                    </Badge>
                   </div>
-                  <button
-                    onClick={() => {
-                      setCurrentImageIndex(0);
-                      setIsCarouselOpen(true);
-                    }}
-                    className="mt-2 text-blue-600 hover:underline text-sm flex items-center"
-                  >
-                    <Eye className="h-4 w-4 mr-1" />
-                    View All Photos ({images.length})
-                  </button>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-6 gap-3 h-[400px] md:h-[500px]">
+                    {/* Main Featured Image */}
+                    <div 
+                      className="md:col-span-2 lg:col-span-3 h-full relative group cursor-pointer overflow-hidden rounded-2xl border-2 border-transparent hover:border-blue-500 transition-all shadow-md active:scale-[0.98]"
+                      onClick={() => {
+                        setCurrentImageIndex(0);
+                        setIsCarouselOpen(true);
+                      }}
+                    >
+                      <img
+                        src={images[0].url}
+                        alt={images[0].label}
+                        className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                      />
+                      <div className="absolute inset-0 bg-black/20 group-hover:bg-black/10 transition-colors" />
+                      <div className="absolute bottom-4 left-4 right-4 bg-black/40 backdrop-blur-md p-3 rounded-xl border border-white/10 opacity-0 group-hover:opacity-100 transition-all transform translate-y-2 group-hover:translate-y-0">
+                        <p className="text-white text-sm font-semibold">{images[0].label}</p>
+                        <p className="text-white/70 text-xs">Featured View</p>
+                      </div>
+                      <div className="absolute top-4 right-4 bg-blue-600 text-white p-2 rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-all scale-75 group-hover:scale-100">
+                        <Eye className="h-5 w-5" />
+                      </div>
+                    </div>
+
+                    {/* Side Grid */}
+                    <div className="md:col-span-2 lg:col-span-3 grid grid-cols-2 gap-3 h-full">
+                      {images.slice(1, 5).map((image, idx) => {
+                        const actualIndex = idx + 1;
+                        const isLast = idx === 3 && remainingCount > 0;
+                        
+                        return (
+                          <div
+                            key={actualIndex}
+                            className="relative cursor-pointer group overflow-hidden rounded-xl border-2 border-transparent hover:border-blue-500 transition-all shadow-sm h-full active:scale-[0.98]"
+                            onClick={() => {
+                              setCurrentImageIndex(actualIndex);
+                              setIsCarouselOpen(true);
+                            }}
+                          >
+                            <img
+                              src={image.url}
+                              alt={image.label}
+                              className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                            />
+                            <div className="absolute inset-0 bg-black/10 group-hover:bg-black/0 transition-colors" />
+                            
+                            {isLast ? (
+                              <div className="absolute inset-0 bg-black/60 backdrop-blur-[2px] flex flex-col items-center justify-center text-white border-2 border-white/20 rounded-xl group-hover:bg-black/50 transition-all">
+                                <span className="text-2xl font-bold">+{remainingCount}</span>
+                                <span className="text-[10px] uppercase tracking-widest font-bold">More</span>
+                              </div>
+                            ) : (
+                              <>
+                                <div className="absolute bottom-2 left-2 right-2 bg-black/50 backdrop-blur-sm p-1.5 rounded-lg border border-white/10 opacity-0 group-hover:opacity-100 transition-all truncate text-white text-[10px] font-medium">
+                                  {image.label}
+                                </div>
+                                <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all">
+                                  <div className="bg-white/20 backdrop-blur-md p-2 rounded-full border border-white/30 scale-75 group-hover:scale-100 transition-transform">
+                                    <Eye className="h-4 w-4 text-white" />
+                                  </div>
+                                </div>
+                              </>
+                            )}
+                          </div>
+                        );
+                      })}
+                      
+                      {/* Fill empty cells in the 2x2 grid if fewer than 5 images */}
+                      {images.length > 1 && images.length < 5 && Array.from({ length: 5 - images.length }).map((_, i) => (
+                        <div key={`empty-${i}`} className="bg-gray-100/50 border-2 border-dashed border-gray-200 rounded-xl flex items-center justify-center text-gray-300">
+                          <Building2 className="h-8 w-8 opacity-20" />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                 </div>
-              ) : null;
+              );
             })()}
 
             {property.c_of_o && (
@@ -807,55 +879,39 @@ const PropertyReviewDialog = ({
           />
         </div>
 
-        {/* Property Scoring & Review */}
-        {/* {property && (
-          <div>
-            <h3 className="text-lg font-semibold mb-4 flex items-center">
-              <CheckCircle className="h-5 w-5 mr-2" />
-              Property Scoring & Review
-            </h3>
-        <PropertyScoringEngine 
-              propertyData={{
-                id: property.id,
-                full_name: property.full_name,
-                designation: property.designation,
-                business_name: property.business_name,
-                property_address: property.property_address,
-                state: property.state,
-                area: property.area,
-                typology: property.typology,
-                no_of_units: property.no_of_units || property.number_of_units,
-                rent: property.rent,
-                ownership_doc: property.ownership_doc,
-                gov_id: property.gov_id,
-                cac_cert: property.cac_cert,
-                exterior_shot: property.exterior_shot || property.exteriorShot,
-                interior_rooms: (() => {
-                  const roomsRaw = property.interior_rooms || property.interiorRooms;
-                  if (!roomsRaw) return [];
-                  if (Array.isArray(roomsRaw)) return roomsRaw;
-                  try {
-                    if (typeof roomsRaw === "string") {
-                      if (roomsRaw.startsWith("[")) {
-                        return JSON.parse(roomsRaw);
-                      }
-                      return roomsRaw
-                        .split(",")
-                        .map((r: string) => r.trim());
-                    }
-                    return [roomsRaw];
-                  } catch (e) {
-                    return [roomsRaw];
-                  }
-                })(),
-              }}
-              onScoreUpdate={(scores) => {
-                // Handle score updates if needed
-                console.log("Property scores updated:", scores);
-              }}
-            /> 
-          </div>
-        )}*/}
+         {/* Verification Checklists (For Prime) */}
+         {property.landlord_package === "prime" && (
+           <div className="bg-purple-50 p-6 rounded-2xl border border-purple-100 shadow-sm">
+             <h3 className="text-lg font-semibold mb-4 flex items-center text-purple-900">
+               <ShieldCheck className="h-5 w-5 mr-2" />
+               Compliance & Standard Verification
+             </h3>
+             <p className="text-xs text-purple-700 mb-6 font-medium">
+               As an EZ-PRIME property, the following sections must be manually verified and attested to meet our standard before approval.
+             </p>
+             <div className="space-y-4">
+               {[
+                 { id: "details", label: "Property Details & Location Verified" },
+                 { id: "ownership", label: "Ownership & Personal Information Authenticated" },
+                 { id: "media", label: "Documents & Media Quality Meets Standard" },
+                 { id: "terms", label: "Pricing & Final Terms Confirmed" },
+               ].map((item) => (
+                 <div 
+                   key={item.id} 
+                   className="flex items-center space-x-3 cursor-pointer group"
+                   onClick={() => setVerifications(prev => ({ ...prev, [item.id]: !prev[item.id as keyof typeof prev] }))}
+                 >
+                   <div className={`p-1 rounded-md transition-colors ${verifications[item.id as keyof typeof verifications] ? "bg-purple-600 text-white" : "bg-white text-purple-300 border border-purple-200 shadow-sm group-hover:border-purple-400"}`}>
+                     {verifications[item.id as keyof typeof verifications] ? <CheckSquare className="h-5 w-5" /> : <SquareIcon className="h-5 w-5" />}
+                   </div>
+                   <span className={`text-sm font-medium ${verifications[item.id as keyof typeof verifications] ? "text-purple-900" : "text-purple-700"}`}>
+                     {item.label}
+                   </span>
+                 </div>
+               ))}
+             </div>
+           </div>
+         )}
 
         <div className="flex justify-end gap-4 pt-4 border-t">
           {property.status === "approved" || ["available", "rented", "maintenance", "upgrade_pending"].includes(property.listing_status || "") ? (
@@ -905,7 +961,11 @@ const PropertyReviewDialog = ({
               <Button
                 onClick={() => openConfirmationDialog("approve")}
                 className="bg-green-600 hover:bg-green-700"
-                disabled={isProcessing}
+                disabled={
+                  isProcessing || 
+                  (property.landlord_package === "prime" && 
+                   (!verifications.details || !verifications.ownership || !verifications.media || !verifications.terms))
+                }
               >
                 <CheckCircle className="h-4 w-4 mr-2" />
                 {property.landlord_package === "prime" 
@@ -1099,4 +1159,3 @@ const PropertyReviewDialog = ({
 };
 
 export default PropertyReviewDialog;
-export type { Property };
