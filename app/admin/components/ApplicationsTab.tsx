@@ -231,7 +231,7 @@ export default function ApplicationsTab({
                     <TableCell>
                       <p className="text-sm">{formatDate(app.created_at)}</p>
                       <p className="text-xs text-gray-500">
-                        Listing: {app.listing_id.substring(0, 8)}...
+                        Listing: {app.listing_id ? String(app.listing_id).substring(0, 8) : "N/A"}...
                       </p>
                     </TableCell>
                     <TableCell>{getStatusBadge(app.status)}</TableCell>
