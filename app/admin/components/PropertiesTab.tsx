@@ -193,12 +193,9 @@ export default function PropertiesTab({
                       </div>
                     </TableCell>
                     <TableCell className="font-semibold">
-                      ₦
-                      {
-                            Math.round((property.rent * 1.1) / (property.no_of_units || 1)).toLocaleString()
-                        }
+                      {formatPrice(property.monthly_rent || (property.rent * 1.1 / 12))}
                     </TableCell>
-                    <TableCell>{property.no_of_units}</TableCell>
+                    <TableCell>{property.parking_space || 0}</TableCell>
                     <TableCell>
                       <Badge variant="outline" className="text-xs">
                         Pending Review
@@ -231,7 +228,25 @@ export default function PropertiesTab({
                                 </DialogHeader>
                                 <PropertyReviewDialog
                                   property={property}
-                                  onApprove={async () => { openApprovalDialog(property); }}
+                                  onApprove={async (
+                                    p,
+                                    fee,
+                                    rent,
+                                    caution,
+                                    payback,
+                                    loan,
+                                    period
+                                  ) => {
+                                    handleApproveListing(
+                                      p,
+                                      fee,
+                                      rent,
+                                      caution,
+                                      payback,
+                                      loan,
+                                      period
+                                    );
+                                  }}
                                   onReject={async () => { rejectProperty(property.id); }}
                                 />
                               </DialogContent>

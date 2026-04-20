@@ -135,55 +135,35 @@ export default function ProfilePage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50/50">
-      {/* Profile Header */}
-      <div className="bg-white border-b sticky top-0 z-10">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <Link href="/">
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-                    <Home className="h-5 w-5 text-white" />
-                  </div>
-                  <span className="text-xl font-bold font-raleway text-primary hidden sm:block">
-                    EZ-Pay
-                  </span>
-                </div>
-              </Link>
-              <div className="h-6 w-px bg-gray-200 mx-2 hidden sm:block"></div>
-              <h1 className="text-lg font-semibold text-gray-900">
-                Tenant Dashboard
-              </h1>
+    <div className="min-h-screen bg-slate-50/60">
+      {/* Header */}
+      <div className="bg-[#0a0a0a] border-b border-white/5 sticky top-0 z-20">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-14 flex items-center justify-between">
+          <Link href="/" className="flex items-center gap-2">
+            <div className="w-7 h-7 bg-[#9A2A2A] rounded-lg flex items-center justify-center">
+              <Home className="h-4 w-4 text-white" />
             </div>
-
-            <div className="flex items-center gap-3">
-              <Button
-                variant="ghost"
-                size="icon"
-                className="relative text-gray-500"
-              >
-                <Bell className="h-5 w-5" />
-                <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleLogout}
-                className="flex items-center gap-2"
-              >
-                <LogOut className="h-4 w-4" />
-                <span className="hidden sm:inline">Sign Out</span>
-              </Button>
-            </div>
+            <span className="text-base font-black text-white font-raleway tracking-wider">EZ-PAY</span>
+            <span className="text-[9px] text-[#C9A227] font-bold uppercase tracking-[0.15em] hidden sm:inline">Tenant</span>
+          </Link>
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="icon" className="relative text-white/60 hover:text-white hover:bg-white/10 h-9 w-9">
+              <Bell className="h-4 w-4" />
+              <span className="absolute top-2 right-2 w-1.5 h-1.5 bg-red-500 rounded-full" />
+            </Button>
+            <Button variant="ghost" size="sm" onClick={handleLogout} className="text-white/60 hover:text-white hover:bg-white/10 gap-1.5 text-xs">
+              <LogOut className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Sign Out</span>
+            </Button>
           </div>
         </div>
       </div>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-          {/* Sidebar Info */}
-          <div className="lg:col-span-1 space-y-6">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 pb-24 lg:pb-8">
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+
+          {/* Sidebar Info — hidden on mobile */}
+          <div className="hidden lg:block lg:col-span-1 space-y-6">
             <Card className="overflow-hidden border-none shadow-sm">
               <div className="h-24 bg-gradient-to-r from-primary/10 to-primary/30"></div>
               <CardContent className="px-6 -mt-12 text-center pb-6">
@@ -262,47 +242,58 @@ export default function ProfilePage() {
             </div>
           </div>
 
+
           {/* Main Content Area */}
-          <div className="lg:col-span-3 space-y-8">
-            {/* Stats Header */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <Card className="border-none shadow-sm bg-white">
-                <CardContent className="pt-6">
-                  <div className="flex items-center justify-between mb-2">
-                    <p className="text-sm font-medium text-gray-500">
-                      Active Rentals
-                    </p>
-                    <div className="bg-green-100 p-2 rounded-lg">
-                      <Home className="h-4 w-4 text-green-600" />
+          <div className="lg:col-span-3 space-y-5">
+
+            {/* Mobile user info strip */}
+            <div className="flex items-center gap-3 lg:hidden">
+              <Avatar className="h-10 w-10 border-2 border-white shadow-sm">
+                <AvatarImage src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${user.email}`} />
+                <AvatarFallback>{user.full_name?.charAt(0) || user.fullName?.charAt(0)}</AvatarFallback>
+              </Avatar>
+              <div className="min-w-0">
+                <p className="font-bold text-slate-900 text-sm truncate">{user.full_name || user.fullName}</p>
+                <p className="text-xs text-slate-500 truncate">{user.email}</p>
+              </div>
+              <Badge className="ml-auto shrink-0 bg-[#9A2A2A]/10 text-[#9A2A2A] border-[#9A2A2A]/20 text-[10px]">
+                {user.role?.toUpperCase() || "TENANT"}
+              </Badge>
+            </div>
+
+            {/* Stats */}
+            <div className="grid grid-cols-3 gap-3">
+              <Card className="border border-slate-100 shadow-sm bg-white rounded-2xl">
+                <CardContent className="p-3 sm:p-5">
+                  <div className="flex items-center justify-between mb-1.5">
+                    <p className="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-widest">Active Rentals</p>
+                    <div className="bg-emerald-100 p-1.5 sm:p-2 rounded-lg">
+                      <Home className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-emerald-600" />
                     </div>
                   </div>
-                  <p className="text-2xl font-bold">0</p>
+                  <p className="text-xl sm:text-2xl font-black text-slate-900">0</p>
                 </CardContent>
               </Card>
-              <Card className="border-none shadow-sm bg-white">
-                <CardContent className="pt-6">
-                  <div className="flex items-center justify-between mb-2">
-                    <p className="text-sm font-medium text-gray-500">
-                      Applications
-                    </p>
-                    <div className="bg-blue-100 p-2 rounded-lg">
-                      <ClipboardList className="h-4 w-4 text-blue-600" />
+              <Card className="border border-slate-100 shadow-sm bg-white rounded-2xl">
+                <CardContent className="p-3 sm:p-5">
+                  <div className="flex items-center justify-between mb-1.5">
+                    <p className="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-widest">Applications</p>
+                    <div className="bg-blue-100 p-1.5 sm:p-2 rounded-lg">
+                      <ClipboardList className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-blue-600" />
                     </div>
                   </div>
-                  <p className="text-2xl font-bold">1</p>
+                  <p className="text-xl sm:text-2xl font-black text-slate-900">1</p>
                 </CardContent>
               </Card>
-              <Card className="border-none shadow-sm bg-white">
-                <CardContent className="pt-6">
-                  <div className="flex items-center justify-between mb-2">
-                    <p className="text-sm font-medium text-gray-500">
-                      Total Spent
-                    </p>
-                    <div className="bg-purple-100 p-2 rounded-lg">
-                      <CreditCard className="h-4 w-4 text-purple-600" />
+              <Card className="border border-slate-100 shadow-sm bg-white rounded-2xl">
+                <CardContent className="p-3 sm:p-5">
+                  <div className="flex items-center justify-between mb-1.5">
+                    <p className="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-widest">Total Spent</p>
+                    <div className="bg-purple-100 p-1.5 sm:p-2 rounded-lg">
+                      <CreditCard className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-purple-600" />
                     </div>
                   </div>
-                  <p className="text-2xl font-bold">₦0.00</p>
+                  <p className="text-xl sm:text-2xl font-black text-slate-900">₦0</p>
                 </CardContent>
               </Card>
             </div>
@@ -562,6 +553,36 @@ export default function ProfilePage() {
           </div>
         </div>
       </main>
+
+      {/* Mobile Bottom Navigation */}
+      <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-30 bg-[#0a0a0a] border-t border-white/10">
+        <div className="flex items-stretch h-16">
+          {[
+            { id: "overview", label: "Home", icon: Home },
+            { id: "applications", label: "Applications", icon: ClipboardList },
+            { id: "payments", label: "Payments", icon: CreditCard },
+            { id: "settings", label: "Profile", icon: Settings },
+          ].map((item) => {
+            const Icon = item.icon;
+            const isActive = activeTab === item.id;
+            return (
+              <button
+                key={item.id}
+                onClick={() => setActiveTab(item.id)}
+                className={`flex-1 flex flex-col items-center justify-center gap-1 transition-all ${
+                  isActive ? "text-[#f1d57c]" : "text-white/40 hover:text-white/70"
+                }`}
+              >
+                <div className={`relative p-1.5 rounded-xl transition-all ${isActive ? "bg-[#9A2A2A]/30" : ""}`}>
+                  <Icon className="h-5 w-5" />
+                  {isActive && <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 w-1 h-1 bg-[#9A2A2A] rounded-full" />}
+                </div>
+                <span className="text-[10px] font-semibold tracking-wide">{item.label}</span>
+              </button>
+            );
+          })}
+        </div>
+      </nav>
     </div>
   );
 }

@@ -20,6 +20,9 @@ import ListingsTab from "./components/ListingsTab";
 import ApplicationsTab from "./components/ApplicationsTab";
 import UsersTab from "./components/UsersTab";
 import LandlordsTab from "./components/LandlordsTab";
+import OfficesTab, { Office } from "./components/OfficesTab";
+import InspectionSchedulesTab from "./components/InspectionSchedulesTab";
+import InspectionsTab from "./components/InspectionsTab";
 import {
   Sheet,
   SheetContent,
@@ -71,6 +74,7 @@ export default function AdminDashboard() {
     users: Landlord[];
     landlords: Landlord[];
     unavailableListings: Property[];
+    offices: Office[];
   }>({
     listings: [],
     pendingListings: [],
@@ -78,6 +82,7 @@ export default function AdminDashboard() {
     users: [],
     landlords: [],
     unavailableListings: [],
+    offices: [],
   });
 
   const [stats, setStats] = useState({
@@ -94,6 +99,7 @@ export default function AdminDashboard() {
     applications: false,
     users: false,
     landlords: false,
+    offices: false,
   });
 
   const [searchTerm, setSearchTerm] = useState("");
@@ -150,6 +156,7 @@ export default function AdminDashboard() {
         fetchUnavailableListings(),
         fetchUsers(),
         fetchLandlords(),
+        fetchOffices(),
       ]);
     } catch (error) {
       console.error("Error fetching dashboard data:", error);
@@ -346,36 +353,53 @@ export default function AdminDashboard() {
     }
   }, [token]);
 
-  // User Actions
+  // Fetch Offices
+  const fetchOffices = useCallback(async () => {
+    try {
+      setLoading((prev) => ({ ...prev, offices: true }));
+      const response = await fetch(`${API_BASE_URL}/offices`, {
+        headers: {
+          Accept: "application/json",
+          Authorization: `Bearer ${token || localStorage.getItem("token")}`,
+        },
+      });
+      if (!response.ok) throw new Error("Failed to fetch offices");
+      const result = await response.json();
+      setData((prev) => ({ ...prev, offices: result.data || result }));
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setLoading((prev) => ({ ...prev, offices: false }));
+    }
+  }, [token]);
+
+  // User Actions — now uses the dedicated /admin/create endpoint
   const handleRegisterAdmin = async (adminData: any) => {
     try {
-      // We use a direct fetch instead of the context register to avoid logging out the current admin
-      const response = await fetch(`${API_BASE_URL}/register`, {
+      const response = await fetch(`${API_BASE_URL}/admin/create`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Accept: "application/json",
+          Authorization: `Bearer ${token || localStorage.getItem("token")}`,
         },
-        body: JSON.stringify({
-          ...adminData,
-          role: "admin", // Passing role to API
-        }),
+        body: JSON.stringify(adminData),
       });
 
       if (!response.ok) {
         const result = await response.json();
-        throw new Error(result.message || "Failed to register admin");
+        throw new Error(result.message || "Failed to create admin");
       }
 
-      toast({ title: "Admin Created", description: "New administrator registered successfully." });
+      toast({ title: "Admin Created", description: "New administrator account created successfully." });
       fetchUsers();
       return true;
     } catch (error: any) {
       console.error(error);
       toast({
         variant: "destructive",
-        title: "Registration Error",
-        description: error.message || "Failed to register admin.",
+        title: "Error",
+        description: error.message || "Failed to create admin.",
       });
       return false;
     }
@@ -452,8 +476,9 @@ export default function AdminDashboard() {
   const handleApproveListing = async (
     property: Property,
     inspectionFee: number,
-    monthlyRentAscend: number,
-    monthlyRentAnchor: number,
+    monthlyRent: number,
+    cautionFee: number,
+    paybackAmount: number,
     upgradeLoan?: number,
     amortizationPeriod?: number
   ) => {
@@ -473,8 +498,9 @@ export default function AdminDashboard() {
         },
         body: JSON.stringify({
           inspection_fee: inspectionFee,
-          monthly_rent_ascend: monthlyRentAscend,
-          monthly_rent_anchor: monthlyRentAnchor,
+          monthly_rent: monthlyRent,
+          caution_fee: cautionFee,
+          payback_amount: paybackAmount,
           upgrade_loan: upgradeLoan,
           amortization_period: amortizationPeriod,
           status: "approved",
@@ -598,7 +624,7 @@ export default function AdminDashboard() {
 
 
   return (
-    <div className="flex min-h-screen bg-gray-50 font-sans">
+    <div className="flex min-h-screen bg-slate-50/80 font-sans">
       {/* Sidebar - Desktop */}
       <div className="hidden md:block">
         <Sidebar
@@ -663,6 +689,7 @@ export default function AdminDashboard() {
               onReject={handleRejectListing}
               onUpdateAvailability={handleUpdateAvailability}
               onDelete={(id, name) => handleDeleteListing(id, name)}
+              token={token}
             />
           )}
 
@@ -687,6 +714,7 @@ export default function AdminDashboard() {
           {activeTab === "users" && (
             <UsersTab
               users={data.users}
+              offices={data.offices}
               loading={loading.users}
               fetchUsers={fetchUsers}
               formatDate={formatDate}
@@ -704,6 +732,27 @@ export default function AdminDashboard() {
               getStatusBadge={getStatusBadge}
             />
           )}
+
+          {activeTab === "offices" && (
+            <OfficesTab
+              offices={data.offices}
+              loading={loading.offices}
+              fetchOffices={fetchOffices}
+              token={token}
+              formatDate={formatDate}
+            />
+          )}
+
+          {activeTab === "inspections" && (
+            <InspectionsTab token={token} />
+          )}
+
+          {activeTab === "schedules" && (
+            <InspectionSchedulesTab
+              offices={data.offices}
+              token={token}
+            />
+          )}
         </main>
       </div>
 
@@ -714,21 +763,21 @@ export default function AdminDashboard() {
           setDeleteDialog((prev) => ({ ...prev, open }))
         }
       >
-        <AlertDialogContent>
+        <AlertDialogContent className="rounded-2xl border-slate-200/60 shadow-2xl">
           <AlertDialogHeader>
-            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-            <AlertDialogDescription>
+            <AlertDialogTitle className="font-raleway font-black text-slate-900">Are you absolutely sure?</AlertDialogTitle>
+            <AlertDialogDescription className="text-slate-500">
               This action cannot be undone. This will permanently delete the{" "}
               {deleteDialog.type === "listing" ? "listing" : "user"}{" "}
-              <span className="font-semibold text-gray-900">"{deleteDialog.name}"</span>{" "}
+              <span className="font-bold text-slate-800">"{deleteDialog.name}"</span>{" "}
               from the system.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel className="rounded-xl">Cancel</AlertDialogCancel>
             <AlertDialogAction
               onClick={deleteDialog.type === "listing" ? confirmDeleteListing : confirmDeleteUser}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90 rounded-xl font-bold shadow-lg shadow-red-500/20"
             >
               Delete
             </AlertDialogAction>

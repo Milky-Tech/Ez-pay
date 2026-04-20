@@ -4,6 +4,25 @@ import { useState, useEffect, useCallback } from "react";
 import { useToast } from "@/hooks/use-toast";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL;
+const CACHE_TTL = 5 * 60 * 1000; // 5 min
+
+function readCache(key: string) {
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) return null;
+    const { data, ts } = JSON.parse(raw);
+    if (Date.now() - ts > CACHE_TTL) return null;
+    return data;
+  } catch {
+    return null;
+  }
+}
+
+function writeCache(key: string, data: any) {
+  try {
+    localStorage.setItem(key, JSON.stringify({ data, ts: Date.now() }));
+  } catch {}
+}
 
 export const useLandlordData = (user: any, token: string | null) => {
   const [landlordData, setLandlordData] = useState<any | null>(null);
@@ -20,6 +39,11 @@ export const useLandlordData = (user: any, token: string | null) => {
 
   const fetchLandlordProfile = useCallback(async () => {
     if (!token || !user?.id) return;
+    const cacheKey = `landlord_profile_${user.id}`;
+
+    // Serve stale cache immediately
+    const cached = readCache(cacheKey);
+    if (cached) setLandlordData(cached);
 
     try {
       setLoading((prev) => ({ ...prev, profile: true }));
@@ -32,17 +56,21 @@ export const useLandlordData = (user: any, token: string | null) => {
 
       if (response.ok) {
         const data = await response.json();
-        setLandlordData(data.data || data);
+        const fresh = data.data || data;
+        setLandlordData(fresh);
+        writeCache(cacheKey, fresh);
       } else {
         throw new Error("Failed to fetch landlord profile");
       }
     } catch (error) {
       console.error("Error fetching landlord profile:", error);
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Failed to load profile data",
-      });
+      if (!cached) {
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "Failed to load profile data",
+        });
+      }
     } finally {
       setLoading((prev) => ({ ...prev, profile: false }));
     }
@@ -50,6 +78,10 @@ export const useLandlordData = (user: any, token: string | null) => {
 
   const fetchLandlordProperties = useCallback(async () => {
     if (!token) return;
+    const cacheKey = `landlord_properties_${user?.id}`;
+
+    const cached = readCache(cacheKey);
+    if (cached) setProperties(cached);
 
     try {
       setLoading((prev) => ({ ...prev, properties: true }));
@@ -62,19 +94,21 @@ export const useLandlordData = (user: any, token: string | null) => {
 
       if (response.ok) {
         const data = await response.json();
-        const allListings = data.data || data || [];
-        const landlordProperties = allListings;
-        setProperties(landlordProperties);
+        const fresh = data.data || data || [];
+        setProperties(fresh);
+        writeCache(cacheKey, fresh);
       } else {
         throw new Error("Failed to fetch properties");
       }
     } catch (error) {
       console.error("Error fetching properties:", error);
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Failed to load properties",
-      });
+      if (!cached) {
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "Failed to load properties",
+        });
+      }
     } finally {
       setLoading((prev) => ({ ...prev, properties: false }));
     }
@@ -82,6 +116,10 @@ export const useLandlordData = (user: any, token: string | null) => {
 
   const fetchDrafts = useCallback(async () => {
     if (!token) return;
+    const cacheKey = `landlord_drafts_${user?.id}`;
+
+    const cached = readCache(cacheKey);
+    if (cached) setDrafts(cached);
 
     try {
       setLoading((prev) => ({ ...prev, drafts: true }));
@@ -94,8 +132,9 @@ export const useLandlordData = (user: any, token: string | null) => {
 
       if (response.ok) {
         const data = await response.json();
-        const allDrafts = data.data || data || [];
-        setDrafts(allDrafts);
+        const fresh = data.data || data || [];
+        setDrafts(fresh);
+        writeCache(cacheKey, fresh);
       } else {
         console.warn("Could not fetch drafts");
       }
@@ -104,7 +143,7 @@ export const useLandlordData = (user: any, token: string | null) => {
     } finally {
       setLoading((prev) => ({ ...prev, drafts: false }));
     }
-  }, [token]);
+  }, [token, user?.id]);
 
   const fetchApplications = useCallback(
     async (currentProperties: any[]) => {
@@ -112,6 +151,10 @@ export const useLandlordData = (user: any, token: string | null) => {
         setApplications([]);
         return;
       }
+      const cacheKey = `landlord_applications_${user?.id}`;
+
+      const cached = readCache(cacheKey);
+      if (cached) setApplications(cached);
 
       try {
         setLoading((prev) => ({ ...prev, applications: true }));
@@ -129,6 +172,7 @@ export const useLandlordData = (user: any, token: string | null) => {
             currentProperties.some((prop) => prop.id === app.property_id),
           );
           setApplications(landlordApplications);
+          writeCache(cacheKey, landlordApplications);
         }
       } catch (error) {
         console.error("Error fetching applications:", error);
@@ -136,7 +180,7 @@ export const useLandlordData = (user: any, token: string | null) => {
         setLoading((prev) => ({ ...prev, applications: false }));
       }
     },
-    [token],
+    [token, user?.id],
   );
 
   useEffect(() => {

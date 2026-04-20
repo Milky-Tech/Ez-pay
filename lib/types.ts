@@ -8,31 +8,43 @@ export type Property = {
   rent: number;
   typology: string;
   property_type: string;
-  no_of_units: number;
   bedrooms: number;
   bathrooms: number;
+  parking_space: number;
   square_feet: number;
   desired_annual_rent: number;
   monthly_cost: number | null;
-  monthly_rent_ascend: number;
-  monthly_rent_anchor: number;
+  monthly_rent: number;
+  caution_fee: number;
+  payback_amount: number;
   inspection_fee: number;
-  listing_status: "available" | "rented" | "occupied" | "maintenance";
+  listing_status: "available" | "rented" | "occupied" | "maintenance" | "upgrade_pending";
   availability: "available" | "rented" | "occupied" | "maintenance";
   status: "pending" | "approved" | "rejected" | "published";
   availability_status:
     | "available"
     | "inspection_pending"
     | "rented"
-    | "maintenance";
+    | "maintenance"
+    | "upgrade_pending";
   partnership_tier: "ez_prime" | "ez_vantage" | null;
+  landlord_package: "prime" | "vantage" | null;
   interior_rooms: string | string[];
   exterior_shot: string;
   compound_road: string;
+  power_system: string;
+  deeds_of_assignment: string;
+  building_approval: string;
+  c_of_o: string;
   created_at: string;
   updated_at: string;
   locationData?: { latitude: number; longitude: number };
   location_data?: { latitude: number; longitude: number };
+  landlord?: {
+    full_name: string;
+    phone: string;
+    email: string;
+  };
 };
 
 export type RentalApplication = {

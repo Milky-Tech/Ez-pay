@@ -100,13 +100,17 @@ export const AddPropertyDialog = ({
     state: "",
     area: "",
     typology: "",
-    number_of_units: "1",
     rent: "",
+    bedrooms: "",
+    bathrooms: "",
+    parking_space: "",
     compound_road: "",
     power_system: "",
     interior_rooms: [] as string[],
     exterior_shot: "",
     landlord_package: "prime",
+    deeds_of_assignment: "",
+    building_approval: "",
     c_of_o: "",
   });
 
@@ -157,13 +161,17 @@ export const AddPropertyDialog = ({
       state: "",
       area: "",
       typology: "",
-      number_of_units: "1",
       rent: "",
+      bedrooms: "",
+      bathrooms: "",
+      parking_space: "",
       compound_road: "",
       power_system: "",
       interior_rooms: [],
       exterior_shot: "",
       landlord_package: "prime",
+      deeds_of_assignment: "",
+      building_approval: "",
       c_of_o: "",
     });
     setConsentGiven(false);
@@ -205,12 +213,15 @@ export const AddPropertyDialog = ({
       .map((f) => f.url)
       .filter(Boolean) as string[];
 
-    if (!compoundRoadUrl || !exteriorShotUrl) {
+    const deedsUrl = getFileByType("deeds_of_assignment")?.url;
+    const approvalUrl = getFileByType("building_approval")?.url;
+
+    if (!compoundRoadUrl || !exteriorShotUrl || !deedsUrl || !approvalUrl) {
       toast({
         variant: "destructive",
         title: "Missing Files",
         description:
-          "Please upload required property images (Compound and Exterior Shot)",
+          "Please upload all required property documents (Compound, Exterior Shot, Deeds of Assignment, and Building Approval)",
       });
       return;
     }
@@ -237,14 +248,18 @@ export const AddPropertyDialog = ({
       const propertyData = {
         ...formData,
         landlord_id: user_id,
-        number_of_units: parseInt(formData.number_of_units) || 1,
         rent: parseInt(formData.rent) || 0,
+        bedrooms: parseInt(formData.bedrooms) || 0,
+        bathrooms: parseInt(formData.bathrooms) || 0,
+        parking_space: parseInt(formData.parking_space) || 0,
         compound_road: compoundRoadUrl,
         power_system: powerSystemUrl,
         exterior_shot: exteriorShotUrl,
-        lead_image_url: exteriorShotUrl, // Fix: Use exterior shot as lead image
+        lead_image_url: exteriorShotUrl,
         interior_rooms: interiorUrls,
-        landlord_package: formData.landlord_package, // Default package
+        deeds_of_assignment: deedsUrl,
+        building_approval: approvalUrl,
+        landlord_package: formData.landlord_package,
         c_of_o: getFileByType("c_of_o")?.url || "",
       };
 
@@ -292,26 +307,45 @@ export const AddPropertyDialog = ({
         else onOpenChange(true);
       }}
     >
-      <DialogContent className="max-w-3xl max-h-[95vh] overflow-y-auto sm:max-w-3xl">
-        <DialogHeader>
-          <div className="flex items-center justify-between">
-            <DialogTitle className="text-xl sm:text-2xl font-raleway font-bold text-primary">
-              {formStep === 0
-                ? "Step 1: Property Details"
-                : "Step 2: Property Imagery"}
-            </DialogTitle>
-            <div className="flex gap-2">
-              <div
-                className={`h-2 w-12 rounded-full ${formStep === 0 ? "bg-primary" : "bg-gray-200"}`}
-              ></div>
-              <div
-                className={`h-2 w-12 rounded-full ${formStep === 1 ? "bg-primary" : "bg-gray-200"}`}
-              ></div>
+      <DialogContent className="max-w-3xl max-h-[95vh] overflow-hidden p-0 gap-0 sm:max-w-3xl rounded-2xl border-slate-200/60 shadow-2xl shadow-black/10">
+        {/* Premium Header */}
+        <div className="relative bg-gradient-to-br from-[#0a0a0a] via-[#111111] to-[#1a1a0a] px-6 pt-6 pb-5">
+          <div className="absolute inset-0 opacity-5 bg-[radial-gradient(circle_at_70%_50%,#C9A227,transparent_60%)]" />
+          <div className="relative">
+            <div className="flex items-center gap-2 mb-1.5">
+              <div className="w-1.5 h-5 bg-[#9A2A2A] rounded-full" />
+              <span className="text-[10px] text-[#C9A227] uppercase tracking-[0.2em] font-bold">
+                Landlord · Add Property
+              </span>
             </div>
+            <DialogHeader>
+              <DialogTitle className="text-xl font-black text-white font-raleway">
+                {formStep === 0 ? "Property Details" : "Property Imagery"}
+              </DialogTitle>
+            </DialogHeader>
+            <p className="text-xs text-white/40 mt-1">
+              Step {formStep + 1} of 2 — {formStep === 0 ? "Basic information & compliance" : "Photos & documents"}
+            </p>
           </div>
-        </DialogHeader>
 
-        <div className="space-y-8 mt-4">
+          {/* Step Indicators */}
+          <div className="flex items-center gap-2 mt-4">
+            <button
+              onClick={() => setFormStep(0)}
+              className={`flex-1 h-1.5 rounded-full transition-all duration-500 ${
+                formStep === 0 ? "bg-[#9A2A2A]" : "bg-white/20"
+              }`}
+            />
+            <button
+              onClick={() => validateStep0() && setFormStep(1)}
+              className={`flex-1 h-1.5 rounded-full transition-all duration-500 ${
+                formStep === 1 ? "bg-[#9A2A2A]" : "bg-white/10"
+              }`}
+            />
+          </div>
+        </div>
+
+        <div className="overflow-y-auto max-h-[calc(95vh-200px)] scrollbar-premium px-6 py-6 space-y-8">
           {formStep === 0 ? (
             <>
               <div className="space-y-6">
@@ -421,46 +455,8 @@ export const AddPropertyDialog = ({
                     </Select>
                   </div>
                   <div>
-                    <Label htmlFor="typology" className="text-sm">
-                      Package *
-                    </Label>
-                    <Select
-                      value={formData.landlord_package}
-                      onValueChange={(v) =>
-                        setFormData({ ...formData, landlord_package: v })
-                      }
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select package" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {["prime", "vantage"].map((t) => (
-                          <SelectItem key={t} value={t}>
-                            {t === "prime" ? "EZPAY PRIME" : "EZPAY VANTAGE"}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <Label htmlFor="number_of_units" className="text-sm">
-                      Units *
-                    </Label>
-                    <Input
-                      id="number_of_units"
-                      type="number"
-                      value={formData.number_of_units}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          number_of_units: e.target.value,
-                        })
-                      }
-                    />
-                  </div>
-                  <div>
                     <Label htmlFor="rent" className="text-sm">
-                      Monthly Rent (₦) *
+                      Monthly Rent Expected (₦) *
                     </Label>
                     <Input
                       id="rent"
@@ -469,6 +465,49 @@ export const AddPropertyDialog = ({
                       onChange={(e) =>
                         setFormData({ ...formData, rent: e.target.value })
                       }
+                      placeholder="e.g. 100000"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="bedrooms" className="text-sm">
+                      Bedrooms *
+                    </Label>
+                    <Input
+                      id="bedrooms"
+                      type="number"
+                      value={formData.bedrooms}
+                      onChange={(e) =>
+                        setFormData({ ...formData, bedrooms: e.target.value })
+                      }
+                      placeholder="e.g. 3"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="bathrooms" className="text-sm">
+                      Bathrooms *
+                    </Label>
+                    <Input
+                      id="bathrooms"
+                      type="number"
+                      value={formData.bathrooms}
+                      onChange={(e) =>
+                        setFormData({ ...formData, bathrooms: e.target.value })
+                      }
+                      placeholder="e.g. 2"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="parking_space" className="text-sm">
+                      Parking Space *
+                    </Label>
+                    <Input
+                      id="parking_space"
+                      type="number"
+                      value={formData.parking_space}
+                      onChange={(e) =>
+                        setFormData({ ...formData, parking_space: e.target.value })
+                      }
+                      placeholder="e.g. 2"
                     />
                   </div>
                 </div>
@@ -717,7 +756,43 @@ export const AddPropertyDialog = ({
                     file={getFileByType("c_of_o")}
                     onUpload={(f) => handleFileUpload(f, "c_of_o")}
                     onRemove={(id) => removeFile(id)}
-                    instruction="Upload official property title document."
+                    instruction="Upload official property title document (PDF or photo)."
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <Label className="text-sm font-bold">
+                      Deed of Assignment *
+                    </Label>
+                    <Badge variant="outline" className="text-[10px]">
+                      Required Document
+                    </Badge>
+                  </div>
+                  <UploadBox
+                    type="deeds_of_assignment"
+                    file={getFileByType("deeds_of_assignment")}
+                    onUpload={(f) => handleFileUpload(f, "deeds_of_assignment")}
+                    onRemove={(id) => removeFile(id)}
+                    instruction="Upload Deed of Assignment (PDF or photo of document)."
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <Label className="text-sm font-bold">
+                      Building Approval *
+                    </Label>
+                    <Badge variant="outline" className="text-[10px]">
+                      Required Document
+                    </Badge>
+                  </div>
+                  <UploadBox
+                    type="building_approval"
+                    file={getFileByType("building_approval")}
+                    onUpload={(f) => handleFileUpload(f, "building_approval")}
+                    onRemove={(id) => removeFile(id)}
+                    instruction="Upload Building Approval plan (PDF or photo)."
                   />
                 </div>
               </div>
@@ -859,7 +934,7 @@ export const AddPropertyDialog = ({
                         })
                       }
                       onRemove={(id) => removeFile(id)}
-                      instruction="Show any additional features or amenities."
+                      instruction="Walkway, veranda, store house, garage, etc."
                       multi
                     />
                     <StagingArea
@@ -912,19 +987,20 @@ export const AddPropertyDialog = ({
           )}
         </div>
 
-        <DialogFooter className="flex flex-col sm:flex-row gap-3 pt-6 border-t">
+        <div className="flex items-center justify-between px-6 py-4 bg-slate-50/80 border-t border-slate-100">
           {formStep === 0 ? (
             <>
               <Button
-                variant="outline"
+                variant="ghost"
                 onClick={handleClose}
                 disabled={isAddingProperty}
+                className="text-slate-500 hover:text-slate-700 text-sm"
               >
                 Cancel
               </Button>
               <Button
                 onClick={() => validateStep0() && setFormStep(1)}
-                className="bg-primary hover:bg-primary/90 min-w-[120px]"
+                className="bg-[#9A2A2A] hover:bg-[#7a2222] text-white font-bold shadow-lg shadow-[#9A2A2A]/20 transition-all text-sm"
               >
                 Next Step
               </Button>
@@ -935,13 +1011,14 @@ export const AddPropertyDialog = ({
                 variant="outline"
                 onClick={() => setFormStep(0)}
                 disabled={isAddingProperty}
+                className="text-sm border-slate-200"
               >
                 Previous Step
               </Button>
               <Button
                 onClick={handleAddProperty}
                 disabled={isAddingProperty}
-                className="bg-primary hover:bg-primary/90 font-bold min-w-[150px]"
+                className="bg-[#9A2A2A] hover:bg-[#7a2222] text-white font-bold shadow-lg shadow-[#9A2A2A]/20 min-w-[150px] transition-all text-sm"
               >
                 {isAddingProperty ? (
                   <Loader2 className="animate-spin h-4 w-4 mr-2" />
@@ -951,7 +1028,7 @@ export const AddPropertyDialog = ({
               </Button>
             </>
           )}
-        </DialogFooter>
+        </div>
 
         <LiveCameraModal
           open={cameraConfig.open}
@@ -1003,9 +1080,9 @@ const UploadBox = ({
 }: UploadBoxProps) => {
   if (file && !multi) {
     return (
-      <div className="border border-primary/20 bg-primary/5 rounded-lg p-3 flex items-center justify-between animate-in zoom-in-95 duration-200">
+      <div className="border border-[#C9A227]/20 bg-[#C9A227]/5 rounded-xl p-3 flex items-center justify-between animate-in zoom-in-95 duration-200">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-white rounded border flex items-center justify-center overflow-hidden">
+          <div className="w-10 h-10 bg-white rounded-lg border border-slate-100 flex items-center justify-center overflow-hidden shadow-sm">
             {file.url && type !== "c_of_o" ? (
               <img
                 src={file.url}
@@ -1013,26 +1090,26 @@ const UploadBox = ({
                 className="w-full h-full object-cover"
               />
             ) : (
-              <File className="h-4 w-4 text-primary" />
+              <File className="h-4 w-4 text-[#C9A227]" />
             )}
           </div>
           <div className="min-w-0">
-            <p className="font-medium text-xs truncate max-w-[150px]">
+            <p className="font-semibold text-xs truncate max-w-[150px] text-slate-800">
               {file.file.name}
             </p>
-            <p className="text-[10px] text-gray-500">
+            <p className="text-[10px] text-slate-500">
               {file.uploading
                 ? "Uploading..."
                 : file.error
                   ? "Error"
-                  : "Uploaded ✓"}
+                  : "Uploaded \u2713"}
             </p>
           </div>
         </div>
         <Button
           variant="ghost"
           size="icon"
-          className="h-8 w-8 hover:bg-red-50 hover:text-red-500"
+          className="h-8 w-8 hover:bg-red-50 hover:text-red-500 rounded-lg"
           onClick={() => onRemove(file.id)}
         >
           <Trash2 className="h-4 w-4" />
@@ -1041,28 +1118,47 @@ const UploadBox = ({
     );
   }
   return (
-    <div className="border-2 border-dashed border-gray-200 rounded-lg p-6 text-center hover:border-primary/50 transition-colors group bg-slate-50/50">
+    <div className="border-2 border-dashed border-slate-200 rounded-xl p-6 text-center hover:border-[#C9A227]/40 transition-all duration-200 group bg-slate-50/50">
       <div className="flex flex-col items-center">
-        <div className="w-12 h-12 bg-white shadow-sm rounded-full flex items-center justify-center mb-3 group-hover:scale-110 transition-transform text-primary">
-          {type === "c_of_o" ? (
+        <div className="w-12 h-12 bg-white shadow-sm rounded-xl flex items-center justify-center mb-3 group-hover:scale-110 group-hover:shadow-md transition-all duration-200 text-[#C9A227]">
+          {["c_of_o", "deeds_of_assignment", "building_approval"].includes(type) ? (
             <File className="h-6 w-6" />
           ) : (
             <Camera className="h-6 w-6" />
           )}
         </div>
-        <p className="text-sm font-bold text-gray-700 mb-1">
-          {type === "c_of_o" ? "Upload Document" : "Capture Live Photo"}
+        <p className="text-sm font-bold text-slate-700 mb-1">
+          {["c_of_o", "deeds_of_assignment", "building_approval"].includes(type) ? "Upload Document" : "Capture Live Photo"}
         </p>
-        <p className="text-[10px] text-gray-500 mb-4">{instruction}</p>
+        <p className="text-[10px] text-slate-400 mb-4">{instruction}</p>
 
         <div className="flex flex-wrap justify-center gap-3">
-          {onTrigger && (
+          {onTrigger ? (
             <Button
               onClick={onTrigger}
-              className="border-2 border-primary bg-primary text-white hover:bg-primary/90 h-10 px-6 shadow-md font-bold"
+              className="bg-[#9A2A2A] hover:bg-[#7a2222] text-white font-bold h-10 px-6 shadow-md shadow-[#9A2A2A]/20 rounded-xl transition-all"
             >
               <Camera className="h-4 w-4 mr-2" /> Open Camera
             </Button>
+          ) : (
+            <div className="relative">
+              <input
+                type="file"
+                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                accept="image/*,application/pdf"
+                onChange={(e) => {
+                  if (e.target.files && e.target.files[0]) {
+                    onUpload(e.target.files[0]);
+                  }
+                }}
+              />
+              <Button
+                type="button"
+                className="bg-[#9A2A2A] hover:bg-[#7a2222] text-white font-bold h-10 px-6 shadow-md shadow-[#9A2A2A]/20 rounded-xl transition-all pointer-events-none"
+              >
+                <Upload className="h-4 w-4 mr-2" /> Choose File
+              </Button>
+            </div>
           )}
         </div>
       </div>
@@ -1079,7 +1175,7 @@ const StagingArea = ({
 }) => {
   if (files.length === 0) return null;
   return (
-    <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 mt-2 p-2 bg-slate-100/50 rounded-lg border border-slate-200 max-h-48 overflow-y-auto">
+    <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 mt-2 p-2 bg-slate-50 rounded-xl border border-slate-100 max-h-48 overflow-y-auto scrollbar-premium">
       {files.map((file) => (
         <div
           key={file.id}
@@ -1133,13 +1229,16 @@ const AccordionItem = ({
   onToggle,
   content,
 }: AccordionItemProps) => (
-  <div className="border rounded-lg overflow-hidden">
+  <div className="border border-slate-100 rounded-xl overflow-hidden">
     <div
-      className="bg-gray-100 p-3 flex justify-between items-center cursor-pointer hover:bg-gray-200"
+      className="bg-slate-50 px-4 py-3 flex justify-between items-center cursor-pointer hover:bg-slate-100 transition-colors"
       onClick={onToggle}
     >
-      <h3 className="font-semibold text-sm sm:text-base text-primary flex items-center gap-2">
-        <Icon className="h-4 w-4" /> {title}
+      <h3 className="font-bold text-sm text-slate-800 flex items-center gap-2">
+        <div className="p-1 bg-[#C9A227]/10 rounded-lg">
+          <Icon className="h-3.5 w-3.5 text-[#C9A227]" />
+        </div>
+        {title}
       </h3>
       {isOpen ? (
         <ChevronUp className="h-4 w-4" />
@@ -1157,8 +1256,8 @@ interface StandardDetailProps {
 }
 
 const StandardDetail = ({ title, text }: StandardDetailProps) => (
-  <div className="p-3 bg-blue-50 rounded">
-    <h4 className="font-semibold text-primary text-xs sm:text-sm">{title}</h4>
-    <p className="text-xs text-gray-600">{text}</p>
+  <div className="p-3 bg-[#C9A227]/5 border border-[#C9A227]/10 rounded-xl">
+    <h4 className="font-bold text-[#C9A227] text-xs">{title}</h4>
+    <p className="text-xs text-slate-600 mt-0.5">{text}</p>
   </div>
 );

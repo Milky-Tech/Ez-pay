@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "@/app/components/ui/button";
 import { Badge } from "@/app/components/ui/badge";
 import { Label } from "@/app/components/ui/label";
@@ -26,6 +26,7 @@ import {
   Check,
   CheckSquare,
   Square as SquareIcon,
+  CreditCard,
 } from "lucide-react";
 import {
   AlertDialog,
@@ -37,6 +38,7 @@ import {
   AlertDialogAction,
   AlertDialogCancel,
 } from "@/app/components/ui/alert-dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/app/components/ui/tabs";
 import PropertyScoringEngine from "./PropertyScoringEngine";
 import { useAuth } from "@/context/authcontext";
 
@@ -50,8 +52,9 @@ interface PropertyReviewDialogProps {
   onApprove: (
     property: Property,
     inspectionFee: number,
-    monthlyRentAscend: number,
-    monthlyRentAnchor: number,
+    monthlyRent: number,
+    cautionFee: number,
+    paybackAmount: number,
     upgradeLoan?: number,
     amortizationPeriod?: number
   ) => Promise<void>;
@@ -103,7 +106,7 @@ const CarouselDialog = ({
 
   return (
     <div 
-      className="fixed inset-0 bg-black/95 backdrop-blur-xl flex flex-col items-center justify-center z-[9999] transition-all duration-500 animate-in fade-in"
+      className="fixed inset-0 bg-black/95 flex flex-col items-center justify-center z-[9999] transition-all duration-500 animate-in fade-in"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
@@ -195,6 +198,46 @@ const CarouselDialog = ({
   );
 };
 
+const StreetViewComponent = ({ lat, lng }: { lat: number; lng: number }) => {
+  const mapRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const initStreetView = () => {
+      if (mapRef.current && (window as any).google?.maps?.StreetViewPanorama) {
+        new (window as any).google.maps.StreetViewPanorama(mapRef.current, {
+          position: { lat: Number(lat), lng: Number(lng) },
+          pov: { heading: 0, pitch: 0 },
+          zoom: 1,
+        });
+      }
+    };
+
+    if (!(window as any).google) {
+      const scriptId = "google-maps-script";
+      if (!document.getElementById(scriptId)) {
+        const script = document.createElement("script");
+        script.id = scriptId;
+        script.src = `https://maps.googleapis.com/maps/api/js?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}`;
+        script.async = true;
+        script.defer = true;
+        script.onload = initStreetView;
+        document.head.appendChild(script);
+      } else {
+        const existingScript = document.getElementById(scriptId) as HTMLScriptElement;
+        const oldOnload = existingScript.onload;
+        existingScript.onload = function (e) {
+          if (typeof oldOnload === "function") oldOnload.call(this, e);
+          initStreetView();
+        };
+      }
+    } else {
+      initStreetView();
+    }
+  }, [lat, lng]);
+
+  return <div ref={mapRef} className="w-full h-full min-h-[300px]" />;
+};
+
 const PropertyReviewDialog = ({
   property,
   onApprove,
@@ -210,8 +253,9 @@ const PropertyReviewDialog = ({
   });
   const [rejectComment, setRejectComment] = useState("");
   const [inspectionFee, setInspectionFee] = useState(0);
-  const [monthlyRentAscend, setMonthlyRentAscend] = useState(0);
-  const [monthlyRentAnchor, setMonthlyRentAnchor] = useState(0);
+  const [monthlyRent, setMonthlyRent] = useState(0);
+  const [cautionFee, setCautionFee] = useState(0);
+  const [paybackAmount, setPaybackAmount] = useState(0);
   const [upgradeLoan, setUpgradeLoan] = useState(0);
   const [amortizationPeriod, setAmortizationPeriod] = useState(0);
   
@@ -257,22 +301,21 @@ const PropertyReviewDialog = ({
     const propLng = property.longitude || Number(property.locationData?.long) || officeLng;
     
     const distance = calculateDistance(propLat, propLng, officeLat, officeLng);
-    const calculatedInspectionFee = 10000 + Math.round(distance * 500); // 10k base + 500/km
+    const calculatedInspectionFee = Math.ceil((10000 + distance * 500) / 1000) * 1000; // 10k base + 500/km, rounded up to nearest 1k
     setInspectionFee(calculatedInspectionFee);
 
-    // 2. Calculate Rent variations
-    let baseAscend = (rent - upfrontPremium) / 11;
-    let baseAnchor = rentPremium / 12;
+    // Formula: monthly_rent = (rent + (rent/5) + 2000000) / 12, rounded up to nearest 1k
+    const calculatedMonthlyRent = Math.ceil(((rent + (rent / 5) + 2000000) / 12) / 1000) * 1000;
+    setMonthlyRent(calculatedMonthlyRent);
+    
+    // Caution Fee = Monthly Rent * 3 (already multiple of 1k if monthly is, but let's be safe)
+    const calculatedCautionFee = Math.ceil((calculatedMonthlyRent * 3) / 1000) * 1000;
+    setCautionFee(calculatedCautionFee);
 
     if (!isPrime) {
-      const loan = upgradeLoan || 0;
-      const period = amortizationPeriod || 12;
-      const loanMonthly = loan / period;
-      setMonthlyRentAscend(Math.round(baseAscend + loanMonthly));
-      setMonthlyRentAnchor(Math.round(baseAnchor + loanMonthly));
-    } else {
-      setMonthlyRentAscend(Math.round(baseAscend));
-      setMonthlyRentAnchor(Math.round(baseAnchor));
+      if (paybackAmount === 0 && upgradeLoan > 0) {
+        setPaybackAmount(upgradeLoan);
+      }
     }
   }, [property, upgradeLoan, amortizationPeriod]);
   // Helper function to ensure full URL
@@ -413,8 +456,9 @@ const PropertyReviewDialog = ({
         await onApprove(
           property,
           inspectionFee,
-          monthlyRentAscend,
-          monthlyRentAnchor,
+          monthlyRent,
+          cautionFee,
+          paybackAmount,
           upgradeLoan,
           amortizationPeriod
         );
@@ -559,33 +603,49 @@ const PropertyReviewDialog = ({
           </div>
           
           {/* Location Map / Street View */}
-          {(property.latitude) && (
+          {(property.latitude || property.locationData?.lat) && (
             <div className="mt-6">
               <Label className="text-sm font-medium mb-2 flex items-center">
                 <Navigation className="h-4 w-4 mr-1 text-blue-500" />
                 Location Visualization (Street View/Map)
               </Label>
-              <div className="w-full h-[300px] rounded-lg overflow-hidden border bg-gray-100 relative">
-                <iframe
-                  width="100%"
-                  height="100%"
-                  style={{ border: 0 }}
-                  loading="lazy"
-                  allowFullScreen
-                  src={`https://maps.google.com/maps?q=${property.latitude || property?.locationData?.lat},${property?.locationData?.long || property.longitude}&layer=c&cbll=${property.latitude || property?.locationData?.lat},${property.longitude || property?.locationData?.long}&z=18&output=embed`}
-                ></iframe>
-                <div className="absolute bottom-2 right-2 flex gap-2">
-                  <a 
-                    href={`https://www.google.com/maps/search/?api=1&query=${property.latitude || property?.locationData?.lat},${property.longitude || property?.locationData?.long}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="bg-white px-3 py-1 text-xs font-medium rounded shadow hover:bg-gray-50 flex items-center"
-                  >
-                    <Eye className="h-3 w-3 mr-1" />
-                    Open in Maps
-                  </a>
-                </div>
-              </div>
+              <Tabs defaultValue="map" className="w-full">
+                <TabsList className="mb-4">
+                  <TabsTrigger value="map">Map View</TabsTrigger>
+                  <TabsTrigger value="street">Street View</TabsTrigger>
+                </TabsList>
+                <TabsContent value="map">
+                  <div className="w-full h-[300px] rounded-lg overflow-hidden border bg-gray-100 relative">
+                    <iframe
+                      width="100%"
+                      height="100%"
+                      style={{ border: 0 }}
+                      loading="lazy"
+                      allowFullScreen
+                      src={`https://maps.google.com/maps?q=${property.latitude || property?.locationData?.lat},${property?.locationData?.long || property.longitude}&layer=c&cbll=${property.latitude || property?.locationData?.lat},${property.longitude || property?.locationData?.long}&z=18&output=embed`}
+                    ></iframe>
+                    <div className="absolute bottom-2 right-2 flex gap-2">
+                      <a 
+                        href={`https://www.google.com/maps/search/?api=1&query=${property.latitude || property?.locationData?.lat},${property.longitude || property?.locationData?.long}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="bg-white px-3 py-1 text-xs font-medium rounded shadow hover:bg-gray-50 flex items-center"
+                      >
+                        <Eye className="h-3 w-3 mr-1" />
+                        Open in Maps
+                      </a>
+                    </div>
+                  </div>
+                </TabsContent>
+                <TabsContent value="street">
+                  <div className="w-full h-[300px] rounded-lg overflow-hidden border bg-gray-100">
+                    <StreetViewComponent 
+                      lat={Number(property.latitude) || Number(property?.locationData?.lat)} 
+                      lng={Number(property.longitude) || Number(property?.locationData?.long)} 
+                    />
+                  </div>
+                </TabsContent>
+              </Tabs>
             </div>
           )}
         </div>
@@ -984,7 +1044,7 @@ const PropertyReviewDialog = ({
           if (!open) closeConfirmationDialog();
         }}
       >
-        <AlertDialogContent className="max-w-2xl">
+        <AlertDialogContent className="max-w-2xl max-h-[95vh] overflow-y-auto">
           <AlertDialogHeader>
             <AlertDialogTitle>
               {confirmationDialog.action === "approve"
@@ -1014,55 +1074,84 @@ const PropertyReviewDialog = ({
                              placeholder="0"
                            />
                         </div>
-                        <div className="grid grid-cols-2 gap-4">
-                          <div className="space-y-2">
-                             <Label htmlFor="rent-ascend" className="text-xs font-bold uppercase text-slate-500">Rent Ascend (₦)</Label>
-                             <input
-                               id="rent-ascend"
-                               type="number"
-                               className="w-full p-2 border rounded-md"
-                               value={monthlyRentAscend || ""}
-                               onChange={(e) => setMonthlyRentAscend(Number(e.target.value))}
-                               placeholder="0"
-                             />
-                          </div>
-                          <div className="space-y-2">
-                             <Label htmlFor="rent-anchor" className="text-xs font-bold uppercase text-slate-500">Rent Anchor (₦)</Label>
-                             <input
-                               id="rent-anchor"
-                               type="number"
-                               className="w-full p-2 border rounded-md"
-                               value={monthlyRentAnchor || ""}
-                               onChange={(e) => setMonthlyRentAnchor(Number(e.target.value))}
-                               placeholder="0"
-                             />
-                          </div>
+                        <div className="space-y-2">
+                           <Label htmlFor="monthly-rent" className="text-xs font-bold uppercase text-slate-500">Monthly Rent (₦) *</Label>
+                           <input
+                             id="monthly-rent"
+                             type="number"
+                             className="w-full p-2 border rounded-md"
+                             value={monthlyRent || ""}
+                             onChange={(e) => setMonthlyRent(Number(e.target.value))}
+                             placeholder="0"
+                           />
+                        </div>
+
+                        <div className="space-y-2">
+                           <Label htmlFor="caution-fee" className="text-xs font-bold uppercase text-slate-500">Caution Fee (₦) *</Label>
+                           <input
+                             id="caution-fee"
+                             type="number"
+                             className="w-full p-2 border rounded-md"
+                             value={cautionFee || ""}
+                             onChange={(e) => setCautionFee(Number(e.target.value))}
+                             placeholder="0"
+                           />
                         </div>
 
                         {property.landlord_package !== "prime" && (
-                          <div className="grid grid-cols-2 gap-4 border-t pt-4 mt-2">
-                            <div className="space-y-2">
-                               <Label htmlFor="upgrade-loan" className="text-xs font-bold uppercase text-slate-500">Upgrade Loan (₦)</Label>
+                          <div className="space-y-4 bg-blue-50/50 p-4 rounded-xl border border-blue-100">
+                             <div className="flex items-center gap-2 mb-2 pb-2 border-b border-blue-100">
+                               <CreditCard className="h-4 w-4 text-blue-600" />
+                               <h4 className="text-xs font-bold text-blue-900 uppercase tracking-widest">Loan & Upgrade Financing</h4>
+                             </div>
+
+                             <div className="grid grid-cols-2 gap-4">
+                               <div className="space-y-2">
+                                  <Label htmlFor="upgrade-loan" className="text-xs font-bold uppercase text-slate-500">Upgrade Loan (₦)</Label>
+                                  <input
+                                    id="upgrade-loan"
+                                    type="number"
+                                    className="w-full p-2 border border-blue-200 rounded-md bg-white"
+                                    placeholder="Amount"
+                                    value={upgradeLoan || ""}
+                                    onChange={(e) => setUpgradeLoan(Number(e.target.value))}
+                                  />
+                               </div>
+                               <div className="space-y-2">
+                                  <Label htmlFor="amortization" className="text-xs font-bold uppercase text-slate-500">Period (Months)</Label>
+                                  <input
+                                    id="amortization"
+                                    type="number"
+                                    className="w-full p-2 border border-blue-200 rounded-md bg-white"
+                                    placeholder="e.g. 12"
+                                    value={amortizationPeriod || ""}
+                                    onChange={(e) => setAmortizationPeriod(Number(e.target.value))}
+                                  />
+                               </div>
+                             </div>
+                            <div className="grid grid-cols-2 gap-4"><div className="space-y-2">
+                               <Label htmlFor="payback-amount" className="text-xs font-bold uppercase text-slate-500">Total Payback Amount (₦) *</Label>
                                <input
-                                 id="upgrade-loan"
+                                 id="payback-amount"
                                  type="number"
-                                 className="w-full p-2 border rounded-md"
-                                 placeholder="Amount"
-                                 value={upgradeLoan || ""}
-                                 onChange={(e) => setUpgradeLoan(Number(e.target.value))}
+                                 className="w-full p-2 border border-blue-200 rounded-md bg-white"
+                                 value={paybackAmount || ""}
+                                 onChange={(e) => setPaybackAmount(Number(e.target.value))}
+                                 placeholder="0"
                                />
-                            </div>
-                            <div className="space-y-2">
-                               <Label htmlFor="amortization" className="text-xs font-bold uppercase text-slate-500">Period (Months)</Label>
+                             </div>
+                             <div className="space-y-2">
+                               <Label htmlFor="amortization-rate" className="text-xs font-bold uppercase text-slate-500">Monthly Amortization Rate (₦) *</Label>
                                <input
-                                 id="amortization"
+                                 id="amortization-rate"
                                  type="number"
-                                 className="w-full p-2 border rounded-md"
-                                 placeholder="e.g. 12"
-                                 value={amortizationPeriod || ""}
-                                 onChange={(e) => setAmortizationPeriod(Number(e.target.value))}
+                                 className="w-full p-2 border border-blue-200 rounded-md bg-white-200"
+                                 value={Math.round(paybackAmount/amortizationPeriod)|| 0}                                 
+                                 placeholder="0"
+                                 disabled
                                />
-                            </div>
+                             </div>
+                             </div>
                           </div>
                         )}
                       </div>

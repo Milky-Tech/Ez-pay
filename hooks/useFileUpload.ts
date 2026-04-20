@@ -26,6 +26,8 @@ export interface UploadedFile {
     | "c_of_o"
     | "bank_statements"
     | "govt_id"
+    | "deeds_of_assignment"
+    | "building_approval"
     | "live_photo"
     | "live_video"
     | "guarantor_id"
@@ -55,8 +57,6 @@ export const useFileUpload = (token: string | null) => {
       "kitchen",
       "rest_room",
       "live_photo",
-      "govt_id",
-      "guarantor_id",
       "others",
     ];
     let apiType = "document";
@@ -257,11 +257,46 @@ export const useFileUpload = (token: string | null) => {
     setUploadedFiles([]);
   };
 
+  const deleteFileFromServer = async (url: string): Promise<boolean> => {
+    if (!url) return false;
+    
+    try {
+      const response = await fetch(`${API_BASE_URL}/upload`, {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ url }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to delete file from server");
+      }
+
+      toast({
+        title: "File Removed",
+        description: "The file was successfully deleted from the server.",
+      });
+      return true;
+    } catch (error) {
+      console.error("Error deleting file:", error);
+      toast({
+        variant: "destructive",
+        title: "Delete Failed",
+        description: "Could not remove the file from the server. It may have already been deleted.",
+      });
+      return false;
+    }
+  };
+
   return {
     uploadedFiles,
     handleFileUpload,
     handleBulkInteriorUpload,
     removeFile,
+    deleteFileFromServer,
     clearUploads,
     getFileByType: (type: UploadedFile["type"]) =>
       uploadedFiles.find((f) => f.type === type),

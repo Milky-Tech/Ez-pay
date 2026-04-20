@@ -87,7 +87,7 @@ export default function RentalApplicationContent() {
     "Terms & Review",
   ];
 
-  const stepTitles = formData.paymentPlan === "ez_anchor" 
+  const stepTitles = formData.paymentPlan === "ez_ascend" 
     ? [...baseSteps.slice(0, 5), "Guarantor Information", ...baseSteps.slice(5)]
     : baseSteps;
 
@@ -196,8 +196,8 @@ export default function RentalApplicationContent() {
       return;
     }
 
-    // Validate Guarantor for Anchor
-    if (formData.paymentPlan === "ez_anchor") {
+    // Validate Guarantor for Ascend
+    if (formData.paymentPlan === "ez_ascend") {
       if (
         !formData.guarantorName ||
         !formData.guarantorPhone ||
@@ -211,7 +211,7 @@ export default function RentalApplicationContent() {
           variant: "destructive",
           title: "Missing Guarantor Information",
           description:
-            "EZPAY Anchor requires complete guarantor details and documents (ID & Attestation Letter).",
+            "EZPAY Ascend requires complete guarantor details and documents (ID & Attestation Letter).",
         });
         return;
       }
@@ -250,14 +250,14 @@ export default function RentalApplicationContent() {
         government_id_path: govtIdUrl,
         live_photo_path: livePhotoUrl,
         verification_video_path: liveVideoUrl,
-        // Guarantor Data (only if anchor, but sending as optional/null for ascend is fine)
-        guarantor_name: formData.paymentPlan === "ez_anchor" ? formData.guarantorName : undefined,
-        guarantor_phone: formData.paymentPlan === "ez_anchor" ? formData.guarantorPhone : undefined,
-        guarantor_email: formData.paymentPlan === "ez_anchor" ? formData.guarantorEmail : undefined,
-        guarantor_id_number: formData.paymentPlan === "ez_anchor" ? formData.guarantorIdNumber : undefined,
-        guarantor_workplace: formData.paymentPlan === "ez_anchor" ? formData.guarantorWorkplace : undefined,
-        guarantor_id_path: formData.paymentPlan === "ez_anchor" ? guarantorIdUrl : undefined,
-        attestation_letter_path: formData.paymentPlan === "ez_anchor" ? attestationLetterUrl : undefined,
+        // Guarantor Data (only if ascend)
+        guarantor_name: formData.paymentPlan === "ez_ascend" ? formData.guarantorName : undefined,
+        guarantor_phone: formData.paymentPlan === "ez_ascend" ? formData.guarantorPhone : undefined,
+        guarantor_email: formData.paymentPlan === "ez_ascend" ? formData.guarantorEmail : undefined,
+        guarantor_id_number: formData.paymentPlan === "ez_ascend" ? formData.guarantorIdNumber : undefined,
+        guarantor_workplace: formData.paymentPlan === "ez_ascend" ? formData.guarantorWorkplace : undefined,
+        guarantor_id_path: formData.paymentPlan === "ez_ascend" ? guarantorIdUrl : undefined,
+        attestation_letter_path: formData.paymentPlan === "ez_ascend" ? attestationLetterUrl : undefined,
       };
 
       const response = await fetch(`${API_BASE_URL}/applications/apply`, {
@@ -403,13 +403,13 @@ export default function RentalApplicationContent() {
                         <span className="text-2xl font-bold text-primary font-raleway">
                           {formatPrice(
                             formData.paymentPlan === "ez_anchor"
-                              ? (property.monthly_rent_anchor || (property.rent * 1.1 / 12))
-                              : (property.monthly_rent_ascend || ((property.rent - (property.rent * 1.1 * 4 / 12)) / 11))
+                              ? (property.monthly_rent || (property.rent * 1.1 / 12))
+                              : (property.monthly_rent || ((property.rent - (property.rent * 1.1 * 4 / 12)) / 11))
                           )}
                         </span>
                       </div>
                       <p className="text-sm text-gray-500">
-                        {formData.paymentPlan === "ez_anchor" ? "Anchor standard rate" : "Ascend graduated rate"}
+                        {formData.paymentPlan === "ez_anchor" ? "Standard monthly rate" : "Ascend graduated rate"}
                       </p>
                     </div>
 
@@ -509,14 +509,16 @@ export default function RentalApplicationContent() {
                                               </p>
                                             </div>
                                             <p className="text-sm text-gray-600 mt-1">
-                                              Zero caution fee.
+                                              3 months rent as refundable caution fee.
                                               <br/>
-                                              Requires a verified Guarantor.
+                                              No guarantor required.
+                                              <br/>
+                                              <span className="text-xs text-gray-500 italic block mt-1">First payment: {formatPrice((property.monthly_rent || (property.rent * 1.1 / 12)) * 4)} (1st Mo + 3 Mo Caution)</span>
                                             </p>
                                             <div className="mt-2">
                                               <p className="font-semibold text-primary">
                                                 {formatPrice(
-                                                  property.monthly_rent_anchor ||
+                                                  property.monthly_rent ||
                                                     (property.rent * 1.1 / 12)
                                                 )}{" "}
                                                 / month
@@ -550,16 +552,16 @@ export default function RentalApplicationContent() {
                                               </span>
                                             </div>
                                             <p className="text-sm text-gray-600 mt-1">
-                                              3 months rent as refundable caution fee.
+                                              Zero caution fee.
+                                              <br/>
+                                              Requires a verified Guarantor.
                                               <br/>
                                               Financed by Capital Legacy Partner.
-                                              <br/>
-                                              <span className="text-xs text-gray-500 italic block mt-1">First payment: {formatPrice((property.rent * 1.1 * 4) / 12)} (1st Mo + 3 Mo Caution)</span>
                                             </p>
                                             <div className="mt-2">
                                               <p className="font-semibold text-primary">
                                                 {formatPrice(
-                                                  property.monthly_rent_ascend ||
+                                                  property.monthly_rent ||
                                                   ((property.rent - (property.rent * 1.1 * 4 / 12)) / 11),
                                                 )}{" "}
                                                 / month
@@ -582,19 +584,19 @@ export default function RentalApplicationContent() {
                                     <div>
                                       <p className="font-bold text-blue-900 mb-1">EZPAY ANCHOR</p>
                                       <ul className="list-disc list-inside text-blue-800 space-y-1">
-                                        <li><strong>Zero caution fee</strong></li>
-                                        <li>1st month rent payment to start</li>
+                                        <li>3 months rent as refundable caution fee</li>
+                                        <li><strong>First time payment: Rent * 4</strong></li>
                                         <li>Standard monthly payments</li>
-                                        <li><strong>Compulsory Guarantor</strong> (ID, Work, Attestation)</li>
+                                        <li><strong>No guarantor required</strong></li>
                                       </ul>
                                     </div>
                                     <div>
                                       <p className="font-bold text-blue-900 mb-1">EZPAY ASCEND</p>
                                       <ul className="list-disc list-inside text-blue-800 space-y-1">
-                                        <li>3 months rent as refundable caution fee</li>
-                                        <li>Financed by Capital Legacy Partner</li>
+                                        <li><strong>Zero caution fee</strong></li>
+                                        <li>1st month rent payment to start</li>
                                         <li>Graduated monthly payments</li>
-                                        <li>No guarantor required</li>
+                                        <li><strong>Compulsory Guarantor</strong> (Min 6 months)</li>
                                       </ul>
                                     </div>
                                   </div>

@@ -39,6 +39,7 @@ import {
   Eye,
    Trash2,
 } from "lucide-react";
+import AdminUpgradeMediaDialog from "./AdminUpgradeMediaDialog";
 import {
   Select,
   SelectContent,
@@ -79,14 +80,16 @@ interface ListingsTabProps {
   onApprove: (
     property: Property,
     inspectionFee: number,
-    monthlyRentAscend: number,
-    monthlyRentAnchor: number,
+    monthlyRent: number,
+    cautionFee: number,
+    paybackAmount: number,
     upgradeLoan?: number,
     amortizationPeriod?: number
   ) => Promise<void>;
   onReject: (property: Property, comment?: string) => Promise<void>;
   onUpdateAvailability: (id: string, status: string) => Promise<void>;
   onDelete: (id: string, name: string) => void;
+  token: string | null;
 }
 
 export default function ListingsTab({
@@ -102,12 +105,15 @@ export default function ListingsTab({
   onReject,
   onUpdateAvailability,
   onDelete,
+  token,
 }: ListingsTabProps) {
   const [activeSubTab, setActiveSubTab] = useState("approved");
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [editingProperty, setEditingProperty] = useState<Property | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isUpgradeDialogOpen, setIsUpgradeDialogOpen] = useState(false);
+  const [selectedPropertyForUpgrade, setSelectedPropertyForUpgrade] = useState<Property | null>(null);
 
   // Determine which source list to use based on the active sub-tab
   const getSourceList = () => {
@@ -289,9 +295,17 @@ export default function ListingsTab({
                       </div>
                     </TableCell>
                     <TableCell>
-                      {(activeSubTab === "approved" || activeSubTab === "upgrading" || activeSubTab === "other") ? (
-                        <span className="fontWeight-semibold">
-                          {formatPrice(item.monthly_cost ?? null)}
+                      {activeSubTab === "approved" ||
+                      activeSubTab === "upgrading" ||
+                      activeSubTab === "other" ? (
+                        <span className="font-semibold">
+                          {formatPrice(
+                            item.monthly_rent ||
+                              item.monthly_cost ||
+                              Math.ceil(
+                                (item.rent + item.rent / 5 + 2000000) / 12 / 1000
+                              ) * 1000
+                          )}
                         </span>
                       ) : (
                         <div className="text-sm">
@@ -362,8 +376,15 @@ export default function ListingsTab({
                             
                             {/* Listing State Specific Actions */}
                             {(item.listing_status === "upgrade_pending" || item.listing_status === "pending_upgrade") && (
-                              <DropdownMenuItem onClick={() => onUpdateAvailability(item.id, "available")}>
-                                <CheckCircle2 className="mr-2 h-4 w-4 text-green-600" /> Mark Available
+                              <DropdownMenuItem onClick={() => {
+                                if (item.landlord_package === "vantage") {
+                                   setSelectedPropertyForUpgrade(item);
+                                   setIsUpgradeDialogOpen(true);
+                                } else {
+                                   onUpdateAvailability(item.id, "available");
+                                }
+                              }}>
+                                <CheckCircle2 className="mr-2 h-4 w-4 text-green-600" /> Complete Upgrade
                               </DropdownMenuItem>
                             )}
                             {item.listing_status === "available" && (
@@ -396,6 +417,18 @@ export default function ListingsTab({
         onClose={() => setIsEditDialogOpen(false)}
         onSuccess={fetchListings}
       />
+
+      {/* Mandatory Media Update for Vantage Upgrade */}
+      <AdminUpgradeMediaDialog 
+        open={isUpgradeDialogOpen}
+        onOpenChange={setIsUpgradeDialogOpen}
+        property={selectedPropertyForUpgrade}
+        token={token}
+        onSuccess={() => {
+          fetchListings();
+        }}
+      />
     </Card>
   );
 }
+
