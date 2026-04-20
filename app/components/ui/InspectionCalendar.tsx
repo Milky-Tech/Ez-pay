@@ -13,6 +13,32 @@ interface InspectionCalendarProps {
   selectedTime?: string;
 }
 
+// Global cache for instant background prefetching across the app
+const globalSlotsCache: Record<string, any> = {};
+const globalScheduleCache: Record<string, any> = {};
+
+export const prefetchInspectionSlots = async (monthDate: Date, officeId?: number) => {
+  const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL;
+  const monthStr = format(monthDate, "yyyy-MM");
+  const cacheKey = `${monthStr}-${officeId || 'default'}`;
+
+  if (globalSlotsCache[cacheKey]) return; // Already prefetched
+
+  try {
+    let url = `${API_BASE_URL}/inspection-slots?month=${monthStr}`;
+    if (officeId) url += `&office_id=${officeId}`;
+    
+    const response = await fetch(url, { headers: { Accept: "application/json" } });
+    if (response.ok) {
+      const data = await response.json();
+      globalSlotsCache[cacheKey] = data.data;
+      globalScheduleCache[cacheKey] = data.schedule;
+    }
+  } catch (error) {
+    console.error("Silent prefetch failed:", error);
+  }
+};
+
 export default function InspectionCalendar({
   officeId,
   onSelectSlot,
@@ -34,9 +60,17 @@ export default function InspectionCalendar({
   }, [currentMonth, officeId]);
 
   const fetchSlotsForMonth = async (monthDate: Date) => {
+    const monthStr = format(monthDate, "yyyy-MM");
+    const cacheKey = `${monthStr}-${officeId || 'default'}`;
+
+    if (globalSlotsCache[cacheKey]) {
+      setAvailableSlots(globalSlotsCache[cacheKey]);
+      setScheduleConfig(globalScheduleCache[cacheKey]);
+      return;
+    }
+
     setLoading(true);
     try {
-      const monthStr = format(monthDate, "yyyy-MM");
       let url = `${API_BASE_URL}/inspection-slots?month=${monthStr}`;
       if (officeId) {
         url += `&office_id=${officeId}`;
@@ -50,6 +84,8 @@ export default function InspectionCalendar({
       
       if (response.ok) {
         const data = await response.json();
+        globalSlotsCache[cacheKey] = data.data;
+        globalScheduleCache[cacheKey] = data.schedule;
         setAvailableSlots(data.data);
         setScheduleConfig(data.schedule);
       }

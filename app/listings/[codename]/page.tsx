@@ -63,7 +63,7 @@ import {
 import { type Property } from "@/lib/types";
 import { useAuth } from "@/context/authcontext";
 import Footer from "@/app/components/footer";
-import InspectionCalendar from "@/app/components/ui/InspectionCalendar";
+import InspectionCalendar, { prefetchInspectionSlots } from "@/app/components/ui/InspectionCalendar";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL;
 const BASEURL_SITE = "https://ezpay.bridgenthomes.com";
@@ -102,6 +102,11 @@ export default function PropertyDetailsPage() {
       setProperty(cachedProperty);
     }
   }, [cachedProperty]);
+
+  // Prefetch calendar slots in the background instantly
+  useEffect(() => {
+    prefetchInspectionSlots(new Date());
+  }, []);
 
   // Fetch related properties once we know the area
   const { data: allListings } = useCachedFetch<Property[]>(
