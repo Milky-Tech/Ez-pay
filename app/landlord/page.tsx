@@ -53,6 +53,7 @@ import { useFileUpload } from "@/hooks/useFileUpload";
 import { ApplicationItem } from "@/app/components/landlord/ApplicationItem";
 import PropertiesTab from "@/app/components/landlord/PropertiesTab";
 import AddPropertyView from "@/app/components/landlord/AddPropertyView";
+import FinanceTab from "@/app/components/landlord/FinanceTab";
 import { getCurrentLocation } from "@/lib/geolocation";
 
 export default function LandlordDashboard() {
@@ -314,6 +315,13 @@ export default function LandlordDashboard() {
       (a) => a.status === "pending",
     ).length,
     totalRevenue: properties.reduce((acc, p) => acc + (p.monthly_cost || 0), 0),
+    totalLoanTaken: properties.reduce((acc, p) => acc + (Number(p.upgrade_loan) || 0), 0),
+    totalPayback: properties.reduce((acc, p) => acc + (Number(p.payback_amount) || 0), 0),
+    monthlyAmortization: properties.reduce((acc, p) => {
+      const payback = Number(p.payback_amount) || 0;
+      const period = Number(p.amortization_period) || 1;
+      return acc + (payback / period);
+    }, 0),
   };
 
   const occupancyRate =
@@ -321,47 +329,6 @@ export default function LandlordDashboard() {
       ? Math.round((stats.occupiedUnits / stats.totalUnits) * 100)
       : 0;
 
-  // Financial Calculations
-  const financialStats = useMemo(() => {
-    // Only approved or pending_upgrade properties contribute to financials
-    const activeProperties = properties.filter(
-      (p) => 
-        p.status === "approved" || 
-        p.listing_status === "pending_upgrade" || 
-        p.listing_status === "upgrade_pending"
-    );
-
-    const breakdown = activeProperties.map((p) => {
-      const annualRent = Number(p.rent) || 0;
-      const monthlyGross = annualRent / 12;
-      
-      const paybackAmount = Number(p.payback_amount) || 0;
-      const period = Number(p.amortization_period) || 12;
-      const monthlyAmortization = paybackAmount > 0 && period > 0 ? (paybackAmount / period) : 0;
-      
-      const netPayout = monthlyGross - monthlyAmortization;
-console.log(p.payback_amount/p.amortization_period, "monthlyAmortization", p.payback_amount, "paybackAmount", p.amortization_period, "period")
-      return {
-        ...p,
-        monthlyGross,
-        monthlyAmortization,
-        netPayout,
-        amortizationRate: (paybackAmount / period) || 0
-      };
-    });
-
-    const totals = breakdown.reduce(
-      (acc, curr) => ({
-        totalGross: acc.totalGross + curr.monthlyGross,
-        totalAmortization: acc.totalAmortization + curr.monthlyAmortization,
-        totalNet: acc.totalNet + curr.netPayout,
-        totalLoans: acc.totalLoans + (Number(curr.upgrade_loan) || 0)
-      }),
-      { totalGross: 0, totalAmortization: 0, totalNet: 0, totalLoans: 0 }
-    );
-
-    return { totals, breakdown };
-  }, [properties]);
 
   if (authLoading || !user) {
     return (
@@ -582,7 +549,7 @@ console.log(p.payback_amount/p.amortization_period, "monthlyAmortization", p.pay
                   </div>
                 )}
 
-                <div className="grid grid-cols-3 gap-3">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                   {[
                     {
                       label: "Total Properties",
@@ -630,9 +597,60 @@ console.log(p.payback_amount/p.amortization_period, "monthlyAmortization", p.pay
                 {/* Main Content Areas */}
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                   {/* Quick Actions or Placeholders if needed */}
-                  <div className="lg:col-span-2 space-y-8">
-                    {/* You could add a quick guide or empty state summary here */}
-                  </div>
+                    {/* Financial Pulse Section */}
+                    <div className="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm space-y-6">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h4 className="text-lg font-black text-slate-900 font-raleway">Financial Pulse</h4>
+                          <p className="text-xs text-slate-500 font-medium">Consolidated view of your capital and yield.</p>
+                        </div>
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          className="text-[#9A2A2A] font-bold text-xs hover:bg-[#9A2A2A]/5 rounded-xl gap-1"
+                          onClick={() => setActiveTab("finance")}
+                        >
+                          Full Treasury <ArrowUpRight className="h-3 w-3" />
+                        </Button>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div className="p-4 bg-slate-50 rounded-2xl space-y-1">
+                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Total Capital Active</p>
+                          <h5 className="text-xl font-black text-slate-900">₦{stats.totalLoanTaken.toLocaleString()}</h5>
+                          <div className="w-full bg-slate-200 h-1 rounded-full overflow-hidden mt-2">
+                             <div 
+                               className="bg-[#C9A227] h-full" 
+                               style={{ width: `${stats.totalLoanTaken > 0 ? (stats.totalPayback / stats.totalLoanTaken) * 10 : 0}%` }}
+                             />
+                          </div>
+                        </div>
+
+                        <div className="p-4 bg-slate-50 rounded-2xl space-y-1">
+                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Net Monthly Forecast</p>
+                          <h5 className="text-xl font-black text-emerald-600">₦{(stats.totalRevenue - stats.monthlyAmortization).toLocaleString()}</h5>
+                          <p className="text-[9px] text-slate-400 font-medium italic">After debt servicing</p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-4 pt-2">
+                        <div className="flex -space-x-2">
+                          {properties.slice(0, 3).map((p, i) => (
+                            <div key={i} className="w-8 h-8 rounded-full border-2 border-white bg-slate-100 flex items-center justify-center text-[10px] font-bold text-slate-400">
+                              {p.typology?.charAt(0) || 'P'}
+                            </div>
+                          ))}
+                          {properties.length > 3 && (
+                            <div className="w-8 h-8 rounded-full border-2 border-white bg-[#9A2A2A] flex items-center justify-center text-[10px] font-bold text-white">
+                              +{properties.length - 3}
+                            </div>
+                          )}
+                        </div>
+                        <p className="text-[10px] text-slate-500 font-medium">Tracking across <span className="font-bold text-slate-900">{properties.length} active listings</span></p>
+                      </div>
+                    </div>
+
+                    {/* Quick Guide or Other content */}
 
                   <div className="space-y-8">
                     <Card
@@ -755,165 +773,7 @@ console.log(p.payback_amount/p.amortization_period, "monthlyAmortization", p.pay
 
 
             {activeTab === "finance" && (
-              <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                  <div>
-                    <h2 className="text-3xl font-bold text-slate-900 font-raleway">Financial Overview</h2>
-                    <p className="text-slate-500">Track your rental yields, loan repayments and net earnings.</p>
-                  </div>
-                  <div className="flex items-center gap-2 bg-white px-4 py-2 rounded-xl shadow-sm border border-slate-100">
-                    <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                    <span className="text-xs font-bold text-slate-600 uppercase tracking-wider">Live Revenue Stream</span>
-                  </div>
-                </div>
-
-                {/* Financial Summary Cards */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <Card className="border-none shadow-sm bg-primary text-white overflow-hidden relative">
-                    <div className="absolute top-0 right-0 p-4 opacity-10">
-                      <ArrowUpRight className="h-24 w-24" />
-                    </div>
-                    <CardContent className="p-6">
-                      <p className="text-primary-foreground/70 text-xs font-bold uppercase tracking-widest mb-1">Gross Monthly Income</p>
-                      <h3 className="text-3xl font-black mb-4">₦{financialStats.totals.totalGross.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</h3>
-                      <div className="flex items-center gap-2 text-xs bg-white/10 w-fit px-2 py-1 rounded-lg">
-                        <Building2 className="h-3 w-3" />
-                        <span>Based on {financialStats.breakdown.length} active listings</span>
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  <Card className="border-none shadow-sm bg-white overflow-hidden relative">
-                    <div className="absolute top-0 right-0 p-4 opacity-5 text-red-600">
-                      <ArrowDownRight className="h-24 w-24" />
-                    </div>
-                    <CardContent className="p-6">
-                      <p className="text-slate-500 text-xs font-bold uppercase tracking-widest mb-1">Monthly Amortization</p>
-                      <h3 className="text-3xl font-black text-red-600 mb-4">₦{financialStats.totals.totalAmortization.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</h3>
-                      <div className="flex items-center gap-2 text-xs text-slate-400">
-                        <Receipt className="h-3 w-3" />
-                        <span>Deducted from gross revenue</span>
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  <Card className="border-none shadow-xl bg-slate-900 text-white overflow-hidden relative border-t-4 border-emerald-500">
-                    <div className="absolute top-0 right-0 p-4 opacity-10 text-emerald-400">
-                      <PiggyBank className="h-24 w-24" />
-                    </div>
-                    <CardContent className="p-6">
-                      <p className="text-emerald-400/70 text-xs font-bold uppercase tracking-widest mb-1">Net Monthly Payout</p>
-                      <h3 className="text-3xl font-black text-emerald-400 mb-4">₦{financialStats.totals.totalNet.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</h3>
-                      <div className="flex items-center gap-2 text-xs bg-emerald-500/10 text-emerald-400 w-fit px-2 py-1 rounded-lg">
-                        <CheckCircle2 className="h-3 w-3" />
-                        <span>Ready for disbursement</span>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </div>
-
-                {/* Detailed Breakdown */}
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-xl font-bold text-slate-900 font-raleway flex items-center gap-2">
-                       Portfolio Breakdown
-                       <Badge variant="outline" className="text-[10px] uppercase">{financialStats.breakdown.length} Properties</Badge>
-                    </h3>
-                  </div>
-
-                  <div className="grid grid-cols-1 gap-4">
-                    {financialStats.breakdown.length === 0 ? (
-                      <Card className="border-dashed border-2 py-12 text-center bg-transparent">
-                        <CardContent className="space-y-4 text-slate-400">
-                          <Home className="h-12 w-12 mx-auto opacity-20" />
-                          <p>No active or pending upgrade properties found to calculate revenue.</p>
-                        </CardContent>
-                      </Card>
-                    ) : (
-                      financialStats.breakdown.map((item) => (
-                        <Card key={item.id} className="border-none shadow-sm hover:shadow-md transition-all overflow-hidden bg-white border-l-4 border-primary">
-                          <CardContent className="p-0">
-                            <div className="flex flex-col md:flex-row">
-                              {/* Property Info Info */}
-                              <div className="p-6 md:w-1/3 border-b md:border-b-0 md:border-r border-slate-50 bg-slate-50/30">
-                                <div className="flex items-start justify-between mb-4">
-                                  <div>
-                                    <div className="flex items-center gap-2 mb-1">
-                                      <h4 className="font-black text-slate-900 text-lg leading-tight uppercase">{item.code_name || "Unnamed Property"}</h4>
-                                      {item.listing_status === "pending_upgrade" && <Badge className="bg-amber-100 text-amber-700 hover:bg-amber-100 border-none text-[8px] uppercase">Upgrading</Badge>}
-                                    </div>
-                                    <p className="text-xs text-slate-500 flex items-center gap-1">
-                                      <MapPin className="h-3 w-3" /> {item.property_address}
-                                    </p>
-                                  </div>
-                                </div>
-                                <div className="flex items-center gap-3">
-                                  <Badge variant="secondary" className="bg-slate-100 text-slate-600 border-none text-[10px] uppercase font-bold">{item.typology}</Badge>
-                                  <Button 
-                                    variant="ghost" 
-                                    size="sm" 
-                                    className="h-7 text-[10px] font-bold text-primary gap-1 group p-0 hover:bg-transparent"
-                                    onClick={() => router.push(item.status === "approved" ? `/listings/${item.id}` : `/landlord/listings/${item.id}/preview`)}
-                                  >
-                                    View Property <ChevronRight className="h-3 w-3 group-hover:translate-x-1 transition-transform" />
-                                  </Button>
-                                </div>
-                              </div>
-
-                              {/* Financial Details */}
-                              <div className="p-6 flex-1 grid grid-cols-2 md:grid-cols-4 gap-6 items-center">
-                                <div>
-                                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Annual Rent</p>
-                                  <p className="font-bold text-slate-700">₦{Number(item.rent || 0).toLocaleString()}</p>
-                                </div>
-
-                                <div>
-                                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Total Loan</p>
-                                  {item.upgrade_loan ? (
-                                    <p className="font-bold text-slate-700">₦{Number(item.upgrade_loan).toLocaleString()}</p>
-                                  ) : (
-                                    <p className="text-slate-300 text-xs">—</p>
-                                  )}
-                                </div>
-
-                                <div>
-                                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Monthly Amort.</p>
-                                  {item.monthlyAmortization > 0 ? (
-                                    <div className="flex flex-col">
-                                      <p className="font-bold text-red-500">- ₦{item.monthlyAmortization.toLocaleString(undefined, { maximumFractionDigits: 0 })}</p>
-                                      <span className="text-[9px] text-slate-400 font-medium">for {item.amortization_period} mos</span>
-                                    </div>
-                                  ) : (
-                                    <p className="text-slate-300 text-xs">—</p>
-                                  )}
-                                </div>
-
-                                <div className="text-right">
-                                  <p className="text-[10px] font-bold text-emerald-500 uppercase tracking-wider mb-1">Net Monthly Payout</p>
-                                  <p className="text-xl font-black text-slate-900">₦{item.netPayout.toLocaleString(undefined, { maximumFractionDigits: 0 })}</p>
-                                </div>
-                              </div>
-                            </div>
-                          </CardContent>
-                        </Card>
-                      ))
-                    )}
-                  </div>
-                </div>
-
-                <div className="bg-blue-50 border border-blue-100 rounded-2xl p-6 flex gap-4 items-start">
-                   <div className="bg-blue-100 p-2 rounded-xl">
-                      <Info className="h-5 w-5 text-blue-600" />
-                   </div>
-                   <div>
-                      <h4 className="text-sm font-bold text-blue-900 mb-1">How your payout is calculated</h4>
-                      <p className="text-xs text-blue-700 leading-relaxed max-w-2xl">
-                        Your monthly payout is derived by taking the 1/12th of the annual rent and deducting the monthly amortization rate (Payback Amount / Period of payment). 
-                        Properties in "Pending Upgrade" are included in your financial forecast as they are generating potential revenue for the current cycle.
-                      </p>
-                   </div>
-                </div>
-              </div>
+              <FinanceTab properties={properties} />
             )}
 
             {activeTab === "settings" && (

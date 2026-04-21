@@ -220,12 +220,7 @@ export default function PropertiesTab({
                                   Review
                                 </Button>
                               </DialogTrigger>
-                              <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
-                                <DialogHeader>
-                                  <DialogTitle>
-                                    Review Property Submission #{property.id}
-                                  </DialogTitle>
-                                </DialogHeader>
+                              <DialogContent className="max-w-6xl max-h-[95vh] overflow-y-auto p-0 border-none shadow-2xl rounded-[2.5rem]">
                                 <PropertyReviewDialog
                                   property={property}
                                   onApprove={async (
@@ -264,7 +259,7 @@ export default function PropertiesTab({
                                   Review
                                 </Button>
                               </DialogTrigger>
-                              <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+                              <DialogContent className="max-w-6xl max-h-[95vh] overflow-y-auto p-0 border-none shadow-2xl rounded-[2.5rem]">
                                 <DialogHeader>
                                   <DialogTitle>
                                     Review Property Submission #{property.id}

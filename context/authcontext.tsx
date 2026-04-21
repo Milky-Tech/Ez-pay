@@ -61,10 +61,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           console.debug("Session restored for:", parsedUser.email);
         } catch (error) {
           console.error("Failed to parse stored user data:", error);
-          // Don't clear the token, just the invalid user data
           localStorage.removeItem("user");
         }
       }
+    } else {
+      // If unauthenticated, clear users related cache only
+      localStorage.removeItem("user");
+      // Also clear landlord specific cache if any
+      Object.keys(localStorage).forEach(key => {
+        if (key.startsWith('landlord_')) {
+          localStorage.removeItem(key);
+        }
+      });
     }
     setLoading(false);
   }, []);
@@ -253,7 +261,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const logout = () => {
     localStorage.removeItem("token");
     localStorage.removeItem("user");
+    
+    // Clear users related cache only (e.g. landlord data)
+    Object.keys(localStorage).forEach(key => {
+      if (key.startsWith('landlord_')) {
+        localStorage.removeItem(key);
+      }
+    });
+
     setUser(null);
+    setToken(null);
     setIsAuthenticated(false);
   };
 

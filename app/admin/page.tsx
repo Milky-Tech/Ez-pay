@@ -631,6 +631,13 @@ export default function AdminDashboard() {
           activeTab={activeTab}
           setActiveTab={setActiveTab}
           onLogout={logout}
+          counts={{
+            listings: data.listings.length + data.pendingListings.length,
+            applications: stats.pendingApplications,
+            landlords: data.landlords.length,
+            users: data.users.length,
+            offices: data.offices.length,
+          }}
         />
       </div>
 
@@ -642,6 +649,13 @@ export default function AdminDashboard() {
             setActiveTab={setActiveTab}
             onLogout={logout}
             onClose={() => setMobileMenuOpen(false)}
+            counts={{
+              listings: data.listings.length + data.pendingListings.length,
+              applications: stats.pendingApplications,
+              landlords: data.landlords.length,
+              users: data.users.length,
+              offices: data.offices.length,
+            }}
           />
         </SheetContent>
       </Sheet>
@@ -720,6 +734,7 @@ export default function AdminDashboard() {
               formatDate={formatDate}
               onRegisterAdmin={handleRegisterAdmin}
               onDeleteUser={handleDeleteUser}
+              currentUser={user}
             />
           )}
 

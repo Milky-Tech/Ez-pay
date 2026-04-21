@@ -10,12 +10,21 @@ import {
   Home,
   Calendar,
 } from "lucide-react";
+import { Badge } from "@/app/components/ui/badge";
 
 interface SidebarProps {
   activeTab: string;
   setActiveTab: (tab: string) => void;
   onLogout: () => void;
   onClose?: () => void;
+  counts?: {
+    listings?: number;
+    applications?: number;
+    users?: number;
+    landlords?: number;
+    offices?: number;
+    inspections?: number;
+  };
 }
 
 export default function Sidebar({
@@ -23,6 +32,7 @@ export default function Sidebar({
   setActiveTab,
   onLogout,
   onClose,
+  counts = {},
 }: SidebarProps) {
   const navItems = [
     {
@@ -128,13 +138,21 @@ export default function Sidebar({
                   }`}>
                     <Icon className="h-4 w-4" />
                   </div>
-                  <div className="flex flex-col items-start">
-                    <span className="leading-none">{item.label}</span>
-                    <span className={`text-[9px] leading-none mt-0.5 transition-all ${
-                      isActive ? "text-white/40" : "text-white/25 group-hover:text-white/40"
-                    }`}>
-                      {item.description}
-                    </span>
+                  <div className="flex flex-1 items-center justify-between">
+                    <div className="flex flex-col items-start">
+                      <span className="leading-none">{item.label}</span>
+                      <span className={`text-[9px] leading-none mt-0.5 transition-all ${
+                        isActive ? "text-white/40" : "text-white/25 group-hover:text-white/40"
+                      }`}>
+                        {item.description}
+                      </span>
+                    </div>
+
+                    {counts[item.id as keyof typeof counts] !== undefined && counts[item.id as keyof typeof counts]! > 0 && (
+                      <Badge className="bg-[#9A2A2A] text-white text-[10px] px-1.5 h-4 min-w-[18px] flex items-center justify-center border-none font-bold">
+                        {counts[item.id as keyof typeof counts]}
+                      </Badge>
+                    )}
                   </div>
                 </button>
               </li>

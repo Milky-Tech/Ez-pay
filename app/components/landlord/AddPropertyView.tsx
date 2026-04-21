@@ -83,6 +83,8 @@ export default function AddPropertyView({
   const [consentGiven, setConsentGiven] = useState(false);
   const [locationData, setLocationData] = useState<any>(null);
   const [isPublishing, setIsPublishing] = useState(false);
+  const [availableStates, setAvailableStates] = useState<string[]>([]);
+  const [isStatesLoading, setIsStatesLoading] = useState(true);
 
   const { position, getPosition, error: geoError } = useGeolocation();
   
@@ -135,6 +137,28 @@ export default function AddPropertyView({
     };
     reverseGeocode();
   }, [position]);
+
+  // Fetch available office states
+  useEffect(() => {
+    const fetchOffices = async () => {
+      try {
+        const res = await fetch(`${API_BASE_URL}/offices`, {
+          headers: { Accept: "application/json" }
+        });
+        if (res.ok) {
+          const result = await res.json();
+          const offices = result.data || result;
+          const states = Array.from(new Set(offices.map((o: any) => o.state).filter(Boolean)));
+          setAvailableStates(states as string[]);
+        }
+      } catch (err) {
+        console.error("Failed to fetch offices", err);
+      } finally {
+        setIsStatesLoading(false);
+      }
+    };
+    fetchOffices();
+  }, []);
   const [expandedSections, setExpandedSections] = useState({
     aesthetics: false,
     power: false,
@@ -524,9 +548,19 @@ export default function AddPropertyView({
                         <SelectValue placeholder="Select state" />
                       </SelectTrigger>
                       <SelectContent>
-                        {Object.keys(NIGERIAN_STATES_LGAS).map((state) => (
-                          <SelectItem key={state} value={state}>{state}</SelectItem>
-                        ))}
+                        {isStatesLoading ? (
+                          <div className="flex items-center justify-center p-4">
+                            <Loader2 className="h-4 w-4 animate-spin text-slate-400" />
+                          </div>
+                        ) : availableStates.length > 0 ? (
+                          availableStates.map((state) => (
+                            <SelectItem key={state} value={state}>{state}</SelectItem>
+                          ))
+                        ) : (
+                          <div className="p-4 text-xs text-slate-400 text-center">
+                            No office locations available yet.
+                          </div>
+                        )}
                       </SelectContent>
                     </Select>
                   </div>

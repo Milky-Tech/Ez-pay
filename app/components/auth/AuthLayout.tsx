@@ -29,16 +29,17 @@ export default function AuthLayout({
 }: AuthLayoutProps) {
   return (
     <div
-      className="relative h-screen w-full overflow-hidden bg-cover bg-center font-sans"
+      className="relative min-h-screen w-full overflow-x-hidden bg-cover bg-center font-sans py-8 md:py-0"
       style={{
         backgroundImage: `url("${heroImage}")`,
+        backgroundAttachment: 'fixed'
       }}
     >
       {/* Dark Overlay */}
       <div className="absolute inset-0 bg-black/20" />
 
       {/* Content Container */}
-      <div className="relative z-10 flex h-full w-full flex-col px-6 md:flex-row md:px-12 lg:px-20">
+      <div className="relative z-10 flex min-h-screen w-full flex-col px-6 md:flex-row md:px-12 lg:px-20">
         
         {/* Left Side - Hero Text */}
         <div className="flex h-full w-full flex-col justify-center md:w-1/2">
@@ -68,9 +69,9 @@ export default function AuthLayout({
         </div>
 
         {/* Right Side - Glass Form */}
-        <div className="flex h-full w-full items-center justify-center md:w-1/2 md:justify-end md:py-6">
-          <div className="flex h-full max-h-[90vh] w-full max-w-[480px] flex-col overflow-hidden rounded-3xl border border-white/10 bg-white/10 shadow-2xl backdrop-blur-md md:max-h-full md:rounded-[2rem]">
-            <div className="flex h-full flex-col overflow-y-auto p-6 md:p-10 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-white/20 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-white/40">
+        <div className="flex h-auto md:h-full w-full items-center justify-center md:w-1/2 md:justify-end py-10 md:py-6">
+          <div className="flex h-auto md:h-full max-h-none md:max-h-full w-full max-w-[480px] flex-col overflow-visible md:overflow-hidden rounded-3xl border border-white/10 bg-white/10 shadow-2xl backdrop-blur-md md:rounded-[2rem]">
+            <div className="flex h-auto md:h-full flex-col overflow-visible md:overflow-y-auto p-6 md:p-10 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-white/20 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-white/40">
               <div className="mb-6">
                 <h2 className="mb-1 font-raleway text-xl font-bold text-white lg:text-2xl">
                   {formTitle}

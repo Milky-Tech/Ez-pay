@@ -138,6 +138,18 @@ export default function ListingsTab({
 
   const sourceList = getSourceList();
 
+  const counts = {
+    pending: pendingListings.length,
+    approved: listings.length,
+    upgrading: unavailableListings.filter(
+      (l) => l.listing_status === "pending_upgrade" || l.listing_status === "upgrade_pending"
+    ).length,
+    other: unavailableListings.filter(
+      (l) => l.listing_status !== "pending_upgrade" && l.listing_status !== "upgrade_pending"
+    ).length,
+  };
+
+
   // Filter Logic
   const filteredListings = sourceList.filter((listing) => {
     // Basic Search
@@ -169,11 +181,35 @@ export default function ListingsTab({
             onValueChange={setActiveSubTab}
             className="w-full md:w-auto"
           >
-            <TabsList>
-              <TabsTrigger value="pending">Submission Requests</TabsTrigger>
-              <TabsTrigger value="approved">Manage Properties</TabsTrigger>
-              <TabsTrigger value="upgrading">Pending Upgrade</TabsTrigger>
-              <TabsTrigger value="other">Other Listings</TabsTrigger>
+            <TabsList className="bg-slate-100 p-1 rounded-xl">
+              <TabsTrigger value="pending" className="flex items-center gap-2">
+                Submission Requests
+                <Badge variant="secondary" className="bg-white text-slate-600 border-none h-5 px-1.5 min-w-[20px] flex items-center justify-center font-bold text-[10px]">
+                  {counts.pending}
+                </Badge>
+              </TabsTrigger>
+
+              <TabsTrigger value="approved" className="flex items-center gap-2">
+                Manage Properties
+                <Badge variant="secondary" className="bg-white text-slate-600 border-none h-5 px-1.5 min-w-[20px] flex items-center justify-center font-bold text-[10px]">
+                  {counts.approved}
+                </Badge>
+              </TabsTrigger>
+
+              <TabsTrigger value="upgrading" className="flex items-center gap-2">
+                Pending Upgrade
+                <Badge variant="secondary" className="bg-white text-slate-600 border-none h-5 px-1.5 min-w-[20px] flex items-center justify-center font-bold text-[10px]">
+                  {counts.upgrading}
+                </Badge>
+              </TabsTrigger>
+
+              <TabsTrigger value="other" className="flex items-center gap-2">
+                Other Listings
+                <Badge variant="secondary" className="bg-white text-slate-600 border-none h-5 px-1.5 min-w-[20px] flex items-center justify-center font-bold text-[10px]">
+                  {counts.other}
+                </Badge>
+              </TabsTrigger>
+
             </TabsList>
           </Tabs>
 
@@ -349,7 +385,7 @@ export default function ListingsTab({
                                     <Eye className="mr-2 h-4 w-4" /> Review Submission
                                   </DropdownMenuItem>
                                 </DialogTrigger>
-                                <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+                                <DialogContent className="max-w-6xl max-h-[95vh] overflow-y-auto p-0 border-none shadow-2xl rounded-[2.5rem]">
                                   <PropertyReviewDialog
                                     property={item}
                                     onApprove={onApprove}

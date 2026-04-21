@@ -58,6 +58,7 @@ interface UsersTabProps {
   formatDate: (dateString: string) => string;
   onRegisterAdmin: (data: any) => Promise<boolean>;
   onDeleteUser: (id: string, name: string) => void;
+  currentUser: any;
 }
 
 export default function UsersTab({
@@ -68,6 +69,7 @@ export default function UsersTab({
   formatDate,
   onRegisterAdmin,
   onDeleteUser,
+  currentUser,
 }: UsersTabProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [roleFilter, setRoleFilter] = useState("all");
@@ -79,6 +81,7 @@ export default function UsersTab({
     password: "",
     password_confirmation: "",
     office_id: "none",
+    role: "admin",
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -105,6 +108,7 @@ export default function UsersTab({
       password: adminData.password,
     };
     if (adminData.office_id && adminData.office_id !== "none") payload.office_id = Number(adminData.office_id);
+    if (adminData.role) payload.role = adminData.role;
 
     const success = await onRegisterAdmin(payload);
     setIsSubmitting(false);
@@ -117,12 +121,19 @@ export default function UsersTab({
         password: "",
         password_confirmation: "",
         office_id: "none",
+        role: "admin",
       });
     }
   };
 
   const getRoleBadge = (role: string | null) => {
     switch (role?.toLowerCase()) {
+      case "super_admin":
+        return (
+          <Badge className="bg-red-100 text-red-800 border-none">
+            <Shield className="h-3 w-3 mr-1" /> Super Admin
+          </Badge>
+        );
       case "admin":
         return (
           <Badge className="bg-purple-100 text-purple-800 border-none">
@@ -225,29 +236,57 @@ export default function UsersTab({
                       }
                     />
                   </div>
+                  {currentUser?.role === 'super_admin' && (
+                    <div className="grid gap-2">
+                      <Label htmlFor="admin-role">Admin Level</Label>
+                      <Select
+                        value={adminData.role || "admin"}
+                        onValueChange={(v) => setAdminData({ ...adminData, role: v })}
+                      >
+                        <SelectTrigger id="admin-role" className="bg-white">
+                          <Shield className="h-4 w-4 mr-2 text-gray-400" />
+                          <SelectValue placeholder="Select level" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="admin">Regular Admin</SelectItem>
+                          <SelectItem value="super_admin">Super Admin</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+
                   <div className="grid gap-2">
                     <Label htmlFor="admin-office">
                       Assign to Office{" "}
-                      <span className="text-gray-400 text-xs font-normal">(optional)</span>
+                      <span className="text-gray-400 text-xs font-normal">
+                        {currentUser?.role === 'super_admin' ? "(optional)" : "(fixed)"}
+                      </span>
                     </Label>
-                    <Select
-                      value={adminData.office_id}
-                      onValueChange={(v) => setAdminData({ ...adminData, office_id: v })}
-                    >
-                      <SelectTrigger id="admin-office" className="bg-white">
-                        <Building2 className="h-4 w-4 mr-2 text-gray-400" />
-                        <SelectValue placeholder="No office (super admin)" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="none">No office (super admin)</SelectItem>
-                        {offices.map((office) => (
-                          <SelectItem key={office.id} value={String(office.id)}>
-                            {office.name} — {office.address}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    {offices.length === 0 && (
+                    {currentUser?.role === 'super_admin' ? (
+                      <Select
+                        value={adminData.office_id}
+                        onValueChange={(v) => setAdminData({ ...adminData, office_id: v })}
+                      >
+                        <SelectTrigger id="admin-office" className="bg-white">
+                          <Building2 className="h-4 w-4 mr-2 text-gray-400" />
+                          <SelectValue placeholder="No office (super admin)" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">No office (super admin)</SelectItem>
+                          {offices.map((office) => (
+                            <SelectItem key={office.id} value={String(office.id)}>
+                              {office.name} — {office.address}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    ) : (
+                      <div className="flex items-center gap-2 p-2 bg-gray-50 border rounded-md text-sm text-gray-600">
+                        <Building2 className="h-4 w-4 text-gray-400" />
+                        {offices.find(o => o.id === currentUser?.office_id)?.name || "Your Assigned Office"}
+                      </div>
+                    )}
+                    {offices.length === 0 && currentUser?.role === 'super_admin' && (
                       <p className="text-xs text-amber-600">
                         No offices registered yet. Create offices in the Offices tab first.
                       </p>

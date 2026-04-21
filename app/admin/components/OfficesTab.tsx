@@ -36,6 +36,15 @@ import {
   Users,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { NIGERIAN_STATES_LGAS } from "@/lib/nigerian-states";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/app/components/ui/select";
+import { Badge } from "@/app/components/ui/badge";
 
 export interface Office {
   id: number;
@@ -43,6 +52,7 @@ export interface Office {
   address: string;
   latitude: number;
   longitude: number;
+  state: string;
   created_at: string;
 }
 
@@ -54,7 +64,7 @@ interface OfficesTabProps {
   formatDate: (dateString: string) => string;
 }
 
-const emptyForm = { name: "", address: "", latitude: "", longitude: "" };
+const emptyForm = { name: "", address: "", latitude: "", longitude: "", state: "" };
 
 function OfficeFormFields({ form, setForm }: { form: typeof emptyForm, setForm: (val: typeof emptyForm) => void }) {
   return (
@@ -101,6 +111,24 @@ function OfficeFormFields({ form, setForm }: { form: typeof emptyForm, setForm: 
           />
         </div>
       </div>
+      <div className="grid gap-2">
+        <Label htmlFor="office-state">State</Label>
+        <Select
+          value={form.state}
+          onValueChange={(val) => setForm({ ...form, state: val })}
+        >
+          <SelectTrigger id="office-state">
+            <SelectValue placeholder="Select state" />
+          </SelectTrigger>
+          <SelectContent>
+            {Object.keys(NIGERIAN_STATES_LGAS).map((state) => (
+              <SelectItem key={state} value={state}>
+                {state}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
     </div>
   );
 }
@@ -128,6 +156,7 @@ export default function OfficesTab({
       address: office.address,
       latitude: String(office.latitude),
       longitude: String(office.longitude),
+      state: office.state || "",
     });
     setIsEditOpen(true);
   };
@@ -147,6 +176,7 @@ export default function OfficesTab({
           address: form.address,
           latitude: parseFloat(form.latitude),
           longitude: parseFloat(form.longitude),
+          state: form.state,
         }),
       });
       const data = await res.json();
@@ -178,6 +208,7 @@ export default function OfficesTab({
           address: form.address,
           latitude: parseFloat(form.latitude),
           longitude: parseFloat(form.longitude),
+          state: form.state,
         }),
       });
       const data = await res.json();
@@ -213,8 +244,6 @@ export default function OfficesTab({
       toast({ variant: "destructive", title: "Error", description: err.message });
     }
   };
-
-
 
   return (
     <Card className="border-none shadow-none bg-transparent">
@@ -257,7 +286,7 @@ export default function OfficesTab({
                 <DialogFooter>
                   <Button
                     onClick={handleCreate}
-                    disabled={submitting || !form.name || !form.address || !form.latitude || !form.longitude}
+                    disabled={submitting || !form.name || !form.address || !form.latitude || !form.longitude || !form.state}
                     className="w-full"
                   >
                     {submitting ? "Creating..." : "Create Office"}
@@ -294,7 +323,7 @@ export default function OfficesTab({
             <Users className="h-6 w-6 text-purple-600" />
           </div>
           <div>
-            <p className="text-2xl font-bold">—</p>
+            <p className="text-2xl font-bold">\u2014</p>
             <p className="text-sm text-gray-500">Assigned Admins</p>
           </div>
         </div>
@@ -307,6 +336,7 @@ export default function OfficesTab({
               <TableRow>
                 <TableHead className="font-bold">Office</TableHead>
                 <TableHead className="font-bold">Address</TableHead>
+                <TableHead className="font-bold">State</TableHead>
                 <TableHead className="font-bold">Coordinates</TableHead>
                 <TableHead className="font-bold">Registered</TableHead>
                 <TableHead className="text-right font-bold">Actions</TableHead>
@@ -315,17 +345,17 @@ export default function OfficesTab({
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={5} className="h-24 text-center">
+                  <TableCell colSpan={6} className="h-24 text-center">
                     <RefreshCw className="h-6 w-6 animate-spin mx-auto text-primary" />
                     <p className="text-sm text-gray-500 mt-2">Loading offices...</p>
                   </TableCell>
                 </TableRow>
               ) : offices.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={5} className="h-32 text-center">
+                  <TableCell colSpan={6} className="h-32 text-center">
                     <Building2 className="h-10 w-10 mx-auto text-gray-300 mb-2" />
                     <p className="text-sm text-gray-500">No branch offices registered yet.</p>
-                    <p className="text-xs text-gray-400 mt-1">Click "Add Office" to register the first one.</p>
+                    <p className="text-xs text-gray-400 mt-1">Click \"Add Office\" to register the first one.</p>
                   </TableCell>
                 </TableRow>
               ) : (
@@ -348,11 +378,14 @@ export default function OfficesTab({
                         <span>{office.address}</span>
                       </div>
                     </TableCell>
+                    <TableCell>
+                      <Badge variant="outline">{office.state || "N/A"}</Badge>
+                    </TableCell>
                     <TableCell className="text-sm text-gray-500 font-mono">
                       {Number(office.latitude).toFixed(6)}, {Number(office.longitude).toFixed(6)}
                     </TableCell>
                     <TableCell className="text-sm text-gray-600">
-                      {office.created_at ? formatDate(office.created_at) : "—"}
+                      {office.created_at ? formatDate(office.created_at) : "\u2014"}
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-1">
@@ -395,7 +428,7 @@ export default function OfficesTab({
           <DialogFooter>
             <Button
               onClick={handleUpdate}
-              disabled={submitting || !form.name || !form.address}
+              disabled={submitting || !form.name || !form.address || !form.state}
               className="w-full"
             >
               {submitting ? "Saving..." : "Save Changes"}
