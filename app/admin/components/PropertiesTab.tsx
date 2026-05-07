@@ -40,29 +40,7 @@ import {
 } from "lucide-react";
 import PropertyReviewDialog from "./PropertyReviewDialog";
 
-interface Property {
-  id: string;
-  code_name: string;
-  email: string;
-  phone: string;
-  typology: string;
-  area: string;
-  state: string;
-  monthly_cost: number | null;
-  availability_status: string;
-  status?: string;
-  full_name: string;
-  property_address: string;
-  no_of_units: number;
-  rent: number;
-  compound_road?: string;
-  power_system?: string;
-  interior_rooms?: string;
-  exterior_shot?: string;
-  created_at: string;
-  updated_at: string;
-  landlord_package: string;
-}
+import { Property } from "@/app/types/property";
 
 interface PropertiesTabProps {
   properties: Property[];
@@ -187,7 +165,7 @@ export default function PropertiesTab({
                   <TableHead>Type</TableHead>
                   <TableHead>Location</TableHead>
                   <TableHead>Owner</TableHead>
-                  <TableHead>Monthly Rent</TableHead>
+                  <TableHead>Annual Rent</TableHead>
                   <TableHead>Units</TableHead>
                   <TableHead>Quality Score</TableHead>
                   <TableHead>Landlord Package</TableHead>
@@ -211,18 +189,13 @@ export default function PropertiesTab({
                     </TableCell>
                     <TableCell>
                       <div className="max-w-[150px] truncate">
-                        {property.full_name}
+                        {property.landlord?.full_name}
                       </div>
                     </TableCell>
                     <TableCell className="font-semibold">
-                      ₦
-                      {property.rent
-                        ? Math.round(
-                            (property.rent * 1.1) / 12 / (property.no_of_units || 1)
-                          ).toLocaleString()
-                        : formatPrice(property.monthly_cost)}
+                      {formatPrice(property.monthly_rent || (property.rent * 1.1 / 12))}
                     </TableCell>
-                    <TableCell>{property.no_of_units}</TableCell>
+                    <TableCell>{property.parking_space || 0}</TableCell>
                     <TableCell>
                       <Badge variant="outline" className="text-xs">
                         Pending Review
@@ -247,16 +220,29 @@ export default function PropertiesTab({
                                   Review
                                 </Button>
                               </DialogTrigger>
-                              <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
-                                <DialogHeader>
-                                  <DialogTitle>
-                                    Review Property Submission #{property.id}
-                                  </DialogTitle>
-                                </DialogHeader>
+                              <DialogContent className="max-w-6xl max-h-[95vh] overflow-y-auto p-0 border-none shadow-2xl rounded-[2.5rem]">
                                 <PropertyReviewDialog
                                   property={property}
-                                  onApprove={() => openApprovalDialog(property)}
-                                  onReject={() => rejectProperty(property.id)}
+                                  onApprove={async (
+                                    p,
+                                    fee,
+                                    rent,
+                                    caution,
+                                    payback,
+                                    loan,
+                                    period
+                                  ) => {
+                                    handleApproveListing(
+                                      p,
+                                      fee,
+                                      rent,
+                                      caution,
+                                      payback,
+                                      loan,
+                                      period
+                                    );
+                                  }}
+                                  onReject={async () => { rejectProperty(property.id); }}
                                 />
                               </DialogContent>
                             </Dialog>
@@ -273,7 +259,7 @@ export default function PropertiesTab({
                                   Review
                                 </Button>
                               </DialogTrigger>
-                              <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+                              <DialogContent className="max-w-6xl max-h-[95vh] overflow-y-auto p-0 border-none shadow-2xl rounded-[2.5rem]">
                                 <DialogHeader>
                                   <DialogTitle>
                                     Review Property Submission #{property.id}
@@ -281,8 +267,8 @@ export default function PropertiesTab({
                                 </DialogHeader>
                                 <PropertyReviewDialog
                                   property={property}
-                                  onApprove={() => openApprovalDialog(property)}
-                                  onReject={() => rejectProperty(property.id)}
+                                  onApprove={async () => { openApprovalDialog(property); }}
+                                  onReject={async () => { rejectProperty(property.id); }}
                                 />
                               </DialogContent>
                             </Dialog>

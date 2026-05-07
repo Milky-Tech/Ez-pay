@@ -50,40 +50,7 @@ import {
   XCircle,
 } from "lucide-react";
 
-interface Application {
-  id: string;
-  unique_id: string;
-  status: string;
-  tenant_package: string;
-  listing_id: string;
-  user_id: string | null;
-  full_name: string;
-  email: string;
-  phone: string;
-  current_address: string;
-  current_landlord_name: string;
-  current_landlord_contact: string;
-  reason_for_leaving: string;
-  duration_of_stay: string;
-  company_name: string;
-  job_title: string;
-  monthly_income: number;
-  hr_contact: string;
-  desired_start_date: string;
-  payment_plan: string;
-  emergency_contact_name: string;
-  emergency_contact_phone: string;
-  bank_statement_path: string;
-  government_id_path: string;
-  live_photo_path: string;
-  verification_video_path: string;
-  created_at: string;
-  updated_at: string;
-  properties?: {
-    code_name: string;
-    typology: string;
-  };
-}
+import { Application } from "@/app/types/property";
 
 interface ApplicationsTabProps {
   applications: Application[];
@@ -264,7 +231,7 @@ export default function ApplicationsTab({
                     <TableCell>
                       <p className="text-sm">{formatDate(app.created_at)}</p>
                       <p className="text-xs text-gray-500">
-                        Listing: {app.listing_id.substring(0, 8)}...
+                        Listing: {app.listing_id ? String(app.listing_id).substring(0, 8) : "N/A"}...
                       </p>
                     </TableCell>
                     <TableCell>{getStatusBadge(app.status)}</TableCell>

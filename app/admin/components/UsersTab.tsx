@@ -44,34 +44,32 @@ import {
   Shield,
   User,
   Trash2,
+  Building2,
 } from "lucide-react";
 
-interface UserItem {
-  id: string | number;
-  full_name: string;
-  email: string;
-  phone: string;
-  role: string;
-  status?: string;
-  created_at?: string;
-}
+import { Landlord } from "@/app/types/property";
+import { Office } from "@/app/admin/components/OfficesTab";
 
 interface UsersTabProps {
-  users: UserItem[];
+  users: Landlord[];
+  offices: Office[];
   loading: boolean;
   fetchUsers: () => void;
   formatDate: (dateString: string) => string;
   onRegisterAdmin: (data: any) => Promise<boolean>;
   onDeleteUser: (id: string, name: string) => void;
+  currentUser: any;
 }
 
 export default function UsersTab({
   users,
+  offices,
   loading,
   fetchUsers,
   formatDate,
   onRegisterAdmin,
   onDeleteUser,
+  currentUser,
 }: UsersTabProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [roleFilter, setRoleFilter] = useState("all");
@@ -82,6 +80,8 @@ export default function UsersTab({
     phone: "",
     password: "",
     password_confirmation: "",
+    office_id: "none",
+    role: "admin",
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -90,15 +90,27 @@ export default function UsersTab({
       user.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       user.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       user.phone?.toLowerCase().includes(searchTerm.toLowerCase());
-    
+
     const matchesRole = roleFilter === "all" || user.role === roleFilter;
 
     return matchesSearch && matchesRole;
   });
 
   const handleRegisterAdmin = async () => {
+    if (adminData.password !== adminData.password_confirmation) {
+      alert("Passwords do not match.");
+      return;
+    }
     setIsSubmitting(true);
-    const success = await onRegisterAdmin(adminData);
+    const payload: any = {
+      full_name: adminData.full_name,
+      email: adminData.email,
+      password: adminData.password,
+    };
+    if (adminData.office_id && adminData.office_id !== "none") payload.office_id = Number(adminData.office_id);
+    if (adminData.role) payload.role = adminData.role;
+
+    const success = await onRegisterAdmin(payload);
     setIsSubmitting(false);
     if (success) {
       setIsAdminDialogOpen(false);
@@ -108,19 +120,44 @@ export default function UsersTab({
         phone: "",
         password: "",
         password_confirmation: "",
+        office_id: "none",
+        role: "admin",
       });
     }
   };
 
-  const getRoleBadge = (role: string) => {
+  const getRoleBadge = (role: string | null) => {
     switch (role?.toLowerCase()) {
+      case "super_admin":
+        return (
+          <Badge className="bg-red-100 text-red-800 border-none">
+            <Shield className="h-3 w-3 mr-1" /> Super Admin
+          </Badge>
+        );
       case "admin":
-        return <Badge className="bg-purple-100 text-purple-800 border-none"><Shield className="h-3 w-3 mr-1" /> Admin</Badge>;
-      case "landlord":
-        return <Badge className="bg-blue-100 text-blue-800 border-none">Landlord</Badge>;
-      case "tenant":
+        return (
+          <Badge className="bg-purple-100 text-purple-800 border-none">
+            <Shield className="h-3 w-3 mr-1" /> Admin
+          </Badge>
+        );
+      case "agent":
+        return (
+          <Badge className="bg-blue-100 text-blue-800 border-none">
+            Agent
+          </Badge>
+        );
+      case "user":
+        return (
+          <Badge className="bg-green-100 text-green-800 border-none">
+            Tenant
+          </Badge>
+        );
       default:
-        return <Badge className="bg-green-100 text-green-800 border-none">Tenant</Badge>;
+        return (
+          <Badge className="bg-gray-100 text-gray-600 border-none">
+            {role || "Unknown"}
+          </Badge>
+        );
     }
   };
 
@@ -143,7 +180,7 @@ export default function UsersTab({
               <RefreshCw className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`} />
               Refresh
             </Button>
-            
+
             <Dialog open={isAdminDialogOpen} onOpenChange={setIsAdminDialogOpen}>
               <DialogTrigger asChild>
                 <Button size="sm" className="bg-primary hover:bg-primary/90">
@@ -151,24 +188,27 @@ export default function UsersTab({
                   Create Admin
                 </Button>
               </DialogTrigger>
-              <DialogContent className="sm:max-w-[425px]">
+              <DialogContent className="sm:max-w-[480px]">
                 <DialogHeader>
-                  <DialogTitle>Register New Administrator</DialogTitle>
+                  <DialogTitle className="flex items-center gap-2">
+                    <Shield className="h-5 w-5 text-primary" />
+                    Create Administrator Account
+                  </DialogTitle>
                 </DialogHeader>
                 <div className="grid gap-4 py-4">
                   <div className="grid gap-2">
-                    <Label htmlFor="full_name">Full Name</Label>
+                    <Label htmlFor="admin-full_name">Full Name</Label>
                     <Input
-                      id="full_name"
+                      id="admin-full_name"
                       placeholder="John Doe"
                       value={adminData.full_name}
                       onChange={(e) => setAdminData({ ...adminData, full_name: e.target.value })}
                     />
                   </div>
                   <div className="grid gap-2">
-                    <Label htmlFor="email">Email Address</Label>
+                    <Label htmlFor="admin-email">Email Address</Label>
                     <Input
-                      id="email"
+                      id="admin-email"
                       type="email"
                       placeholder="admin@ez-pay.com"
                       value={adminData.email}
@@ -176,37 +216,93 @@ export default function UsersTab({
                     />
                   </div>
                   <div className="grid gap-2">
-                    <Label htmlFor="phone">Phone Number</Label>
+                    <Label htmlFor="admin-password">Password</Label>
                     <Input
-                      id="phone"
-                      placeholder="08012345678"
-                      value={adminData.phone}
-                      onChange={(e) => setAdminData({ ...adminData, phone: e.target.value })}
-                    />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="password">Password</Label>
-                    <Input
-                      id="password"
+                      id="admin-password"
                       type="password"
+                      placeholder="Min. 8 characters"
                       value={adminData.password}
                       onChange={(e) => setAdminData({ ...adminData, password: e.target.value })}
                     />
                   </div>
                   <div className="grid gap-2">
-                    <Label htmlFor="password_confirmation">Confirm Password</Label>
+                    <Label htmlFor="admin-password_confirmation">Confirm Password</Label>
                     <Input
-                      id="password_confirmation"
+                      id="admin-password_confirmation"
                       type="password"
                       value={adminData.password_confirmation}
-                      onChange={(e) => setAdminData({ ...adminData, password_confirmation: e.target.value })}
+                      onChange={(e) =>
+                        setAdminData({ ...adminData, password_confirmation: e.target.value })
+                      }
                     />
+                  </div>
+                  {currentUser?.role === 'super_admin' && (
+                    <div className="grid gap-2">
+                      <Label htmlFor="admin-role">Admin Level</Label>
+                      <Select
+                        value={adminData.role || "admin"}
+                        onValueChange={(v) => setAdminData({ ...adminData, role: v })}
+                      >
+                        <SelectTrigger id="admin-role" className="bg-white">
+                          <Shield className="h-4 w-4 mr-2 text-gray-400" />
+                          <SelectValue placeholder="Select level" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="admin">Regular Admin</SelectItem>
+                          <SelectItem value="super_admin">Super Admin</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+
+                  <div className="grid gap-2">
+                    <Label htmlFor="admin-office">
+                      Assign to Office{" "}
+                      <span className="text-gray-400 text-xs font-normal">
+                        {currentUser?.role === 'super_admin' ? "(optional)" : "(fixed)"}
+                      </span>
+                    </Label>
+                    {currentUser?.role === 'super_admin' ? (
+                      <Select
+                        value={adminData.office_id}
+                        onValueChange={(v) => setAdminData({ ...adminData, office_id: v })}
+                      >
+                        <SelectTrigger id="admin-office" className="bg-white">
+                          <Building2 className="h-4 w-4 mr-2 text-gray-400" />
+                          <SelectValue placeholder="No office (super admin)" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">No office (super admin)</SelectItem>
+                          {offices.map((office) => (
+                            <SelectItem key={office.id} value={String(office.id)}>
+                              {office.name} — {office.address}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    ) : (
+                      <div className="flex items-center gap-2 p-2 bg-gray-50 border rounded-md text-sm text-gray-600">
+                        <Building2 className="h-4 w-4 text-gray-400" />
+                        {offices.find(o => o.id === currentUser?.office_id)?.name || "Your Assigned Office"}
+                      </div>
+                    )}
+                    {offices.length === 0 && currentUser?.role === 'super_admin' && (
+                      <p className="text-xs text-amber-600">
+                        No offices registered yet. Create offices in the Offices tab first.
+                      </p>
+                    )}
                   </div>
                 </div>
                 <DialogFooter>
                   <Button
                     onClick={handleRegisterAdmin}
-                    disabled={isSubmitting || !adminData.email || !adminData.password}
+                    disabled={
+                      isSubmitting ||
+                      !adminData.email ||
+                      !adminData.password ||
+                      !adminData.full_name ||
+                      adminData.password !== adminData.password_confirmation
+                    }
                     className="w-full"
                   >
                     {isSubmitting ? "Creating..." : "Create Admin Account"}
@@ -231,13 +327,13 @@ export default function UsersTab({
           <Select value={roleFilter} onValueChange={setRoleFilter}>
             <SelectTrigger className="w-full md:w-[200px] bg-white">
               <Filter className="h-4 w-4 mr-2" />
-              <SelectValue placeholder="All Categories" />
+              <SelectValue placeholder="All Roles" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Users</SelectItem>
               <SelectItem value="admin">Administrators</SelectItem>
-              <SelectItem value="landlord">Landlords</SelectItem>
-              <SelectItem value="tenant">Tenants (Standard Users)</SelectItem>
+              <SelectItem value="agent">Agents</SelectItem>
+              <SelectItem value="user">Tenants</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -248,7 +344,7 @@ export default function UsersTab({
               <TableRow>
                 <TableHead className="font-bold">User</TableHead>
                 <TableHead className="font-bold">Contact Info</TableHead>
-                <TableHead className="font-bold">Category</TableHead>
+                <TableHead className="font-bold">Role</TableHead>
                 <TableHead className="font-bold">Joined Date</TableHead>
                 <TableHead className="text-right font-bold">Actions</TableHead>
               </TableRow>
@@ -287,15 +383,15 @@ export default function UsersTab({
                           <Mail className="h-3.5 w-3.5" />
                           {user.email}
                         </div>
-                        <div className="flex items-center gap-2 text-sm text-gray-600">
-                          <Phone className="h-3.5 w-3.5" />
-                          {user.phone}
-                        </div>
+                        {user.phone && (
+                          <div className="flex items-center gap-2 text-sm text-gray-600">
+                            <Phone className="h-3.5 w-3.5" />
+                            {user.phone}
+                          </div>
+                        )}
                       </div>
                     </TableCell>
-                    <TableCell>
-                      {getRoleBadge(user.role)}
-                    </TableCell>
+                    <TableCell>{getRoleBadge(user.role)}</TableCell>
                     <TableCell className="text-sm text-gray-600">
                       {user.created_at ? formatDate(user.created_at) : "N/A"}
                     </TableCell>

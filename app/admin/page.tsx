@@ -20,6 +20,9 @@ import ListingsTab from "./components/ListingsTab";
 import ApplicationsTab from "./components/ApplicationsTab";
 import UsersTab from "./components/UsersTab";
 import LandlordsTab from "./components/LandlordsTab";
+import OfficesTab, { Office } from "./components/OfficesTab";
+import InspectionSchedulesTab from "./components/InspectionSchedulesTab";
+import InspectionsTab from "./components/InspectionsTab";
 import {
   Sheet,
   SheetContent,
@@ -39,91 +42,7 @@ import {
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL;
 
 // Interface definitions
-export interface Property {
-  id: string;
-  code_name: string;
-  typology: string;
-  email: string;
-  phone: string;
-  area: string;
-  state: string;
-  monthly_cost: number | null;
-  listing_status: string;
-  status?: string;
-  role?: string;
-  full_name: string;
-  property_address: string;
-  no_of_units: number;
-  rent: number;
-  bedrooms: number;
-  bathrooms: number;
-  square_feet: number;
-  desired_annual_rent: number;
-  compound_road?: string;
-  interior_rooms?: string;
-  exterior_shot?: string;
-  landlord_package: string;
-  created_at: string;
-  updated_at: string;
-  [key: string]: any;
-}
-
-export interface Application {
-  id: string;
-  unique_id: string;
-  status: string;
-  tenant_package: string;
-  listing_id: string;
-  user_id: string | null;
-  full_name: string;
-  email: string;
-  phone: string;
-  current_address: string;
-  current_landlord_name: string;
-  current_landlord_contact: string;
-  reason_for_leaving: string;
-  duration_of_stay: string;
-  company_name: string;
-  job_title: string;
-  monthly_income: number;
-  hr_contact: string;
-  desired_start_date: string;
-  payment_plan: string;
-  emergency_contact_name: string;
-  emergency_contact_phone: string;
-  bank_statement_path: string;
-  government_id_path: string;
-  live_photo_path: string;
-  verification_video_path: string;
-  created_at: string;
-  updated_at: string;
-  properties?: Property;
-}
-
-export interface Landlord {
-  id: string;
-  full_name: string;
-  fullName?: string; // For backward compatibility
-  email: string;
-  phone: string;
-  password?: string;
-  password_confirmation?: string;
-  designation?: string;
-  occupation?: string;
-  nationality?: string;
-  state_of_origin?: string;
-  lga_of_origin?: string;
-  residential_address?: string;
-  place_of_work?: string;
-  business_name?: string;
-  business_address?: string;
-  account_name?: string;
-  account_number?: string;
-  bank_name?: string;
-  status: string;
-  role?: string;
-  created_at: string;
-}
+import { Property, Application, Landlord } from "@/app/types/property";
 
 // Helper function for price formatting
 const formatPrice = (price: number | null) => {
@@ -150,9 +69,12 @@ export default function AdminDashboard() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [data, setData] = useState<{
     listings: Property[];
+    pendingListings: Property[];
+    applications: Application[];
     users: Landlord[];
     landlords: Landlord[];
     unavailableListings: Property[];
+    offices: Office[];
   }>({
     listings: [],
     pendingListings: [],
@@ -160,6 +82,7 @@ export default function AdminDashboard() {
     users: [],
     landlords: [],
     unavailableListings: [],
+    offices: [],
   });
 
   const [stats, setStats] = useState({
@@ -176,6 +99,7 @@ export default function AdminDashboard() {
     applications: false,
     users: false,
     landlords: false,
+    offices: false,
   });
 
   const [searchTerm, setSearchTerm] = useState("");
@@ -232,6 +156,7 @@ export default function AdminDashboard() {
         fetchUnavailableListings(),
         fetchUsers(),
         fetchLandlords(),
+        fetchOffices(),
       ]);
     } catch (error) {
       console.error("Error fetching dashboard data:", error);
@@ -306,8 +231,9 @@ export default function AdminDashboard() {
       });
       if (!response.ok) throw new Error("Failed to fetch pending listings");
       const result = await response.json();
-      setData((prev) => ({ ...prev, pendingListings: result.data || result }));
-      console.log(pendingListings)
+      const resultData = result.data || result;
+      setData((prev) => ({ ...prev, pendingListings: resultData }));
+      console.log("Pending listings:", resultData);
     } catch (error) {
       console.error(error);
     } finally {
@@ -427,36 +353,53 @@ export default function AdminDashboard() {
     }
   }, [token]);
 
-  // User Actions
+  // Fetch Offices
+  const fetchOffices = useCallback(async () => {
+    try {
+      setLoading((prev) => ({ ...prev, offices: true }));
+      const response = await fetch(`${API_BASE_URL}/offices`, {
+        headers: {
+          Accept: "application/json",
+          Authorization: `Bearer ${token || localStorage.getItem("token")}`,
+        },
+      });
+      if (!response.ok) throw new Error("Failed to fetch offices");
+      const result = await response.json();
+      setData((prev) => ({ ...prev, offices: result.data || result }));
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setLoading((prev) => ({ ...prev, offices: false }));
+    }
+  }, [token]);
+
+  // User Actions — now uses the dedicated /admin/create endpoint
   const handleRegisterAdmin = async (adminData: any) => {
     try {
-      // We use a direct fetch instead of the context register to avoid logging out the current admin
-      const response = await fetch(`${API_BASE_URL}/register`, {
+      const response = await fetch(`${API_BASE_URL}/admin/create`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Accept: "application/json",
+          Authorization: `Bearer ${token || localStorage.getItem("token")}`,
         },
-        body: JSON.stringify({
-          ...adminData,
-          role: "admin", // Passing role to API
-        }),
+        body: JSON.stringify(adminData),
       });
 
       if (!response.ok) {
         const result = await response.json();
-        throw new Error(result.message || "Failed to register admin");
+        throw new Error(result.message || "Failed to create admin");
       }
 
-      toast({ title: "Admin Created", description: "New administrator registered successfully." });
+      toast({ title: "Admin Created", description: "New administrator account created successfully." });
       fetchUsers();
       return true;
     } catch (error: any) {
       console.error(error);
       toast({
         variant: "destructive",
-        title: "Registration Error",
-        description: error.message || "Failed to register admin.",
+        title: "Error",
+        description: error.message || "Failed to create admin.",
       });
       return false;
     }
@@ -533,8 +476,9 @@ export default function AdminDashboard() {
   const handleApproveListing = async (
     property: Property,
     inspectionFee: number,
-    monthlyRentAscend: number,
-    monthlyRentAnchor: number,
+    monthlyRent: number,
+    cautionFee: number,
+    paybackAmount: number,
     upgradeLoan?: number,
     amortizationPeriod?: number
   ) => {
@@ -554,8 +498,9 @@ export default function AdminDashboard() {
         },
         body: JSON.stringify({
           inspection_fee: inspectionFee,
-          monthly_rent_ascend: monthlyRentAscend,
-          monthly_rent_anchor: monthlyRentAnchor,
+          monthly_rent: monthlyRent,
+          caution_fee: cautionFee,
+          payback_amount: paybackAmount,
           upgrade_loan: upgradeLoan,
           amortization_period: amortizationPeriod,
           status: "approved",
@@ -614,7 +559,7 @@ export default function AdminDashboard() {
 
   const handleUpdateAvailability = async (id: string, status: string) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/listings/${id}/availability`, {
+      const response = await fetch(`${API_BASE_URL}/listings/${id}`, {
         method: "PATCH",
         headers: {
           "Accept": "application/json",
@@ -622,7 +567,6 @@ export default function AdminDashboard() {
           Authorization: `Bearer ${token || localStorage.getItem("token")}`,
         },
         body: JSON.stringify({ 
-          availability_status: status,
           listing_status: status 
         }),
       });
@@ -666,6 +610,8 @@ export default function AdminDashboard() {
       in_review: "bg-blue-50 text-blue-600",
       rejected: "bg-red-100 text-red-800",
       upgrade_pending: "bg-amber-100 text-amber-800",
+      unavailable: "bg-gray-100 text-gray-800",
+      null: "bg-gray-100 text-gray-800",
     };
     const colorClass = variants[status] || "bg-gray-100 text-gray-800";
     return (
@@ -675,22 +621,23 @@ export default function AdminDashboard() {
     );
   };
 
-  // Listings for ListingsTab
-  // Combined Approved, Pending and Unavailable listings
-  const combinedListings = [
-    ...data.listings, 
-    ...data.pendingListings,
-    ...data.unavailableListings
-  ];
+
 
   return (
-    <div className="flex min-h-screen bg-gray-50 font-sans">
+    <div className="flex min-h-screen bg-slate-50/80 font-sans">
       {/* Sidebar - Desktop */}
       <div className="hidden md:block">
         <Sidebar
           activeTab={activeTab}
           setActiveTab={setActiveTab}
           onLogout={logout}
+          counts={{
+            listings: data.listings.length + data.pendingListings.length,
+            applications: stats.pendingApplications,
+            landlords: data.landlords.length,
+            users: data.users.length,
+            offices: data.offices.length,
+          }}
         />
       </div>
 
@@ -702,6 +649,13 @@ export default function AdminDashboard() {
             setActiveTab={setActiveTab}
             onLogout={logout}
             onClose={() => setMobileMenuOpen(false)}
+            counts={{
+              listings: data.listings.length + data.pendingListings.length,
+              applications: stats.pendingApplications,
+              landlords: data.landlords.length,
+              users: data.users.length,
+              offices: data.offices.length,
+            }}
           />
         </SheetContent>
       </Sheet>
@@ -733,7 +687,9 @@ export default function AdminDashboard() {
 
           {activeTab === "listings" && (
             <ListingsTab
-              listings={combinedListings}
+              listings={data.listings}
+              pendingListings={data.pendingListings}
+              unavailableListings={data.unavailableListings}
               loading={loading.listings}
               fetchListings={() => {
                 fetchListings();
@@ -747,6 +703,7 @@ export default function AdminDashboard() {
               onReject={handleRejectListing}
               onUpdateAvailability={handleUpdateAvailability}
               onDelete={(id, name) => handleDeleteListing(id, name)}
+              token={token}
             />
           )}
 
@@ -771,11 +728,13 @@ export default function AdminDashboard() {
           {activeTab === "users" && (
             <UsersTab
               users={data.users}
+              offices={data.offices}
               loading={loading.users}
               fetchUsers={fetchUsers}
               formatDate={formatDate}
               onRegisterAdmin={handleRegisterAdmin}
               onDeleteUser={handleDeleteUser}
+              currentUser={user}
             />
           )}
 
@@ -788,6 +747,27 @@ export default function AdminDashboard() {
               getStatusBadge={getStatusBadge}
             />
           )}
+
+          {activeTab === "offices" && (
+            <OfficesTab
+              offices={data.offices}
+              loading={loading.offices}
+              fetchOffices={fetchOffices}
+              token={token}
+              formatDate={formatDate}
+            />
+          )}
+
+          {activeTab === "inspections" && (
+            <InspectionsTab token={token} />
+          )}
+
+          {activeTab === "schedules" && (
+            <InspectionSchedulesTab
+              offices={data.offices}
+              token={token}
+            />
+          )}
         </main>
       </div>
 
@@ -798,21 +778,21 @@ export default function AdminDashboard() {
           setDeleteDialog((prev) => ({ ...prev, open }))
         }
       >
-        <AlertDialogContent>
+        <AlertDialogContent className="rounded-2xl border-slate-200/60 shadow-2xl">
           <AlertDialogHeader>
-            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-            <AlertDialogDescription>
+            <AlertDialogTitle className="font-raleway font-black text-slate-900">Are you absolutely sure?</AlertDialogTitle>
+            <AlertDialogDescription className="text-slate-500">
               This action cannot be undone. This will permanently delete the{" "}
               {deleteDialog.type === "listing" ? "listing" : "user"}{" "}
-              <span className="font-semibold text-gray-900">"{deleteDialog.name}"</span>{" "}
+              <span className="font-bold text-slate-800">"{deleteDialog.name}"</span>{" "}
               from the system.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel className="rounded-xl">Cancel</AlertDialogCancel>
             <AlertDialogAction
               onClick={deleteDialog.type === "listing" ? confirmDeleteListing : confirmDeleteUser}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90 rounded-xl font-bold shadow-lg shadow-red-500/20"
             >
               Delete
             </AlertDialogAction>

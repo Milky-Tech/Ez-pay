@@ -39,6 +39,7 @@ import {
   Eye,
    Trash2,
 } from "lucide-react";
+import AdminUpgradeMediaDialog from "./AdminUpgradeMediaDialog";
 import {
   Select,
   SelectContent,
@@ -65,26 +66,12 @@ import {
   Wrench as WrenchIcon,
 } from "lucide-react";
 
-interface Property {
-  id: string;
-  code_name: string;
-  typology: string;
-  email: string;
-  phone: string;
-  area: string;
-  state: string;
-  monthly_cost: number | null;
-  listing_status: string;
-  status?: string; // For pending properties
-  full_name: string;
-  rent: number;
-  created_at: string;
-  landlord_package: string;
-  [key: string]: any;
-}
+import { Property } from "@/app/types/property";
 
 interface ListingsTabProps {
-  listings: Property[]; // Contains ALL properties (pending + approved)
+  listings: Property[]; // Active/Approved properties from /listings
+  pendingListings: Property[]; // Submission requests from /listings/pending
+  unavailableListings: Property[]; // Pending upgrade from /listings/unavailable
   loading: boolean;
   fetchListings: () => void;
   formatPrice: (price: number | null) => string;
@@ -93,18 +80,22 @@ interface ListingsTabProps {
   onApprove: (
     property: Property,
     inspectionFee: number,
-    monthlyRentAscend: number,
-    monthlyRentAnchor: number,
+    monthlyRent: number,
+    cautionFee: number,
+    paybackAmount: number,
     upgradeLoan?: number,
     amortizationPeriod?: number
   ) => Promise<void>;
   onReject: (property: Property, comment?: string) => Promise<void>;
   onUpdateAvailability: (id: string, status: string) => Promise<void>;
   onDelete: (id: string, name: string) => void;
+  token: string | null;
 }
 
 export default function ListingsTab({
   listings,
+  pendingListings,
+  unavailableListings,
   loading,
   fetchListings,
   formatPrice,
@@ -114,17 +105,53 @@ export default function ListingsTab({
   onReject,
   onUpdateAvailability,
   onDelete,
+  token,
 }: ListingsTabProps) {
   const [activeSubTab, setActiveSubTab] = useState("approved");
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [editingProperty, setEditingProperty] = useState<Property | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isUpgradeDialogOpen, setIsUpgradeDialogOpen] = useState(false);
+  const [selectedPropertyForUpgrade, setSelectedPropertyForUpgrade] = useState<Property | null>(null);
+
+  // Determine which source list to use based on the active sub-tab
+  const getSourceList = () => {
+    switch (activeSubTab) {
+      case "pending":
+        return pendingListings;
+      case "upgrading":
+        // Filter unavailableListings for those with listing_status 'pending_upgrade' or 'upgrade_pending'
+        return unavailableListings.filter(
+          (l) => l.listing_status === "pending_upgrade" || l.listing_status === "upgrade_pending"
+        );
+      case "other":
+        // Filter unavailableListings for those NOT pending an upgrade
+        return unavailableListings.filter(
+          (l) => l.listing_status !== "pending_upgrade" && l.listing_status !== "upgrade_pending"
+        );
+      case "approved":
+      default:
+        return listings;
+    }
+  };
+
+  const sourceList = getSourceList();
+
+  const counts = {
+    pending: pendingListings.length,
+    approved: listings.length,
+    upgrading: unavailableListings.filter(
+      (l) => l.listing_status === "pending_upgrade" || l.listing_status === "upgrade_pending"
+    ).length,
+    other: unavailableListings.filter(
+      (l) => l.listing_status !== "pending_upgrade" && l.listing_status !== "upgrade_pending"
+    ).length,
+  };
+
 
   // Filter Logic
-
-  // Filter Logic
-  const filteredListings = listings.filter((listing) => {
+  const filteredListings = sourceList.filter((listing) => {
     // Basic Search
     const searchString = searchTerm.toLowerCase();
     const matchesSearch =
@@ -140,18 +167,7 @@ export default function ListingsTab({
         ? listing.listing_status === statusFilter
         : listing.status === statusFilter);
 
-    // Tab Filter (Pending vs Approved vs Upgrading)
-    const isUpgradePending = listing.listing_status === "upgrade_pending" || listing.listing_status === "unavailable";
-    const isApproved =
-      listing.status === "approved" && !isUpgradePending;
-
-    if (activeSubTab === "approved") {
-      return matchesSearch && matchesStatusFilter && isApproved;
-    } else if (activeSubTab === "upgrading") {
-      return matchesSearch && matchesStatusFilter && isUpgradePending;
-    } else {
-      return matchesSearch && matchesStatusFilter && !isApproved && !isUpgradePending;
-    }
+    return matchesSearch && matchesStatusFilter;
   });
 
   // Logic handled in PropertyReviewDialog
@@ -165,10 +181,35 @@ export default function ListingsTab({
             onValueChange={setActiveSubTab}
             className="w-full md:w-auto"
           >
-            <TabsList>
-              <TabsTrigger value="pending">Submission Requests</TabsTrigger>
-              <TabsTrigger value="approved">Manage Properties</TabsTrigger>
-              <TabsTrigger value="upgrading">Pending Upgrade</TabsTrigger>
+            <TabsList className="bg-slate-100 p-1 rounded-xl">
+              <TabsTrigger value="pending" className="flex items-center gap-2">
+                Submission Requests
+                <Badge variant="secondary" className="bg-white text-slate-600 border-none h-5 px-1.5 min-w-[20px] flex items-center justify-center font-bold text-[10px]">
+                  {counts.pending}
+                </Badge>
+              </TabsTrigger>
+
+              <TabsTrigger value="approved" className="flex items-center gap-2">
+                Manage Properties
+                <Badge variant="secondary" className="bg-white text-slate-600 border-none h-5 px-1.5 min-w-[20px] flex items-center justify-center font-bold text-[10px]">
+                  {counts.approved}
+                </Badge>
+              </TabsTrigger>
+
+              <TabsTrigger value="upgrading" className="flex items-center gap-2">
+                Pending Upgrade
+                <Badge variant="secondary" className="bg-white text-slate-600 border-none h-5 px-1.5 min-w-[20px] flex items-center justify-center font-bold text-[10px]">
+                  {counts.upgrading}
+                </Badge>
+              </TabsTrigger>
+
+              <TabsTrigger value="other" className="flex items-center gap-2">
+                Other Listings
+                <Badge variant="secondary" className="bg-white text-slate-600 border-none h-5 px-1.5 min-w-[20px] flex items-center justify-center font-bold text-[10px]">
+                  {counts.other}
+                </Badge>
+              </TabsTrigger>
+
             </TabsList>
           </Tabs>
 
@@ -216,6 +257,12 @@ export default function ListingsTab({
                   <SelectItem value="upgrade_pending">Upgrade Pending</SelectItem>
                   <SelectItem value="unavailable">Unavailable</SelectItem>
                 </>
+              ) : activeSubTab === "other" ? (
+                <>
+                  <SelectItem value="rented">Rented</SelectItem>
+                  <SelectItem value="unavailable">Unavailable</SelectItem>
+                  <SelectItem value="maintenance">Maintenance</SelectItem>
+                </>
               ) : (
                 <>
                   <SelectItem value="pending">Pending</SelectItem>
@@ -247,7 +294,7 @@ export default function ListingsTab({
                   <TableHead>Type</TableHead>
                   <TableHead>Location</TableHead>
                   <TableHead>
-                    {(activeSubTab === "approved" || activeSubTab === "upgrading") ? "Monthly Rent" : "Owner"}
+                    {(activeSubTab === "approved" || activeSubTab === "upgrading" || activeSubTab === "other") ? "Monthly Rent" : "Owner"}
                   </TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Actions</TableHead>
@@ -257,7 +304,7 @@ export default function ListingsTab({
                 {filteredListings.map((item) => (
                   <TableRow key={item.id}>
                     <TableCell className="font-medium">
-                      {(activeSubTab === "approved" || activeSubTab === "upgrading") ? (
+                      {(activeSubTab === "approved" || activeSubTab === "upgrading" || activeSubTab === "other") ? (
                         item.code_name
                       ) : (
                         <span className="text-xs">
@@ -284,9 +331,17 @@ export default function ListingsTab({
                       </div>
                     </TableCell>
                     <TableCell>
-                      {(activeSubTab === "approved" || activeSubTab === "upgrading") ? (
-                        <span className="fontWeight-semibold">
-                          {formatPrice(item.monthly_cost)}
+                      {activeSubTab === "approved" ||
+                      activeSubTab === "upgrading" ||
+                      activeSubTab === "other" ? (
+                        <span className="font-semibold">
+                          {formatPrice(
+                            item.monthly_rent ||
+                              item.monthly_cost ||
+                              Math.ceil(
+                                (item.rent + item.rent / 5 + 2000000) / 12 / 1000
+                              ) * 1000
+                          )}
                         </span>
                       ) : (
                         <div className="text-sm">
@@ -297,9 +352,9 @@ export default function ListingsTab({
                     </TableCell>
                     <TableCell>
                       {getStatusBadge(
-                        (activeSubTab === "approved" || activeSubTab === "upgrading")
+                        ((activeSubTab === "approved" || activeSubTab === "upgrading" || activeSubTab === "other")
                           ? item.listing_status
-                          : item.status || "pending"
+                          : item.status) || "pending"
                       )}
                     </TableCell>
                     <TableCell>
@@ -330,7 +385,7 @@ export default function ListingsTab({
                                     <Eye className="mr-2 h-4 w-4" /> Review Submission
                                   </DropdownMenuItem>
                                 </DialogTrigger>
-                                <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+                                <DialogContent className="max-w-6xl max-h-[95vh] overflow-y-auto p-0 border-none shadow-2xl rounded-[2.5rem]">
                                   <PropertyReviewDialog
                                     property={item}
                                     onApprove={onApprove}
@@ -356,20 +411,27 @@ export default function ListingsTab({
                             <DropdownMenuSeparator />
                             
                             {/* Listing State Specific Actions */}
-                            {item.listing_status === "upgrade_pending" && (
-                              <DropdownMenuItem onClick={() => onUpdateAvailability(item.id, "available")}>
-                                <CheckCircle2 className="mr-2 h-4 w-4 text-green-600" /> Mark Available
+                            {(item.listing_status === "upgrade_pending" || item.listing_status === "pending_upgrade") && (
+                              <DropdownMenuItem onClick={() => {
+                                if (item.landlord_package === "vantage") {
+                                   setSelectedPropertyForUpgrade(item);
+                                   setIsUpgradeDialogOpen(true);
+                                } else {
+                                   onUpdateAvailability(item.id, "available");
+                                }
+                              }}>
+                                <CheckCircle2 className="mr-2 h-4 w-4 text-green-600" /> Complete Upgrade
                               </DropdownMenuItem>
                             )}
                             {item.listing_status === "available" && (
-                              <DropdownMenuItem onClick={() => onUpdateAvailability(item.id, "maintenance")}>
+                              <DropdownMenuItem onClick={() => onUpdateAvailability(item.id, "unavailable")}>
                                 <WrenchIcon className="mr-2 h-4 w-4 text-orange-600" /> Maintenance
                               </DropdownMenuItem>
                             )}
 
                             <DropdownMenuItem 
                               className="text-destructive focus:text-destructive"
-                              onClick={() => onDelete(item.id, item.code_name)}
+                              onClick={() => onDelete(item.id, item.code_name || item.id)}
                             >
                               <Trash2 className="mr-2 h-4 w-4" /> Delete Listing
                             </DropdownMenuItem>
@@ -391,6 +453,18 @@ export default function ListingsTab({
         onClose={() => setIsEditDialogOpen(false)}
         onSuccess={fetchListings}
       />
+
+      {/* Mandatory Media Update for Vantage Upgrade */}
+      <AdminUpgradeMediaDialog 
+        open={isUpgradeDialogOpen}
+        onOpenChange={setIsUpgradeDialogOpen}
+        property={selectedPropertyForUpgrade}
+        token={token}
+        onSuccess={() => {
+          fetchListings();
+        }}
+      />
     </Card>
   );
 }
+

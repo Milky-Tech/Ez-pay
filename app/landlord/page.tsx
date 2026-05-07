@@ -23,7 +23,18 @@ import {
   Trash2,
   Paperclip,
   Users,
+  ArrowUpRight,
+  ArrowDownRight,
+  Sparkles,
+  Building2,
+  Receipt,
+  PiggyBank,
+  ChevronRight,
+  MapPin,
+  CheckCircle2,
+  Info,
 } from "lucide-react";
+import { useMemo } from "react";
 import Link from "next/link";
 import { Button } from "@/app/components/ui/button";
 import { Input } from "@/app/components/ui/input";
@@ -42,6 +53,7 @@ import { useFileUpload } from "@/hooks/useFileUpload";
 import { ApplicationItem } from "@/app/components/landlord/ApplicationItem";
 import PropertiesTab from "@/app/components/landlord/PropertiesTab";
 import AddPropertyView from "@/app/components/landlord/AddPropertyView";
+import FinanceTab from "@/app/components/landlord/FinanceTab";
 import { getCurrentLocation } from "@/lib/geolocation";
 
 export default function LandlordDashboard() {
@@ -72,6 +84,13 @@ export default function LandlordDashboard() {
   const { handleFileUpload, uploadedFiles } = useFileUpload(token);
 
   const [editFormData, setEditFormData] = useState<any>({});
+  const [draftData, setDraftData] = useState<any>({
+    property_address: "",
+    state: "",
+    area: "",
+    typology: "",
+  });
+  const [isCreatingDraft, setIsCreatingDraft] = useState(false);
 
   const calculateCompletion = () => {
     if (!editFormData || Object.keys(editFormData).length === 0) return 0;
@@ -127,6 +146,28 @@ export default function LandlordDashboard() {
       });
     }
   }, [landlordData, user]);
+
+  const [pendingAgreements, setPendingAgreements] = useState<any[]>([]);
+
+  useEffect(() => {
+    const fetchAgreements = async () => {
+      if (!token || !user?.id) return;
+      try {
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/upgrade-agreements`, {
+          headers: { Authorization: `Bearer ${token}`, Accept: "application/json" }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          // Filter only pending agreements
+          const pending = (data.data || []).filter((a: any) => a.status === 'pending');
+          setPendingAgreements(pending);
+        }
+      } catch (err) {
+        console.error("Failed to fetch agreements", err);
+      }
+    };
+    fetchAgreements();
+  }, [token, user]);
 
   // Redirect if not authenticated
   useEffect(() => {
@@ -274,12 +315,20 @@ export default function LandlordDashboard() {
       (a) => a.status === "pending",
     ).length,
     totalRevenue: properties.reduce((acc, p) => acc + (p.monthly_cost || 0), 0),
+    totalLoanTaken: properties.reduce((acc, p) => acc + (Number(p.upgrade_loan) || 0), 0),
+    totalPayback: properties.reduce((acc, p) => acc + (Number(p.payback_amount) || 0), 0),
+    monthlyAmortization: properties.reduce((acc, p) => {
+      const payback = Number(p.payback_amount) || 0;
+      const period = Number(p.amortization_period) || 1;
+      return acc + (payback / period);
+    }, 0),
   };
 
   const occupancyRate =
     stats.totalUnits > 0
       ? Math.round((stats.occupiedUnits / stats.totalUnits) * 100)
       : 0;
+
 
   if (authLoading || !user) {
     return (
@@ -292,36 +341,28 @@ export default function LandlordDashboard() {
   return (
     <div className="max-h-screen bg-slate-50 flex flex-col lg:flex-row">
       {/* Mobile Header */}
-      <header className="lg:hidden h-16 bg-white border-b px-4 flex items-center justify-between sticky top-0 z-20">
+      <header className="lg:hidden h-16 bg-[#0a0a0a] border-b border-white/5 px-4 flex items-center justify-between sticky top-0 z-20">
         <div className="flex items-center gap-3">
           <Button
             variant="ghost"
             size="icon"
             onClick={() => setMobileSidebarOpen(!mobileSidebarOpen)}
+            className="text-white/60 hover:text-white hover:bg-white/10"
           >
             <LayoutDashboard className="h-5 w-5" />
           </Button>
           <Link href="/">
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-                <Home className="h-5 w-5 text-white" />
-              </div>
-              <span className="text-xl font-bold text-primary font-raleway">
-                EZ-Pay
-              </span>
+              <span className="text-base font-black text-white font-raleway tracking-widest">EZ-PAY</span>
+              <span className="text-[9px] text-[#C9A227] font-bold uppercase tracking-[0.15em]">Landlord</span>
             </div>
           </Link>
         </div>
         {isProfileComplete && (
           <Button
             size="sm"
-            onClick={() => {
-              setActiveTab("properties");
-              // We'll let PropertiesTab handle its own Add Property button or provide a way to trigger it
-              // For simplicity, switching to properties tab is a good start, or add-property tab if available
-              setMobileSidebarOpen(false);
-            }}
-            className="bg-primary"
+            onClick={() => { setActiveTab("properties"); setMobileSidebarOpen(false); }}
+            className="bg-[#9A2A2A] hover:bg-[#7a2222] text-white font-bold shadow-md"
           >
             <Plus className="h-4 w-4" />
           </Button>
@@ -331,91 +372,100 @@ export default function LandlordDashboard() {
       {/* Mobile Sidebar Overlay */}
       {mobileSidebarOpen && (
         <div
-          className="fixed inset-0 bg-black bg-opacity-50 z-30 lg:hidden"
+          className="fixed inset-0 bg-black/70 backdrop-blur-sm z-30 lg:hidden"
           onClick={() => setMobileSidebarOpen(false)}
         />
       )}
 
       {/* Sidebar Navigation */}
       <aside
-        className={`fixed lg:relative inset-y-0 h-screen left-0 z-40 w-64 bg-white border-r flex flex-col transform ${
+        className={`fixed lg:relative inset-y-0 h-screen left-0 z-40 w-64 bg-[#0a0a0a] border-r border-white/5 flex flex-col transform ${
           mobileSidebarOpen ? "translate-x-0" : "-translate-x-full"
         } lg:translate-x-0 transition-transform duration-300 ease-in-out lg:flex`}
       >
-        <div className="p-6 border-b">
+        {/* Logo */}
+        <div className="px-6 py-7 border-b border-white/5">
           <Link href="/">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-                <Home className="h-5 w-5 text-white" />
-              </div>
-              <span className="text-xl font-bold text-primary font-raleway">
-                EZ-Pay
-              </span>
+            <div className="flex flex-col">
+              <span className="text-base font-black text-white font-raleway tracking-widest">EZ-PAY</span>
+              <span className="text-[9px] text-[#C9A227] uppercase tracking-[0.2em] font-bold mt-0.5">Landlord Portal</span>
             </div>
           </Link>
-          <p className="text-[10px] text-gray-400 mt-1 uppercase tracking-widest font-bold">
-            Landlord Portal
-          </p>
         </div>
-        <nav className="flex-grow p-4 space-y-2">
+
+        {/* Nav items */}
+        <nav className="flex-grow p-3 pt-6 space-y-1 scrollbar-premium overflow-y-auto">
+          <p className="text-[9px] text-white/25 uppercase tracking-[0.2em] font-bold px-3 mb-3">Navigation</p>
           {[
-            { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
-            { id: "properties", label: "My Properties", icon: Building },
-            { id: "finance", label: "Finance", icon: BarChart3 },
-            { id: "settings", label: "Profile Settings", icon: Settings },
-          ].map((item) => (
-            <Button
-              key={item.id}
-              variant={activeTab === item.id ? "secondary" : "ghost"}
-              className="w-full justify-start gap-3 h-11"
-              onClick={() => {
-                setActiveTab(item.id);
-                setMobileSidebarOpen(false);
-              }}
-            >
-              <item.icon className="h-4 w-4" /> {item.label}
-            </Button>
-          ))}
+            { id: "dashboard", label: "Dashboard", icon: LayoutDashboard, desc: "Overview & stats" },
+            { id: "properties", label: "My Properties", icon: Building, desc: "Manage listings" },
+            { id: "finance", label: "Finance", icon: BarChart3, desc: "Revenue & payouts" },
+            { id: "settings", label: "Profile Settings", icon: Settings, desc: "Account details" },
+          ].map((item) => {
+            const isActive = activeTab === item.id;
+            const Icon = item.icon;
+            return (
+              <button
+                key={item.id}
+                onClick={() => { setActiveTab(item.id); setMobileSidebarOpen(false); }}
+                className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium transition-all duration-200 group relative ${
+                  isActive
+                    ? "bg-[#9A2A2A]/15 text-[#f1d57c]"
+                    : "text-white/50 hover:text-white hover:bg-white/5"
+                }`}
+              >
+                {isActive && <span className="absolute left-0 top-1/2 -translate-y-1/2 h-5 w-0.5 bg-[#9A2A2A] rounded-r-full" />}
+                <div className={`p-1.5 rounded-lg transition-all duration-200 ${
+                  isActive ? "bg-[#9A2A2A]/25 text-[#f1d57c]" : "bg-white/5 text-white/40 group-hover:bg-white/10 group-hover:text-white"
+                }`}>
+                  <Icon className="h-4 w-4" />
+                </div>
+                <div className="flex flex-col items-start">
+                  <span className="leading-none">{item.label}</span>
+                  <span className={`text-[9px] leading-none mt-0.5 ${
+                    isActive ? "text-white/40" : "text-white/25 group-hover:text-white/40"
+                  }`}>{item.desc}</span>
+                </div>
+              </button>
+            );
+          })}
         </nav>
 
-        <div className="p-4 border-t space-y-4">
+        {/* User footer */}
+        <div className="p-4 border-t border-white/5 space-y-3">
           <div className="flex items-center gap-3 px-2">
-            <Avatar className="h-10 w-10 border border-slate-100">
-              <AvatarImage
-                src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${user.email}`}
-              />
-              <AvatarFallback>
-                {user.full_name?.charAt(0) || "L"}
-              </AvatarFallback>
-            </Avatar>
+            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-[#9A2A2A] to-[#6b1d1d] flex items-center justify-center shrink-0 shadow-sm shadow-[#9A2A2A]/20">
+              <span className="text-white text-xs font-black">{(landlordData?.full_name || user.full_name)?.charAt(0) || "L"}</span>
+            </div>
             <div className="flex-grow min-w-0">
-              <p className="text-sm font-bold text-gray-900 truncate">
+              <p className="text-xs font-bold text-white/80 truncate">
                 {landlordData?.full_name || user.full_name}
               </p>
-              <p className="text-xs text-gray-500 truncate">{user.email}</p>
+              <p className="text-[10px] text-white/30 truncate">{user.email}</p>
             </div>
           </div>
-          <Button
-            variant="outline"
-            size="sm"
+          <button
             onClick={handleLogout}
-            className="w-full flex items-center gap-2 justify-center text-red-600 hover:text-red-700 hover:bg-red-50"
+            className="w-full flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-red-400/70 hover:text-red-400 hover:bg-red-500/10 rounded-xl transition-all group"
           >
-            <LogOut className="h-4 w-4" /> Sign Out
-          </Button>
+            <div className="p-1.5 rounded-lg bg-red-500/10 group-hover:bg-red-500/20 transition-all">
+              <LogOut className="h-3.5 w-3.5" />
+            </div>
+            Sign Out
+          </button>
         </div>
       </aside>
 
       {/* Main Content */}
       <main className="flex-grow flex flex-col min-w-0 overflow-scroll">
         {/* Desktop Header */}
-        <header className="hidden lg:flex h-16 bg-white border-b px-8 items-center justify-between sticky top-0 z-10">
-          <div className="flex items-center gap-4 flex-grow max-w-xl">
+        <header className="hidden lg:flex h-16 bg-white/80 backdrop-blur-lg border-b border-slate-100 px-8 items-center justify-between sticky top-0 z-10 shadow-sm">
+          <div className="flex items-center gap-3 flex-grow max-w-xl">
             <div className="relative w-full">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
               <Input
                 placeholder="Search properties..."
-                className="pl-10 h-9 bg-slate-50 border-none focus-visible:ring-primary/20"
+                className="pl-10 h-9 bg-slate-50/80 border-slate-200/60 focus-visible:ring-[#9A2A2A]/30 focus-visible:border-[#9A2A2A]/40 rounded-xl"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
@@ -425,27 +475,20 @@ export default function LandlordDashboard() {
               size="icon"
               onClick={refreshData}
               disabled={dataLoading.properties}
+              className="text-slate-500 hover:text-slate-700 hover:bg-slate-100 shrink-0"
             >
-              <RefreshCw
-                className={`h-4 w-4 ${
-                  dataLoading.properties ? "animate-spin" : ""
-                }`}
-              />
+              <RefreshCw className={`h-4 w-4 ${dataLoading.properties ? "animate-spin" : ""}`} />
             </Button>
           </div>
-          <div className="flex items-center gap-4">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="relative text-gray-500"
-            >
-              <Bell className="h-5 w-5" />
-              <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
-            </Button>
+          <div className="flex items-center gap-3">
+            <button className="relative p-2 rounded-xl text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition-all">
+              <Bell className="h-4 w-4" />
+              <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-[#9A2A2A] rounded-full" />
+            </button>
             {isProfileComplete && (
               <Button
                 onClick={() => setActiveTab("add-property")}
-                className="bg-primary hover:bg-primary/90 transition-all font-raleway font-bold shadow-lg shadow-primary/20"
+                className="bg-[#9A2A2A] hover:bg-[#7a2222] text-white font-bold shadow-lg shadow-[#9A2A2A]/20 transition-all rounded-xl"
               >
                 <Plus className="h-4 w-4 mr-2" /> Add Property
               </Button>
@@ -456,77 +499,95 @@ export default function LandlordDashboard() {
                 className="text-amber-600 border-amber-200 bg-amber-50 px-3 py-1.5 flex items-center gap-2"
               >
                 <AlertTriangle className="h-3.5 w-3.5" />
-                Complete Profile to add Property
+                Complete Profile
               </Badge>
             )}
           </div>
         </header>
 
-        <div className="flex-grow overflow-y-auto p-4 lg:p-8">
+        <div className="flex-grow overflow-y-auto p-4 pb-24 lg:pb-8 lg:p-8">
           <div className="max-w-6xl mx-auto space-y-8">
             {activeTab === "dashboard" && (
               <>
                 {/* Welcome Section */}
                 <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
                   <div>
-                    <h1 className="text-2xl lg:text-3xl font-bold font-raleway text-slate-900">
-                      Good day,{" "}
-                      {landlordData?.full_name?.split(" ")[0] ||
-                        user.full_name?.split(" ")[0] ||
-                        "Landlord"}
-                      !
+                  <p className="text-xs text-[#9A2A2A] font-bold uppercase tracking-[0.2em] mb-1">Good day 👋</p>
+                    <h1 className="text-xl lg:text-3xl font-black font-raleway text-slate-900 leading-tight">
+                      {landlordData?.full_name?.split(" ")[0] || user.full_name?.split(" ")[0] || "Landlord"}
                     </h1>
-                    <p className="text-slate-500">
-                      Workspace management and property insights.
-                    </p>
+                    <p className="text-slate-500 text-xs mt-1">Workspace management and property insights.</p>
                   </div>
-                  <Badge
-                    className={`px-3 py-1 ${isProfileComplete ? "bg-primary/10 text-primary border-primary/20" : "bg-amber-100 text-amber-700 border-amber-200"}`}
-                  >
-                    Overall Health:{" "}
-                    {isProfileComplete ? "Good" : "Needs Completion"}
-                  </Badge>
+                  <div className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold border ${
+                    isProfileComplete
+                      ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                      : "bg-amber-50 text-amber-700 border-amber-200"
+                  }`}>
+                    <div className={`w-2 h-2 rounded-full ${isProfileComplete ? "bg-emerald-500" : "bg-amber-500 animate-pulse"}`} />
+                    {isProfileComplete ? "Profile Complete" : "Needs Completion"}
+                  </div>
                 </div>
 
                 {/* Stats Grid */}
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                {pendingAgreements.length > 0 && (
+                  <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-sm animate-in fade-in slide-in-from-top-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center shrink-0">
+                        <AlertTriangle className="h-5 w-5 text-amber-600" />
+                      </div>
+                      <div>
+                        <h4 className="font-bold text-amber-900">Action Required: Pending Upgrade Agreement</h4>
+                        <p className="text-sm text-amber-700">You have {pendingAgreements.length} pending property upgrade financing agreement(s) waiting for your signature.</p>
+                      </div>
+                    </div>
+                    <Button 
+                      className="bg-amber-600 hover:bg-amber-700 text-white shadow-md whitespace-nowrap"
+                      onClick={() => router.push(`/landlord/agreements/${pendingAgreements[0].unique_id}`)}
+                    >
+                      Review & Sign Now
+                    </Button>
+                  </div>
+                )}
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                   {[
                     {
                       label: "Total Properties",
                       value: stats.totalProperties,
                       icon: Building,
-                      color: "bg-blue-600 shadow-blue-200",
+                      gradient: "from-blue-600 to-blue-700",
+                      shadow: "shadow-blue-200",
                     },
                     {
                       label: "Occupancy Rate",
                       value: `${occupancyRate}%`,
                       icon: Home,
-                      color: "bg-emerald-600 shadow-emerald-200",
+                      gradient: "from-emerald-500 to-emerald-700",
+                      shadow: "shadow-emerald-200",
                     },
                     {
                       label: "Monthly Revenue",
                       value: `₦${stats.totalRevenue.toLocaleString()}`,
                       icon: CreditCard,
-                      color: "bg-violet-600 shadow-violet-200",
+                      gradient: "from-[#9A2A2A] to-[#6b1d1d]",
+                      shadow: "shadow-red-200",
                     },
                   ].map((s, i) => (
                     <Card
                       key={i}
-                      className="border-none shadow-sm hover:shadow-md transition-shadow"
+                      className="border border-slate-100 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 overflow-hidden"
                     >
-                      <CardContent className="p-4 flex items-center justify-between">
+                      <CardContent className="p-3 sm:p-5 flex items-center justify-between">
                         <div>
-                          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                          <p className="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-widest">
                             {s.label}
                           </p>
-                          <h3 className="text-xl lg:text-2xl font-bold text-slate-900 mt-1">
+                          <h3 className="text-lg sm:text-2xl font-black text-slate-900 mt-0.5 font-raleway truncate">
                             {s.value}
                           </h3>
                         </div>
-                        <div
-                          className={`${s.color} p-3 rounded-xl text-white shadow-lg`}
-                        >
-                          <s.icon className="h-5 w-5" />
+                        <div className={`bg-gradient-to-br ${s.gradient} p-2 sm:p-3 rounded-xl sm:rounded-2xl text-white shadow-lg ${s.shadow}`}>
+                          <s.icon className="h-4 w-4 sm:h-5 sm:w-5" />
                         </div>
                       </CardContent>
                     </Card>
@@ -536,9 +597,60 @@ export default function LandlordDashboard() {
                 {/* Main Content Areas */}
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                   {/* Quick Actions or Placeholders if needed */}
-                  <div className="lg:col-span-2 space-y-8">
-                    {/* You could add a quick guide or empty state summary here */}
-                  </div>
+                    {/* Financial Pulse Section */}
+                    <div className="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm space-y-6">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h4 className="text-lg font-black text-slate-900 font-raleway">Financial Pulse</h4>
+                          <p className="text-xs text-slate-500 font-medium">Consolidated view of your capital and yield.</p>
+                        </div>
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          className="text-[#9A2A2A] font-bold text-xs hover:bg-[#9A2A2A]/5 rounded-xl gap-1"
+                          onClick={() => setActiveTab("finance")}
+                        >
+                          Full Treasury <ArrowUpRight className="h-3 w-3" />
+                        </Button>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div className="p-4 bg-slate-50 rounded-2xl space-y-1">
+                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Total Capital Active</p>
+                          <h5 className="text-xl font-black text-slate-900">₦{stats.totalLoanTaken.toLocaleString()}</h5>
+                          <div className="w-full bg-slate-200 h-1 rounded-full overflow-hidden mt-2">
+                             <div 
+                               className="bg-[#C9A227] h-full" 
+                               style={{ width: `${stats.totalLoanTaken > 0 ? (stats.totalPayback / stats.totalLoanTaken) * 10 : 0}%` }}
+                             />
+                          </div>
+                        </div>
+
+                        <div className="p-4 bg-slate-50 rounded-2xl space-y-1">
+                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Net Monthly Forecast</p>
+                          <h5 className="text-xl font-black text-emerald-600">₦{(stats.totalRevenue - stats.monthlyAmortization).toLocaleString()}</h5>
+                          <p className="text-[9px] text-slate-400 font-medium italic">After debt servicing</p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-4 pt-2">
+                        <div className="flex -space-x-2">
+                          {properties.slice(0, 3).map((p, i) => (
+                            <div key={i} className="w-8 h-8 rounded-full border-2 border-white bg-slate-100 flex items-center justify-center text-[10px] font-bold text-slate-400">
+                              {p.typology?.charAt(0) || 'P'}
+                            </div>
+                          ))}
+                          {properties.length > 3 && (
+                            <div className="w-8 h-8 rounded-full border-2 border-white bg-[#9A2A2A] flex items-center justify-center text-[10px] font-bold text-white">
+                              +{properties.length - 3}
+                            </div>
+                          )}
+                        </div>
+                        <p className="text-[10px] text-slate-500 font-medium">Tracking across <span className="font-bold text-slate-900">{properties.length} active listings</span></p>
+                      </div>
+                    </div>
+
+                    {/* Quick Guide or Other content */}
 
                   <div className="space-y-8">
                     <Card
@@ -609,7 +721,7 @@ export default function LandlordDashboard() {
               <PropertiesTab 
                 properties={properties} 
                 drafts={drafts}
-                loading={dataLoading} 
+                loading={dataLoading.properties} 
                 onAddProperty={() => {
                   if (isProfileComplete) {
                     setActiveTab("add-property");
@@ -661,21 +773,7 @@ export default function LandlordDashboard() {
 
 
             {activeTab === "finance" && (
-              <div className="space-y-6">
-                <div>
-                  <h2 className="text-2xl font-bold text-slate-900 font-raleway">Financial Overview</h2>
-                  <p className="text-slate-500 text-sm">Track your earnings and payout history.</p>
-                </div>
-                <Card className="border-dashed border-2 py-12 text-center bg-transparent">
-                  <CardContent className="space-y-4">
-                    <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto">
-                      <CreditCard className="h-8 w-8 text-slate-300" />
-                    </div>
-                    <p className="text-slate-500 font-medium">Financial tracking will be available soon.</p>
-                    <p className="text-xs text-slate-400">We're finalizing your payout dashboard.</p>
-                  </CardContent>
-                </Card>
-              </div>
+              <FinanceTab properties={properties} />
             )}
 
             {activeTab === "settings" && (
@@ -931,7 +1029,7 @@ export default function LandlordDashboard() {
                                             file,
                                             "cac_cert",
                                             false,
-                                            (url) => {
+                                            (url: string) => {
                                               setEditFormData((prev: any) => ({
                                                 ...prev,
                                                 cac_cert: url,
@@ -949,7 +1047,7 @@ export default function LandlordDashboard() {
                                     >
                                       <div className="flex items-center gap-2">
                                         {uploadedFiles.find(
-                                          (f) =>
+                                          (f: any) =>
                                             f.type === "cac_cert" &&
                                             f.uploading,
                                         ) ? (
@@ -959,7 +1057,7 @@ export default function LandlordDashboard() {
                                         )}
                                         <span className="text-sm font-medium text-slate-500 group-hover:text-slate-700">
                                           {uploadedFiles.find(
-                                            (f) =>
+                                            (f: any) =>
                                               f.type === "cac_cert" &&
                                               f.uploading,
                                           )
@@ -1080,6 +1178,35 @@ export default function LandlordDashboard() {
         </div>
       </main>
 
+      {/* Mobile Bottom Navigation */}
+      <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-30 bg-[#0a0a0a] border-t border-white/10">
+        <div className="flex items-stretch h-16">
+          {[
+            { id: "dashboard", label: "Home", icon: LayoutDashboard },
+            { id: "properties", label: "Properties", icon: Building },
+            { id: "finance", label: "Finance", icon: BarChart3 },
+            { id: "settings", label: "Profile", icon: Settings },
+          ].map((item) => {
+            const Icon = item.icon;
+            const isActive = activeTab === item.id;
+            return (
+              <button
+                key={item.id}
+                onClick={() => setActiveTab(item.id)}
+                className={`flex-1 flex flex-col items-center justify-center gap-1 transition-all ${
+                  isActive ? "text-[#f1d57c]" : "text-white/40 hover:text-white/70"
+                }`}
+              >
+                <div className={`relative p-1.5 rounded-xl transition-all ${isActive ? "bg-[#9A2A2A]/30" : ""}`}>
+                  <Icon className="h-5 w-5" />
+                  {isActive && <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 w-1 h-1 bg-[#9A2A2A] rounded-full" />}
+                </div>
+                <span className="text-[10px] font-semibold tracking-wide">{item.label}</span>
+              </button>
+            );
+          })}
+        </div>
+      </nav>
 
     </div>
   );

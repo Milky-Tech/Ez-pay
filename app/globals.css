@@ -24,6 +24,8 @@
     --input: 0 0% 89.8%;
     --ring: 0 63% 31%;
     --radius: 0.5rem;
+    --gold: #C9A227;
+    --gold-light: #f1d57c;
   }
 }
 
@@ -51,5 +53,78 @@
   }
   .font-great-vibes {
     font-family: var(--font-great-vibes);
+  }
+
+  /* Premium Glassmorphism */
+  .glass {
+    background: rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+  }
+  .glass-dark {
+    background: rgba(10, 10, 10, 0.75);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+  }
+  .glass-gold {
+    background: rgba(201, 162, 39, 0.08);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(201, 162, 39, 0.2);
+  }
+
+  /* Premium Scrollbar */
+  .scrollbar-premium::-webkit-scrollbar {
+    width: 4px;
+  }
+  .scrollbar-premium::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .scrollbar-premium::-webkit-scrollbar-thumb {
+    background: rgba(201, 162, 39, 0.3);
+    border-radius: 99px;
+  }
+  .scrollbar-premium::-webkit-scrollbar-thumb:hover {
+    background: rgba(201, 162, 39, 0.6);
+  }
+
+  /* Hide scrollbar but keep scroll */
+  .no-scrollbar::-webkit-scrollbar,
+  .scrollbar-none::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar,
+  .scrollbar-none {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  /* Gold gradient text */
+  .text-gold-gradient {
+    background: linear-gradient(90deg, #C9A227, #f1d57c, #C9A227);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  /* Premium card hover */
+  .card-premium {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  .card-premium:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 20px 40px rgba(154, 42, 42, 0.1);
+  }
+
+  /* Sidebar active glow */
+  .nav-active-glow {
+    box-shadow: inset 4px 0 0 #9A2A2A, 0 0 20px rgba(154, 42, 42, 0.05);
+  }
+
+  /* Step indicator */
+  .step-completed {
+    background: linear-gradient(135deg, #C9A227, #f1d57c);
   }
 }

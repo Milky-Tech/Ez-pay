@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
+import { useCachedFetch } from "@/hooks/useCachedFetch";
 import Header from "@/app/components/header";
 import ChatWidget from "@/app/components/ui/chat-widget";
 import { Button } from "@/app/components/ui/button";
@@ -62,6 +63,7 @@ import {
 import { type Property } from "@/lib/types";
 import { useAuth } from "@/context/authcontext";
 import Footer from "@/app/components/footer";
+import InspectionCalendar, { prefetchInspectionSlots } from "@/app/components/ui/InspectionCalendar";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL;
 const BASEURL_SITE = "https://ezpay.bridgenthomes.com";
@@ -88,13 +90,43 @@ export default function PropertyDetailsPage() {
   const params = useParams();
   const codename = params.codename as string;
   const [property, setProperty] = useState<Property | null>(null);
-  const [loading, setLoading] = useState(true);
   const [relatedProperties, setRelatedProperties] = useState<Property[]>([]);
-  
+
+  const { data: cachedProperty, loading } = useCachedFetch<Property>(
+    codename ? `${API_BASE_URL}/listings/${codename}` : null
+  );
+
+  // Sync cached data into local state
+  useEffect(() => {
+    if (cachedProperty) {
+      setProperty(cachedProperty);
+    }
+  }, [cachedProperty]);
+
+  // Prefetch calendar slots in the background instantly
+  useEffect(() => {
+    prefetchInspectionSlots(new Date());
+  }, []);
+
+  // Fetch related properties once we know the area
+  const { data: allListings } = useCachedFetch<Property[]>(
+    cachedProperty?.area ? `${API_BASE_URL}/listings` : null
+  );
+
+  useEffect(() => {
+    if (allListings && cachedProperty) {
+      const related = (Array.isArray(allListings) ? allListings : [])
+        .filter((p: Property) => p.area === cachedProperty.area && p.id !== cachedProperty.id)
+        .slice(0, 3);
+      setRelatedProperties(related);
+    }
+  }, [allListings, cachedProperty]);
+
   const [inspectionType, setInspectionType] = useState<"physical" | "virtual">(
     "physical"
   );
   const [inspectionDate, setInspectionDate] = useState("");
+  const [inspectionTime, setInspectionTime] = useState("");
   const [inspectionEmail, setInspectionEmail] = useState("");
   const [inspectionPhone, setInspectionPhone] = useState("");
   const [showConfirmation, setShowConfirmation] = useState(false);
@@ -111,44 +143,7 @@ export default function PropertyDetailsPage() {
 
   const { user, token } = useAuth();
 
-  useEffect(() => {
-    const fetchProperty = async () => {
-      try {
-        const response = await fetch(`${API_BASE_URL}/listings/${codename}`);
-        if (!response.ok) throw new Error("Listing not found");
-        const data = await response.json();
-        const propertyData = data.data || data;
-        setProperty(propertyData);
-        
-        // Fetch related properties in the same area
-        if (propertyData?.area) {
-          const allListingsResponse = await fetch(`${API_BASE_URL}/listings`);
-          if (allListingsResponse.ok) {
-            const allListingsData = await allListingsResponse.json();
-            const allListings = allListingsData.data || allListingsData;
-            
-            // Filter by same area, exclude current property, take first 3
-            const related = allListings
-              .filter((p: Property) => 
-                p.area === propertyData.area && 
-                p.id !== propertyData.id
-              )
-              .slice(0, 3);
-            
-            setRelatedProperties(related);
-          }
-        }
-      } catch (error) {
-        console.error("Error fetching listing:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
 
-    if (codename) {
-      fetchProperty();
-    }
-  }, [codename]);
 
   // Check for payment verification on page load
   useEffect(() => {
@@ -167,7 +162,8 @@ export default function PropertyDetailsPage() {
             setBookingDetails({
               booking_id: data.booking.payment_reference || reference,
               inspection_type: data.booking.inspection_type,
-              preferred_date: data.booking.preferred_date,
+              scheduled_date: data.booking.scheduled_date || data.booking.preferred_date,
+              scheduled_time: data.booking.scheduled_time || "",
               email: data.booking.email,
               property_name: property?.typology || "Property",
             });
@@ -269,6 +265,7 @@ export default function PropertyDetailsPage() {
 
     // Required fields validation
     if (!inspectionDate) errors.push("Preferred date is required");
+    if (!inspectionTime) errors.push("Preferred time slot is required");
     if (!inspectionEmail) errors.push("Email address is required");
     if (!inspectionPhone) errors.push("Phone number is required");
     if (!policyAccepted) errors.push("You must accept the refund & cancellation policy");
@@ -333,10 +330,13 @@ export default function PropertyDetailsPage() {
       // Create payload matching the API endpoint requirements
       const payload = {
         inspection_type: inspectionType,
-        preferred_date: inspectionDate,
+        preferred_date: inspectionDate, // Keeping preferred_date for backwards compatibility if needed
+        scheduled_date: inspectionDate,
+        scheduled_time: inspectionTime,
         email: inspectionEmail,
         phone_number: inspectionPhone,
         house_listing_id: property?.id ? parseInt(property.id) : undefined,
+        callback_url: window.location.href, // Send the current page URL so Paystack redirects back here
       };
 
       // Call the API endpoint
@@ -365,7 +365,8 @@ export default function PropertyDetailsPage() {
         setBookingDetails({
           booking_id: data.booking.payment_reference || data.reference,
           inspection_type: data.booking.inspection_type,
-          preferred_date: data.booking.preferred_date,
+          scheduled_date: data.booking.scheduled_date || data.booking.preferred_date,
+          scheduled_time: data.booking.scheduled_time || "",
           email: data.booking.email,
           property_name: property?.typology,
         });
@@ -373,6 +374,7 @@ export default function PropertyDetailsPage() {
 
         // Reset form
         setInspectionDate("");
+        setInspectionTime("");
         setInspectionEmail("");
         setInspectionPhone("");
         setPolicyAccepted(false);
@@ -454,9 +456,20 @@ export default function PropertyDetailsPage() {
   }
 
   // Calculate price breakdown
-  const monthlyCost = property.monthly_rent_anchor || (property.rent * 1.1 / 12);
+  const monthlyRent = property.monthly_rent || (property.rent * 1.1 / 12);
   const annualCost = property.desired_annual_rent || (property.rent * 1.1);
-  const securityDeposit = monthlyCost * 3; // EZPAY Anchor standard
+  
+  // EZ Anchor: 4x monthly rent (1 month rent + 3 months caution)
+  const upfrontAnchor = monthlyRent * 4;
+  const cautionFeeAnchor = monthlyRent * 3;
+  
+  // EZ Ascend: 1x monthly rent (Zero caution fee, requires guarantor)
+  const upfrontAscend = monthlyRent;
+  const cautionFeeAscend = 0;
+
+  // For General Display
+  const monthlyCost = monthlyRent;
+  const securityDeposit = cautionFeeAnchor; // Default display for Anchor
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -593,39 +606,50 @@ export default function PropertyDetailsPage() {
                 <CardContent className="p-8">
                   <div className="mb-8">
                     <div className="flex flex-col gap-4">
-                      <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                      <div className="bg-slate-50 p-5 rounded-3xl border border-slate-100 transition-all hover:shadow-md">
                         <div className="flex justify-between items-center mb-1">
                           <p className="text-[10px] font-bold text-primary uppercase tracking-wider">EZPAY ANCHOR</p>
-                          <Badge variant="outline" className="text-[10px] h-5">Standard</Badge>
+                          <Badge variant="outline" className="text-[10px] h-5 bg-white border-slate-200">Standard</Badge>
                         </div>
                         <div className="flex items-baseline gap-1">
                           <p className="text-3xl font-bold text-[#8B2323] font-montserrat">
-                            {formatPrice(property.monthly_rent_anchor || monthlyCost)}
+                            {formatPrice(monthlyRent)}
                           </p>
                           <span className="text-gray-400 text-xs">/month</span>
                         </div>
-                        <p className="text-[10px] text-gray-400 font-montserrat mt-1">
-                          Refundable Caution Fee: {formatPrice((property.monthly_rent_anchor || monthlyCost) * 3)} • Requires Guarantor
-                        </p>
+                        <div className="mt-2 space-y-1">
+                          <p className="text-[10px] text-gray-900 font-bold">
+                            First Payment: <span className="text-[#8B2323]">{formatPrice(upfrontAnchor)}</span>
+                          </p>
+                          <p className="text-[10px] text-gray-400 font-montserrat italic">
+                            Includes 1st Month Rent + {formatPrice(cautionFeeAnchor)} Caution • No guarantor required
+                          </p>
+                        </div>
                       </div>
 
-                      <div className="bg-primary/5 p-4 rounded-2xl border border-primary/10">
+                      <div className="bg-primary/5 p-5 rounded-3xl border border-primary/10 transition-all hover:shadow-md relative overflow-hidden group">
+                        <div className="absolute -right-4 -top-4 w-16 h-16 bg-primary/10 rounded-full blur-2xl group-hover:bg-primary/20 transition-all"></div>
                         <div className="flex justify-between items-center mb-1">
                           <p className="text-[10px] font-bold text-primary uppercase tracking-wider">EZPAY ASCEND</p>
-                          <Badge className="bg-primary text-white text-[10px] h-5 border-none">Zero Caution</Badge>
+                          <Badge className="bg-primary text-white text-[10px] h-5 border-none shadow-sm">Graduated</Badge>
                         </div>
                         <div className="flex items-baseline gap-1">
                           <p className="text-3xl font-bold text-[#8B2323] font-montserrat">
-                            {formatPrice(property.monthly_rent_ascend || (monthlyCost * 0.8))}
+                            {formatPrice(monthlyRent)}
                           </p>
                           <span className="text-gray-400 text-xs">/month</span>
                         </div>
-                        <p className="text-[10px] text-gray-400 font-montserrat mt-1">
-                          No caution fee required • Zero upfront costs
-                        </p>
+                        <div className="mt-2 space-y-1">
+                          <p className="text-[10px] text-primary font-bold">
+                            First Payment: <span className="text-gray-900">{formatPrice(upfrontAscend)}</span>
+                          </p>
+                          <p className="text-[10px] text-gray-400 font-montserrat">
+                            Zero caution fee • Compulsory Guarantor Required
+                          </p>
+                        </div>
                       </div>
                     </div>
-                    <p className="text-xs text-gray-400 mt-4 font-montserrat">
+                    <p className="text-[11px] text-gray-400 mt-5 font-medium text-center">
                       Annual Total: {formatPrice(annualCost)}
                     </p>
                   </div>
@@ -637,9 +661,9 @@ export default function PropertyDetailsPage() {
                           Book Inspection
                         </Button>
                       </DialogTrigger>
-                      <DialogContent className="max-w-md overflow-y-auto h-[96vh]">
+                      <DialogContent className="max-w-md overflow-y-auto max-h-[96vh] rounded-2xl border-slate-200/60 shadow-2xl bg-white">
                         <DialogHeader>
-                          <DialogTitle className="font-raleway">
+                          <DialogTitle className="font-raleway font-black text-2xl text-slate-900">
                             Book an Inspection
                           </DialogTitle>
                         </DialogHeader>
@@ -710,22 +734,25 @@ export default function PropertyDetailsPage() {
                             </RadioGroup>
                           </div>
 
-                          <div>
-                            <Label htmlFor="date">Preferred Date *</Label>
-                            <Input
-                              id="date"
-                              type="date"
-                              value={inspectionDate}
-                              onChange={(e) =>
-                                setInspectionDate(e.target.value)
-                              }
-                              required
-                              min={new Date().toISOString().split("T")[0]}
-                              className="mt-1"
+                          <div className="bg-gray-50/50 p-2 rounded-xl border border-gray-100">
+                            <InspectionCalendar
+                              onSelectSlot={(date, time) => {
+                                setInspectionDate(date);
+                                setInspectionTime(time);
+                              }}
+                              selectedDate={inspectionDate}
+                              selectedTime={inspectionTime}
                             />
-                            <p className="text-xs text-gray-500 mt-1">
-                              Inspections available Monday-Friday, 9AM-5PM
-                            </p>
+                            {!inspectionDate && (
+                              <p className="text-xs text-red-500 mt-2 text-center">
+                                Please select an available date
+                              </p>
+                            )}
+                            {inspectionDate && !inspectionTime && (
+                              <p className="text-xs text-amber-500 mt-2 text-center">
+                                Please select an available time slot
+                              </p>
+                            )}
                           </div>
 
                           <div>
@@ -761,20 +788,20 @@ export default function PropertyDetailsPage() {
                             </p>
                           </div>
 
-                          <div className="space-y-4 pt-4 border-t">
-                            <div className="bg-gray-50 p-3 rounded-lg border text-[11px] leading-relaxed max-h-40 overflow-y-auto whitespace-pre-line text-gray-700">
+                          <div className="space-y-4 pt-4 border-t border-slate-100">
+                            <div className="bg-slate-50/80 p-3 rounded-xl border border-slate-200/60 text-[11px] leading-relaxed max-h-40 overflow-y-auto whitespace-pre-line text-slate-600">
                               {INSPECTION_POLICY}
                             </div>
-                            <div className="flex items-start space-x-2">
+                            <div className="flex items-start space-x-3">
                               <input
                                 type="checkbox"
                                 id="policy"
                                 checked={policyAccepted}
                                 onChange={(e) => setPolicyAccepted(e.target.checked)}
-                                className="mt-1 h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                                className="mt-1 h-4 w-4 rounded border-slate-300 text-[#9A2A2A] focus:ring-[#9A2A2A]"
                               />
-                              <Label htmlFor="policy" className="text-sm font-normal cursor-pointer leading-snug">
-                                I have read and accept the <span className="font-bold text-primary">EZPAY Inspection Refund & Cancellation Policy</span>
+                              <Label htmlFor="policy" className="text-sm font-medium cursor-pointer leading-snug text-slate-700">
+                                I have read and accept the <span className="font-bold text-[#9A2A2A]">EZPAY Inspection Refund & Cancellation Policy</span>
                               </Label>
                             </div>
                           </div>
@@ -794,7 +821,7 @@ export default function PropertyDetailsPage() {
 
                           <Button
                             type="submit"
-                            className="w-full bg-[#8B2323] hover:bg-[#6b1b1b] font-montserrat"
+                            className="w-full bg-[#9A2A2A] hover:bg-[#7a2222] text-white font-bold h-12 shadow-lg shadow-[#9A2A2A]/20 transition-all rounded-xl"
                             disabled={isBooking || !policyAccepted}
                           >
                             {isBooking ? (
@@ -897,32 +924,32 @@ export default function PropertyDetailsPage() {
               {/* Quick Stats */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
                 <div className="rounded-lg p-4 text-center">
-                  <Bed className="h-8 w-8 text-[#888888] mx-auto mb-2" />
-                  <p className="text-2xl font-bold text-[#888888]">
-                    {property.bedrooms}
+                  <Bed className="h-8 w-8 text-[#8B2323] mx-auto mb-2" />
+                  <p className="text-2xl font-bold text-gray-900">
+                    {property.bedrooms || 0}
                   </p>
-                  <p className="text-sm text-gray-600">Bedrooms</p>
+                  <p className="text-sm text-gray-600 font-medium">Bedrooms</p>
                 </div>
                 <div className="rounded-lg p-4 text-center">
-                  <Bath className="h-8 w-8 text-[#888888] mx-auto mb-2" />
-                  <p className="text-2xl font-bold text-[#888888]">
-                    {property.bathrooms}
+                  <Bath className="h-8 w-8 text-[#8B2323] mx-auto mb-2" />
+                  <p className="text-2xl font-bold text-gray-900">
+                    {property.bathrooms || 0}
                   </p>
-                  <p className="text-sm text-gray-600">Bathrooms</p>
+                  <p className="text-sm text-gray-600 font-medium">Bathrooms</p>
                 </div>
                 <div className="rounded-lg p-4 text-center">
-                  <Square className="h-8 w-8 text-[#888888] mx-auto mb-2" />
-                  <p className="text-2xl font-bold text-[#888888]">
-                    {property.square_feet?.toLocaleString()}
+                  <Car className="h-8 w-8 text-[#8B2323] mx-auto mb-2" />
+                  <p className="text-2xl font-bold text-gray-900">
+                    {property.parking_space || 0}
                   </p>
-                  <p className="text-sm text-gray-600">Square Feet</p>
+                  <p className="text-sm text-gray-600 font-medium">Parking</p>
                 </div>
                 <div className="rounded-lg p-4 text-center">
-                  <Home className="h-8 w-8 text-[#888888] mx-auto mb-2" />
-                  <p className="text-2xl font-bold text-[#888888]">
-                    {property.no_of_units}
+                  <Square className="h-8 w-8 text-[#8B2323] mx-auto mb-2" />
+                  <p className="text-2xl font-bold text-gray-900">
+                    {property.square_feet?.toLocaleString() || "N/A"}
                   </p>
-                  <p className="text-sm text-gray-600">Parking</p>
+                  <p className="text-sm text-gray-600 font-medium">Square Feet</p>
                 </div>
               </div>
 
@@ -955,34 +982,30 @@ export default function PropertyDetailsPage() {
                 {/* Price Breakdown Section */}
                 <div className="bg-[#8B2323]/5 rounded-2xl p-6 border border-[#8B2323]/10 flex flex-col justify-center">
                   <h3 className="text-lg font-semibold text-[#8B2323] mb-4 font-raleway">
-                    Price Breakdown
+                    Standard Payment (EZ Anchor)
                   </h3>
                   <div className="space-y-4">
                     <div className="flex justify-between">
                       <span className="text-gray-600">Monthly Rent:</span>
                       <span className="font-semibold text-lg">
-                        {formatPrice(monthlyCost)}
+                        {formatPrice(monthlyRent)}
                       </span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-gray-600">Annual Rent:</span>
+                      <span className="text-gray-600">Caution Fee (Refundable):</span>
                       <span className="font-semibold text-lg">
-                        {formatPrice(annualCost)}
+                        {formatPrice(cautionFeeAnchor)}
                       </span>
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">
-                        Security Deposit (2 months):
-                      </span>
-                      <span className="font-semibold text-lg">
-                        {formatPrice(securityDeposit)}
-                      </span>
+                    <div className="flex justify-between items-center text-xs text-gray-500 italic">
+                      <span>* No guarantor required</span>
+                      <span>* 3 months caution deposit</span>
                     </div>
                     <div className="border-t border-[#8B2323]/20 pt-4 mt-2">
                       <div className="flex justify-between text-xl font-bold text-[#8B2323]">
-                        <span>Initial Payment:</span>
+                        <span>Initial Total:</span>
                         <span>
-                          {formatPrice(monthlyCost + securityDeposit)}
+                          {formatPrice(upfrontAnchor)}
                         </span>
                       </div>
                     </div>
@@ -1213,7 +1236,7 @@ export default function PropertyDetailsPage() {
             
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
               {relatedProperties.map((relatedProperty) => {
-                const monthlyCost = (relatedProperty.rent * 1.1) / 12 / (relatedProperty.no_of_units || 1);
+                const relatedMonthlyCost = relatedProperty.monthly_rent || (relatedProperty.rent * 1.1 / 12);
                 
                 // Get first interior room image or fallback
                 let imageUrl = "";
@@ -1260,7 +1283,7 @@ export default function PropertyDetailsPage() {
                     <CardContent className="p-6">
                       {/* Price */}
                       <p className="text-2xl font-bold text-gray-900 mb-2">
-                        {formatPrice(monthlyCost)}
+                        {formatPrice(relatedMonthlyCost)}
                         <span className="text-sm font-normal text-gray-500">
                           /month
                         </span>
@@ -1280,17 +1303,17 @@ export default function PropertyDetailsPage() {
                       <div className="flex items-center gap-4 text-sm text-gray-500 mb-5 pb-5 border-b border-gray-100">
                         <div className="flex items-center gap-1.5">
                           <Bed className="h-4 w-4" />
-                          <span>{relatedProperty.bedrooms} Beds</span>
+                          <span>{relatedProperty.bedrooms || 0} Beds</span>
                         </div>
 
                         <div className="flex items-center gap-1.5">
                           <Bath className="h-4 w-4" />
-                          <span>{relatedProperty.bathrooms} Bath</span>
+                          <span>{relatedProperty.bathrooms || 0} Bath</span>
                         </div>
 
                         <div className="flex items-center gap-1.5">
                           <Car className="h-4 w-4" />
-                          <span>2 Parking</span>
+                          <span>{relatedProperty.parking_space || 0} Parking</span>
                         </div>
                       </div>
 
