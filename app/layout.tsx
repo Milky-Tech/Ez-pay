@@ -38,9 +38,21 @@ const redressed = Redressed({
 });
 
 export const metadata: Metadata = {
-  title: "Bridgent HomeStep EZPAY - Your Path to Monthly Living",
+  title: {
+    default: "Bridgent HomeStep EZPAY - Rent Verified Homes Monthly in Nigeria",
+    template: "%s | Ez-pay"
+  },
   description:
-    "End the stress of upfront yearly rent. Access verified, high-end homes with guaranteed power and predictable monthly payments.",
+    "Stop paying upfront yearly rent. Access verified, high-end homes in Lagos, Abuja, and beyond with guaranteed power and predictable monthly payments. The easiest way to rent in Nigeria.",
+  keywords: ["monthly rent Nigeria", "rent pay monthly Lagos", "verified homes for rent", "no upfront rent", "Bridgent Ez-pay", "property financing Nigeria"],
+  authors: [{ name: "Bridgent Homes" }],
+  creator: "Bridgent Homes",
+  publisher: "Bridgent Homes",
+  formatDetection: {
+    email: false,
+    address: false,
+    telephone: false,
+  },
   icons: {
     icon: [
       { url: "/images/EZPAY-15.png", sizes: "any", type: "image/png" },
@@ -50,16 +62,17 @@ export const metadata: Metadata = {
     ],
   },
   openGraph: {
-    title: "Bridgent HomeStep EZPAY",
+    title: "Bridgent HomeStep EZPAY - Rent Verified Homes Monthly in Nigeria",
     description:
-      "Your Path to Monthly Living. Access verified, high-end homes with guaranteed power.",
+      "Access verified, high-end homes with guaranteed power. Predictable monthly payments, no upfront yearly rent stress.",
     url: "https://ezpay.bridgenthomes.com",
     siteName: "EZPAY",
     images: [
       {
         url: "/images/EZPAY-15.png",
-        width: 800,
-        height: 600,
+        width: 1200,
+        height: 630,
+        alt: "Ez-pay - Your Path to Monthly Living",
       },
     ],
     locale: "en_US",
@@ -67,10 +80,22 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "Bridgent HomeStep EZPAY",
+    title: "Bridgent HomeStep EZPAY - Rent Verified Homes Monthly",
     description:
-      "Your Path to Monthly Living. Access verified, high-end homes with guaranteed power.",
+      "Stop paying upfront yearly rent. Access verified, high-end homes with guaranteed power and monthly payments.",
     images: ["/images/EZPAY-15.png"],
+    creator: "@bridgenthomes",
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      'max-video-preview': -1,
+      'max-image-preview': 'large',
+      'max-snippet': -1,
+    },
   },
 };
 
