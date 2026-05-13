@@ -40,8 +40,8 @@ const Footer = () => {
           <div className="space-y-4">
             <div className="flex items-center gap-2 text-white font-semibold">
               <img
-                src="/images/logo-ezpay.png"
-                className="text-primary h-8 w-auto"
+                src="/images/EZPAY-20.png"
+                className="h-12 w-auto"
                 alt="EZPAY Logo"
               />
             </div>
@@ -134,7 +134,7 @@ const Footer = () => {
 
         {/* Bottom Bar */}
         <div className="border-t border-zinc-800 py-6 text-center text-xs text-gray-500">
-          © 2025 Bridgett Homestep EZPAY. All Rights Reserved
+          © {new Date().getFullYear()} Bridgent Homestep EZPAY. All Rights Reserved
         </div>
       </footer>
     </div>
