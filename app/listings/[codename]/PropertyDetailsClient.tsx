@@ -873,7 +873,7 @@ export default function PropertyDetailsClient({
                       href={`/listings/apply/${property.code_name || property.id}`}
                       className="flex-1"
                     >
-                      <Button variant="outline" className="w-full border-[#8B2323] text-[#8B2323] hover:bg-[#8B2323]/5 rounded-full py-6 text-base font-medium">
+                      <Button variant="outline" className="w-full border-[#8B2323] text-[#8B2323] hover:bg-[#8B2323]/5 rounded-full py-6 text-base font-medium transition-all hover:scale-[1.02] active:scale-[0.98]">
                         Apply for Apartment
                       </Button>
                     </Link>

@@ -59,6 +59,16 @@ export interface Property {
   state_of_origin?: string;
   lga_of_origin?: string;
   residential_address?: string;
+  ai_overall_score?: number;
+  ai_status?: string;
+  ai_confidence?: number;
+  ai_category_scores?: Record<string, number>;
+  ai_detected_objects?: Record<string, boolean>;
+  ai_ocr_text?: string;
+  ai_flags?: any[];
+  ai_recommendations?: string[];
+  ai_consistency_report?: any;
+  ai_analyzed_at?: string;
   [key: string]: any;
 }
 

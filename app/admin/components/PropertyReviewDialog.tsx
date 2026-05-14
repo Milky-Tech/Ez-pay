@@ -60,7 +60,9 @@ import {
   FileCheck,
   ShieldAlert,
   Wallet,
-  ArrowRight
+  ArrowRight,
+  Sparkles,
+  Brain,
 } from "lucide-react";
 
 // API Base URL
@@ -81,6 +83,7 @@ interface PropertyReviewDialogProps {
   ) => Promise<void>;
   onReject: (property: Property, reason?: string) => Promise<void>;
   refreshData?: () => void;
+  offices?: any[];
 }
 
 // Image Carousel Component
@@ -264,6 +267,7 @@ const PropertyReviewDialog = ({
   onApprove,
   onReject,
   refreshData,
+  offices,
 }: PropertyReviewDialogProps) => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
@@ -315,9 +319,15 @@ const PropertyReviewDialog = ({
     const upfrontPremium = (rentPremium * 4) / 12;
 
     // 1. Calculate Inspection Fee
-    // Dummy office location in Sangotedo, Lekki-Epe Expressway, Lagos
-    const officeLat = 6.4735;
-    const officeLng = 3.6190;
+    // Find relevant office based on state or fallback to dummy
+    const relevantOffice = offices?.find(o => {
+      const searchString = `${o.name} ${o.address} ${o.state || ""}`.toLowerCase();
+      const propState = (property.state || "").toLowerCase();
+      return searchString.includes(propState);
+    }) || offices?.[0];
+
+    const officeLat = relevantOffice?.latitude || 6.4735;
+    const officeLng = relevantOffice?.longitude || 3.6190;
     const propLat = property.latitude || Number(property.locationData?.lat) || officeLat;
     const propLng = property.longitude || Number(property.locationData?.long) || officeLng;
     
@@ -583,6 +593,23 @@ const PropertyReviewDialog = ({
           {/* Left Column: Details & Media */}
           <div className="lg:col-span-2 space-y-12">
             
+            {/* AI Intelligence Section */}
+            <section className="space-y-6">
+              <div className="flex items-center justify-between">
+                <h3 className="text-xl font-bold text-slate-900 font-raleway flex items-center gap-2">
+                  <Brain className="h-5 w-5 text-purple-600" />
+                  AI Property Intelligence
+                </h3>
+                <Badge className="bg-purple-50 text-purple-700 border-purple-100 font-black text-[10px] uppercase tracking-widest px-3">
+                  Powered by EZ-AI
+                </Badge>
+              </div>
+              
+              <div className="p-1 rounded-[2rem] bg-gradient-to-br from-purple-500/10 via-transparent to-blue-500/10 border border-purple-100/20 shadow-inner">
+                <PropertyScoringEngine propertyData={property as any} />
+              </div>
+            </section>
+
             {/* Property Media Gallery */}
             <section className="space-y-6">
                <div className="flex items-center justify-between">

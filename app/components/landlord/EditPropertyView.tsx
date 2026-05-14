@@ -89,6 +89,7 @@ export default function EditPropertyView({
     comfort: false,
     compound: false,
   });
+  const [availableStates, setAvailableStates] = useState<string[]>([]);
 
   const { position, getPosition, error: geoError } = useGeolocation();
 
@@ -141,6 +142,42 @@ export default function EditPropertyView({
     };
     reverseGeocode();
   }, [position]);
+
+  // Fetch Offices for state filtering
+  useEffect(() => {
+    const fetchOffices = async () => {
+      try {
+        const res = await fetch(`${API_BASE_URL}/offices`, {
+          headers: { Accept: "application/json" },
+        });
+        if (res.ok) {
+          const result = await res.json();
+          const offices = result.data || result;
+          
+          // Improved state extraction since the API might not have a dedicated 'state' field
+          const states = Array.from(new Set(offices.map((o: any) => {
+            if (o.state) return o.state;
+            
+            // Try to find state in name or address
+            const searchString = `${o.name} ${o.address}`.toLowerCase();
+            for (const stateName of Object.keys(NIGERIAN_STATES_LGAS)) {
+              if (searchString.includes(stateName.toLowerCase())) return stateName;
+            }
+            
+            // Special case for Abuja
+            if (searchString.includes("abuja")) return "FCT";
+            
+            return null;
+          }).filter(Boolean)));
+          
+          setAvailableStates(states as string[]);
+        }
+      } catch (err) {
+        console.error("Failed to fetch offices:", err);
+      }
+    };
+    fetchOffices();
+  }, []);
 
   const [cameraConfig, setCameraConfig] = useState<{
     open: boolean;
@@ -596,7 +633,7 @@ export default function EditPropertyView({
                         <SelectValue placeholder="Select state" />
                       </SelectTrigger>
                       <SelectContent>
-                        {Object.keys(NIGERIAN_STATES_LGAS).map((state) => (
+                        {(availableStates.length > 0 ? availableStates : Object.keys(NIGERIAN_STATES_LGAS)).map((state) => (
                           <SelectItem key={state} value={state}>{state}</SelectItem>
                         ))}
                       </SelectContent>
@@ -688,7 +725,19 @@ export default function EditPropertyView({
                 </div>
               </div>
 
-              <div className="flex justify-end pt-6">
+              <div className="flex justify-between items-center pt-6">
+                <div className="flex flex-col gap-1 max-w-sm">
+                  <Button 
+                    variant="outline"
+                    onClick={() => getPosition()}
+                    className="gap-2 border-slate-200 text-slate-600 h-10 rounded-xl font-bold"
+                  >
+                    <Zap className="h-4 w-4 text-amber-500" /> Update Property Location
+                  </Button>
+                  <p className="text-[10px] text-amber-600 flex items-center gap-1">
+                    <AlertTriangle className="h-3 w-3" /> Warning: Accuracy is required. Location must be the exact property site.
+                  </p>
+                </div>
                 <Button 
                   onClick={handleSaveAndContinue}
                   disabled={isAutoSaving}
@@ -714,23 +763,27 @@ export default function EditPropertyView({
                       <Label className="font-bold text-slate-700">C of O (Certificate of Occupancy)</Label>
                       <Badge variant="outline" className="text-[10px]">Optional</Badge>
                     </div>
-                    <UploadBox
-                      type="c_of_o"
-                      file={getFileByType("c_of_o") || (formData.c_of_o ? { url: formData.c_of_o, name: "c_of_o", type: "c_of_o" } : undefined)}
-                      onUpload={(f) => handleFileUpload(f, "c_of_o")}
-                      onTrigger={() => {
-                        const input = document.createElement("input");
-                        input.type = "file";
-                        input.accept = ".pdf,.jpg,.jpeg,.png";
-                        input.onchange = (e: Event) => {
-                          const target = e.target as HTMLInputElement;
-                          if (target.files?.[0]) handleFileUpload(target.files[0], "c_of_o");
-                        };
-                        input.click();
-                      }}
-                      onRemove={(id) => removeFile(id)}
-                      instruction="Official property title document if available."
-                    />
+                      <UploadBox
+                        type="c_of_o"
+                        file={getFileByType("c_of_o")}
+                        initialImageUrl={formData.c_of_o}
+                        onUpload={(f) => handleFileUpload(f, "c_of_o")}
+                        onTrigger={() => {
+                          const input = document.createElement("input");
+                          input.type = "file";
+                          input.accept = ".pdf,.jpg,.jpeg,.png";
+                          input.onchange = (e: Event) => {
+                            const target = e.target as HTMLInputElement;
+                            if (target.files?.[0]) handleFileUpload(target.files[0], "c_of_o");
+                          };
+                          input.click();
+                        }}
+                        onRemove={(id, clearInitial) => {
+                          if (id) removeFile(id);
+                          if (clearInitial) setFormData(prev => ({ ...prev, c_of_o: "" }));
+                        }}
+                        instruction="Official property title document if available."
+                      />
                   </div>
 
                   <div className="space-y-3">
@@ -740,7 +793,8 @@ export default function EditPropertyView({
                     </div>
                     <UploadBox
                       type="deeds_of_assignment"
-                      file={getFileByType("deeds_of_assignment") || (formData.deeds_of_assignment ? { url: formData.deeds_of_assignment, name: "deeds_of_assignment", type: "deeds_of_assignment" } : undefined)}
+                      file={getFileByType("deeds_of_assignment")}
+                      initialImageUrl={formData.deeds_of_assignment}
                       onUpload={(f) => handleFileUpload(f, "deeds_of_assignment")}
                       onTrigger={() => {
                         const input = document.createElement("input");
@@ -752,7 +806,10 @@ export default function EditPropertyView({
                         };
                         input.click();
                       }}
-                      onRemove={(id) => removeFile(id)}
+                      onRemove={(id, clearInitial) => {
+                        if (id) removeFile(id);
+                        if (clearInitial) setFormData(prev => ({ ...prev, deeds_of_assignment: "" }));
+                      }}
                       instruction="Mandatory proof of ownership transfer."
                     />
                   </div>
@@ -764,7 +821,8 @@ export default function EditPropertyView({
                     </div>
                     <UploadBox
                       type="building_approval"
-                      file={getFileByType("building_approval") || (formData.building_approval ? { url: formData.building_approval, name: "building_approval", type: "building_approval" } : undefined)}
+                      file={getFileByType("building_approval")}
+                      initialImageUrl={formData.building_approval}
                       onUpload={(f) => handleFileUpload(f, "building_approval")}
                       onTrigger={() => {
                         const input = document.createElement("input");
@@ -776,7 +834,10 @@ export default function EditPropertyView({
                         };
                         input.click();
                       }}
-                      onRemove={(id) => removeFile(id)}
+                      onRemove={(id, clearInitial) => {
+                        if (id) removeFile(id);
+                        if (clearInitial) setFormData(prev => ({ ...prev, building_approval: "" }));
+                      }}
                       instruction="Mandatory government approved building plan."
                     />
                   </div>
@@ -814,10 +875,14 @@ export default function EditPropertyView({
                     </div>
                     <UploadBox
                       type="exterior_shot"
-                      file={getFileByType("exterior_shot") || (formData.exterior_shot ? { url: formData.exterior_shot, name: "exterior_shot", type: "exterior_shot" } : undefined)}
+                      file={getFileByType("exterior_shot")}
+                      initialImageUrl={formData.exterior_shot}
                       onUpload={(f) => handleFileUpload(f, "exterior_shot")}
                       onTrigger={() => setCameraConfig({ open: true, type: "exterior_shot", isMultiple: false })}
-                      onRemove={(id) => removeFile(id)}
+                      onRemove={(id, clearInitial) => {
+                        if (id) removeFile(id);
+                        if (clearInitial) setFormData(prev => ({ ...prev, exterior_shot: "" }));
+                      }}
                       instruction="Full view of the building exterior in daylight."
                     />
                   </div>
@@ -829,10 +894,14 @@ export default function EditPropertyView({
                     </div>
                     <UploadBox
                       type="compound_road"
-                      file={getFileByType("compound_road") || (formData.compound_road ? { url: formData.compound_road, name: "compound_road", type: "compound_road" } : undefined)}
+                      file={getFileByType("compound_road")}
+                      initialImageUrl={formData.compound_road}
                       onUpload={(f) => handleFileUpload(f, "compound_road")}
                       onTrigger={() => setCameraConfig({ open: true, type: "compound_road", isMultiple: false })}
-                      onRemove={(id) => removeFile(id)}
+                      onRemove={(id, clearInitial) => {
+                        if (id) removeFile(id);
+                        if (clearInitial) setFormData(prev => ({ ...prev, compound_road: "" }));
+                      }}
                       instruction="Show clear view of the access road and entrance."
                     />
                   </div>
@@ -854,7 +923,14 @@ export default function EditPropertyView({
                       instruction="Show the generator, inverter, or solar setup."
                       multi
                     />
-                    <StagingArea files={getFilesByType("power_system")} onRemove={removeFile} />
+                    <StagingArea 
+                      files={getFilesByType("power_system")} 
+                      initialImageUrls={formData.power_system ? [formData.power_system] : []}
+                      onRemove={(id, url) => {
+                        if (id) removeFile(id);
+                        if (url) setFormData(prev => ({ ...prev, power_system: "" }));
+                      }} 
+                    />
                   </div>
                 </div>
               </div>
@@ -959,7 +1035,17 @@ export default function EditPropertyView({
                       instruction="Walkway, veranda, store house, garage, etc."
                       multi
                     />
-                    <StagingArea files={getFilesByType("others")} onRemove={removeFile} />
+                    <StagingArea 
+                      files={getFilesByType("others")} 
+                      initialImageUrls={formData.interior_rooms}
+                      onRemove={(id, url) => {
+                        if (id) removeFile(id);
+                        if (url) setFormData(prev => ({ 
+                          ...prev, 
+                          interior_rooms: prev.interior_rooms.filter(i => i !== url) 
+                        }));
+                      }} 
+                    />
                   </div>
                 </div>
               </div>

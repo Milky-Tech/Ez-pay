@@ -340,17 +340,33 @@ export default function AdminEditPropertyDialog({
           {formStep === 2 && (
             <div className="space-y-6 animate-fade-in-up">
               <SectionHeader icon={Shield} title="Legal Document Paths" />
-              <div className="space-y-4">
-                {[
-                  { id: "c_of_o", label: "Certificate of Occupancy (C of O)" },
-                  { id: "deeds_of_assignment", label: "Deeds of Assignment" },
-                  { id: "building_approval", label: "Building Approval" },
-                ].map(({ id, label }) => (
-                  <div key={id} className="space-y-1.5">
-                    <Label className={labelClass}>{label}</Label>
-                    <Input name={id} value={(formData as any)[id] || ""} onChange={handleChange} placeholder="File URL or path" className={inputClass} />
-                  </div>
-                ))}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <AdminImageManager
+                  label="Certificate of Occupancy (C of O)"
+                  value={formData.c_of_o || ""}
+                  type="c_of_o"
+                  token={token}
+                  accept=".pdf,image/*"
+                  onChange={(url) => setFormData((prev) => ({ ...prev, c_of_o: url as string }))}
+                />
+                <AdminImageManager
+                  label="Deeds of Assignment"
+                  value={formData.deeds_of_assignment || ""}
+                  type="deeds_of_assignment"
+                  token={token}
+                  accept=".pdf,image/*"
+                  onChange={(url) => setFormData((prev) => ({ ...prev, deeds_of_assignment: url as string }))}
+                />
+                <div className="md:col-span-2">
+                  <AdminImageManager
+                    label="Building Approval"
+                    value={formData.building_approval || ""}
+                    type="building_approval"
+                    token={token}
+                    accept=".pdf,image/*"
+                    onChange={(url) => setFormData((prev) => ({ ...prev, building_approval: url as string }))}
+                  />
+                </div>
               </div>
             </div>
           )}

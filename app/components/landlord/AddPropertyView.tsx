@@ -148,7 +148,23 @@ export default function AddPropertyView({
         if (res.ok) {
           const result = await res.json();
           const offices = result.data || result;
-          const states = Array.from(new Set(offices.map((o: any) => o.state).filter(Boolean)));
+          
+          // Improved state extraction since the API might not have a dedicated 'state' field
+          const states = Array.from(new Set(offices.map((o: any) => {
+            if (o.state) return o.state;
+            
+            // Try to find state in name or address
+            const searchString = `${o.name} ${o.address}`.toLowerCase();
+            for (const stateName of Object.keys(NIGERIAN_STATES_LGAS)) {
+              if (searchString.includes(stateName.toLowerCase())) return stateName;
+            }
+            
+            // Special case for Abuja
+            if (searchString.includes("abuja")) return "FCT";
+            
+            return null;
+          }).filter(Boolean)));
+          
           setAvailableStates(states as string[]);
         }
       } catch (err) {
@@ -650,7 +666,19 @@ export default function AddPropertyView({
                 </div>
               </div>
 
-              <div className="flex justify-end pt-6">
+              <div className="flex justify-between items-center pt-6">
+                <div className="flex flex-col gap-1 max-w-sm">
+                  <Button 
+                    variant="outline"
+                    onClick={() => getPosition()}
+                    className="gap-2 border-slate-200 text-slate-600 h-10 rounded-xl font-bold"
+                  >
+                    <Zap className="h-4 w-4 text-amber-500" /> Update Property Location
+                  </Button>
+                  <p className="text-[10px] text-amber-600 flex items-center gap-1">
+                    <AlertTriangle className="h-3 w-3" /> Warning: Accuracy is required. Location must be the exact property site.
+                  </p>
+                </div>
                 <Button 
                   onClick={handleSaveAndContinue}
                   disabled={isAutoSaving}
@@ -679,6 +707,7 @@ export default function AddPropertyView({
                     <UploadBox
                       type="c_of_o"
                       file={getFileByType("c_of_o")}
+                      initialImageUrl={formData.c_of_o}
                       onUpload={(f) => handleFileUpload(f, "c_of_o")}
                       onTrigger={() => {
                         const input = document.createElement("input");
@@ -690,7 +719,10 @@ export default function AddPropertyView({
                         };
                         input.click();
                       }}
-                      onRemove={(id) => removeFile(id)}
+                      onRemove={(id, clearInitial) => {
+                        if (id) removeFile(id);
+                        if (clearInitial) setFormData(prev => ({ ...prev, c_of_o: "" }));
+                      }}
                       instruction="Official property title document if available."
                     />
                   </div>
@@ -703,6 +735,7 @@ export default function AddPropertyView({
                     <UploadBox
                       type="deeds_of_assignment"
                       file={getFileByType("deeds_of_assignment")}
+                      initialImageUrl={formData.deeds_of_assignment}
                       onUpload={(f) => handleFileUpload(f, "deeds_of_assignment")}
                       onTrigger={() => {
                         const input = document.createElement("input");
@@ -714,7 +747,10 @@ export default function AddPropertyView({
                         };
                         input.click();
                       }}
-                      onRemove={(id) => removeFile(id)}
+                      onRemove={(id, clearInitial) => {
+                        if (id) removeFile(id);
+                        if (clearInitial) setFormData(prev => ({ ...prev, deeds_of_assignment: "" }));
+                      }}
                       instruction="Mandatory proof of ownership transfer."
                     />
                   </div>
@@ -727,6 +763,7 @@ export default function AddPropertyView({
                     <UploadBox
                       type="building_approval"
                       file={getFileByType("building_approval")}
+                      initialImageUrl={formData.building_approval}
                       onUpload={(f) => handleFileUpload(f, "building_approval")}
                       onTrigger={() => {
                         const input = document.createElement("input");
@@ -738,7 +775,10 @@ export default function AddPropertyView({
                         };
                         input.click();
                       }}
-                      onRemove={(id) => removeFile(id)}
+                      onRemove={(id, clearInitial) => {
+                        if (id) removeFile(id);
+                        if (clearInitial) setFormData(prev => ({ ...prev, building_approval: "" }));
+                      }}
                       instruction="Mandatory government approved building plan."
                     />
                   </div>
@@ -777,9 +817,13 @@ export default function AddPropertyView({
                     <UploadBox
                       type="exterior_shot"
                       file={getFileByType("exterior_shot")}
+                      initialImageUrl={formData.exterior_shot}
                       onUpload={(f) => handleFileUpload(f, "exterior_shot")}
                       onTrigger={() => setCameraConfig({ open: true, type: "exterior_shot", isMultiple: false })}
-                      onRemove={(id) => removeFile(id)}
+                      onRemove={(id, clearInitial) => {
+                        if (id) removeFile(id);
+                        if (clearInitial) setFormData(prev => ({ ...prev, exterior_shot: "" }));
+                      }}
                       instruction="Full view of the building exterior in daylight."
                     />
                   </div>
@@ -792,9 +836,13 @@ export default function AddPropertyView({
                     <UploadBox
                       type="compound_road"
                       file={getFileByType("compound_road")}
+                      initialImageUrl={formData.compound_road}
                       onUpload={(f) => handleFileUpload(f, "compound_road")}
                       onTrigger={() => setCameraConfig({ open: true, type: "compound_road", isMultiple: false })}
-                      onRemove={(id) => removeFile(id)}
+                      onRemove={(id, clearInitial) => {
+                        if (id) removeFile(id);
+                        if (clearInitial) setFormData(prev => ({ ...prev, compound_road: "" }));
+                      }}
                       instruction="Show clear view of the access road and entrance."
                     />
                   </div>
@@ -815,7 +863,14 @@ export default function AddPropertyView({
                       instruction="Show the generator, inverter, or solar setup."
                       multi
                     />
-                    <StagingArea files={getFilesByType("power_system")} onRemove={removeFile} />
+                    <StagingArea 
+                      files={getFilesByType("power_system")} 
+                      initialImageUrls={formData.power_system ? [formData.power_system] : []}
+                      onRemove={(id, url) => {
+                        if (id) removeFile(id);
+                        if (url) setFormData(prev => ({ ...prev, power_system: "" }));
+                      }} 
+                    />
                   </div>
                 </div>
               </div>
@@ -920,7 +975,17 @@ export default function AddPropertyView({
                       instruction="Walkway, veranda, store house, garage, etc."
                       multi
                     />
-                    <StagingArea files={getFilesByType("others")} onRemove={removeFile} />
+                    <StagingArea 
+                      files={getFilesByType("others")} 
+                      initialImageUrls={formData.interior_rooms}
+                      onRemove={(id, url) => {
+                        if (id) removeFile(id);
+                        if (url) setFormData(prev => ({ 
+                          ...prev, 
+                          interior_rooms: prev.interior_rooms.filter(i => i !== url) 
+                        }));
+                      }} 
+                    />
                   </div>
                 </div>
               </div>
@@ -1086,9 +1151,10 @@ const StepNavigator = ({ currentStep, maxStepReached, onStepClick }: { currentSt
 interface UploadBoxProps {
   type: UploadedFile["type"];
   file?: UploadedFile;
+  initialImageUrl?: string;
   onUpload: (file: File) => void;
   onTrigger?: () => void;
-  onRemove: (id: string) => void;
+  onRemove: (id: string, clearInitial?: boolean) => void;
   instruction: string;
   multi?: boolean;
 }
@@ -1096,15 +1162,17 @@ interface UploadBoxProps {
 const UploadBox = ({
   type,
   file,
+  initialImageUrl,
   onUpload,
   onTrigger,
   onRemove,
   instruction,
   multi,
 }: UploadBoxProps) => {
-  if (file && !multi) {
-    const isSuccess = file.url && !file.uploading && !file.error;
-    const isError = !!file.error;
+  if ((file || initialImageUrl) && !multi) {
+    const displayUrl = file?.url || initialImageUrl;
+    const isSuccess = (file?.url && !file?.uploading && !file?.error) || (!file && !!initialImageUrl);
+    const isError = !!file?.error;
 
     return (
       <div className={`border rounded-2xl p-4 flex items-center justify-between animate-in zoom-in-95 duration-200 ${
@@ -1116,9 +1184,9 @@ const UploadBox = ({
           <div className={`w-14 h-14 bg-white rounded-xl border flex items-center justify-center overflow-hidden shadow-sm ${
             isError ? "border-red-200" : isSuccess ? "border-emerald-200" : "border-slate-200"
           }`}>
-            {file.url && type !== "c_of_o" ? (
+            {displayUrl && type !== "c_of_o" ? (
               <img
-                src={file.url}
+                src={displayUrl}
                 alt="Uploaded"
                 className="w-full h-full object-cover"
               />
@@ -1128,14 +1196,14 @@ const UploadBox = ({
           </div>
           <div>
             <p className="font-bold text-sm text-slate-900 truncate max-w-[150px]">
-              {file.file.name}
+              {file?.file?.name || "Drafted File"}
             </p>
             <p className={`text-xs ${isError ? "text-red-600 font-medium" : isSuccess ? "text-emerald-600 font-medium" : "text-slate-500"}`}>
-              {file.uploading
+              {file?.uploading
                 ? "Uploading..."
-                : file.error
+                : file?.error
                   ? file.error
-                  : "Uploaded Successfully"}
+                  : "Saved Successfully"}
             </p>
           </div>
         </div>
@@ -1143,7 +1211,13 @@ const UploadBox = ({
           variant="ghost"
           size="icon"
           className={`h-10 w-10 ${isError ? "text-red-400 hover:text-red-500 hover:bg-red-100" : "text-slate-400 hover:text-red-500 hover:bg-red-50"}`}
-          onClick={() => onRemove(file.id)}
+          onClick={() => {
+            if (file) {
+              onRemove(file.id);
+            } else if (initialImageUrl) {
+              onRemove("", true);
+            }
+          }}
         >
           <Trash2 className="h-5 w-5" />
         </Button>
@@ -1187,13 +1261,38 @@ const UploadBox = ({
 
 interface StagingAreaProps {
   files: UploadedFile[];
-  onRemove: (id: string) => void;
+  initialImageUrls?: string[];
+  onRemove: (id: string, urlToRemove?: string) => void;
 }
 
-const StagingArea = ({ files, onRemove }: StagingAreaProps) => {
-  if (files.length === 0) return null;
+const StagingArea = ({ files, initialImageUrls = [], onRemove }: StagingAreaProps) => {
+  if (files.length === 0 && initialImageUrls.length === 0) return null;
   return (
     <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3 mt-4 p-4 bg-slate-50 rounded-2xl border border-slate-100 max-h-64 overflow-y-auto">
+      {/* Render already saved initial draft images */}
+      {initialImageUrls.map((url, index) => {
+        return (
+          <div
+            key={`initial-${index}`}
+            className="relative aspect-square bg-emerald-50 rounded-xl border border-emerald-500 overflow-hidden group shadow-sm transition-transform hover:scale-95"
+          >
+            <img
+              src={url}
+              alt="Drafted"
+              className="w-full h-full object-cover"
+            />
+            <button
+              onClick={() => onRemove("", url)}
+              className="absolute top-1.5 right-1.5 bg-black/50 hover:bg-red-500 text-white rounded-lg p-1.5 opacity-0 group-hover:opacity-100 transition-all backdrop-blur-sm"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </button>
+            <div className="absolute bottom-0 left-0 right-0 bg-emerald-500 text-[8px] text-white text-center py-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+              Saved
+            </div>
+          </div>
+        );
+      })}
       {files.map((file: UploadedFile) => {
         const isSuccess = file.url && !file.uploading && !file.error;
         const isError = !!file.error;
@@ -1228,6 +1327,11 @@ const StagingArea = ({ files, onRemove }: StagingAreaProps) => {
             >
               <Trash2 className="h-3.5 w-3.5" />
             </button>
+            {isSuccess && (
+              <div className="absolute bottom-0 left-0 right-0 bg-emerald-500 text-[8px] text-white text-center py-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                Success
+              </div>
+            )}
           </div>
         );
       })}

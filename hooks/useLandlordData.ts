@@ -147,18 +147,18 @@ export const useLandlordData = (user: any, token: string | null) => {
 
   const fetchApplications = useCallback(
     async (currentProperties: any[]) => {
+      // NOTE: Landlords can view applications via the /applications endpoint if they are the owner
+      // But the BE currently restricts /applications to admins.
+      // If there's a landlord-specific application endpoint, update this.
       if (!token || currentProperties.length === 0) {
         setApplications([]);
         return;
       }
-      const cacheKey = `landlord_applications_${user?.id}`;
-
-      const cached = readCache(cacheKey);
-      if (cached) setApplications(cached);
-
+      
       try {
         setLoading((prev) => ({ ...prev, applications: true }));
-        const response = await fetch(`${API_BASE_URL}/applications/apply`, {
+        // Try fetching applications - if forbidden, we just show empty for now
+        const response = await fetch(`${API_BASE_URL}/applications`, {
           headers: {
             Accept: "application/json",
             Authorization: `Bearer ${token}`,
@@ -169,10 +169,9 @@ export const useLandlordData = (user: any, token: string | null) => {
           const data = await response.json();
           const allApplications = data.data || data || [];
           const landlordApplications = allApplications.filter((app: any) =>
-            currentProperties.some((prop) => prop.id === app.property_id),
+            currentProperties.some((prop) => prop.id === app.listing_id || prop.unique_id === app.listing_id),
           );
           setApplications(landlordApplications);
-          writeCache(cacheKey, landlordApplications);
         }
       } catch (error) {
         console.error("Error fetching applications:", error);
@@ -180,7 +179,7 @@ export const useLandlordData = (user: any, token: string | null) => {
         setLoading((prev) => ({ ...prev, applications: false }));
       }
     },
-    [token, user?.id],
+    [token],
   );
 
   useEffect(() => {
@@ -194,15 +193,12 @@ export const useLandlordData = (user: any, token: string | null) => {
   useEffect(() => {
     if (properties.length > 0) {
       fetchApplications(properties);
-    } else {
-      setApplications([]);
     }
   }, [properties, fetchApplications]);
 
   const refreshData = () => {
     fetchLandlordProperties();
     fetchDrafts();
-    fetchApplications(properties);
   };
 
   return {
