@@ -311,7 +311,7 @@ export default function LandlordDashboard() {
       (acc, p) => acc + (p.number_of_units || 1),
       0,
     ),
-    pendingApplications: applications.filter(
+    pendingApplications: (applications || []).filter(
       (a) => a.status === "pending",
     ).length,
     totalRevenue: properties.reduce((acc, p) => acc + (p.monthly_cost || 0), 0),

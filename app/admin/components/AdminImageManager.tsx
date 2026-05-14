@@ -12,6 +12,7 @@ import {
   Plus, 
   Loader2, 
   Image as ImageIcon,
+  FileText,
   CheckCircle2,
   AlertCircle
 } from "lucide-react";
@@ -24,6 +25,7 @@ interface AdminImageManagerProps {
   isMultiple?: boolean;
   onChange: (value: string | string[]) => void;
   token: string | null;
+  accept?: string;
 }
 
 export default function AdminImageManager({
@@ -32,7 +34,8 @@ export default function AdminImageManager({
   type,
   isMultiple = false,
   onChange,
-  token
+  token,
+  accept = "image/*"
 }: AdminImageManagerProps) {
   const { toast } = useToast();
   const { 
@@ -54,7 +57,7 @@ export default function AdminImageManager({
   const onUploadClick = () => {
     const input = document.createElement("input");
     input.type = "file";
-    input.accept = "image/*";
+    input.accept = accept;
     if (isMultiple) input.multiple = true;
     
     input.onchange = async (e: Event) => {
@@ -157,7 +160,14 @@ export default function AdminImageManager({
 
         {currentImages.map((url, index) => (
           <div key={index} className="relative aspect-square bg-white rounded-xl overflow-hidden border border-slate-200 group shadow-sm">
-            <img src={url} alt={`Preview ${index}`} className="w-full h-full object-cover" />
+            {url.toLowerCase().endsWith('.pdf') ? (
+              <div className="w-full h-full flex flex-col items-center justify-center bg-slate-50 text-slate-400">
+                <FileText className="h-8 w-8 mb-1" />
+                <span className="text-[10px] font-bold">PDF DOC</span>
+              </div>
+            ) : (
+              <img src={url} alt={`Preview ${index}`} className="w-full h-full object-cover" />
+            )}
             <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
               <Button 
                 type="button" 

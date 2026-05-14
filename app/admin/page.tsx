@@ -23,6 +23,7 @@ import LandlordsTab from "./components/LandlordsTab";
 import OfficesTab, { Office } from "./components/OfficesTab";
 import InspectionSchedulesTab from "./components/InspectionSchedulesTab";
 import InspectionsTab from "./components/InspectionsTab";
+import AiReportsTab from "./components/AiReportsTab";
 import {
   Sheet,
   SheetContent,
@@ -704,6 +705,7 @@ export default function AdminDashboard() {
               onUpdateAvailability={handleUpdateAvailability}
               onDelete={(id, name) => handleDeleteListing(id, name)}
               token={token}
+              offices={data.offices}
             />
           )}
 
@@ -767,6 +769,10 @@ export default function AdminDashboard() {
               offices={data.offices}
               token={token}
             />
+          )}
+
+          {activeTab === "ai_reports" && (
+            <AiReportsTab token={token} />
           )}
         </main>
       </div>

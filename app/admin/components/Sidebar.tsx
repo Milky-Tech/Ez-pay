@@ -9,6 +9,8 @@ import {
   LayoutDashboard,
   Home,
   Calendar,
+  Brain,
+  Sparkles,
 } from "lucide-react";
 import { Badge } from "@/app/components/ui/badge";
 
@@ -82,6 +84,12 @@ export default function Sidebar({
       label: "Offices",
       icon: Home,
       description: "Manage offices",
+    },
+    {
+      id: "ai_reports",
+      label: "AI Reports",
+      icon: Sparkles,
+      description: "Inspection AI",
     },
   ];
 

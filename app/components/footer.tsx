@@ -38,10 +38,10 @@ const Footer = () => {
         <div className="mx-auto w-[90%] py-14 flex justify-between sm:flex-row flex-col gap-10">
           {/* Brand / Newsletter */}
           <div className="space-y-4">
-            <div className="flex items-center gap-2 text-white font-semibold">
+            <div className="flex items-center gap-1 text-white font-semibold">
               <img
-                src="/images/EZPAY-20.png"
-                className="h-12 w-auto"
+                src="/images/EZPAY-16.png"
+                className="h-16 w-auto"
                 alt="EZPAY Logo"
               />
             </div>

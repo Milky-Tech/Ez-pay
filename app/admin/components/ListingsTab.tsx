@@ -90,6 +90,7 @@ interface ListingsTabProps {
   onUpdateAvailability: (id: string, status: string) => Promise<void>;
   onDelete: (id: string, name: string) => void;
   token: string | null;
+  offices?: any[];
 }
 
 export default function ListingsTab({
@@ -106,6 +107,7 @@ export default function ListingsTab({
   onUpdateAvailability,
   onDelete,
   token,
+  offices,
 }: ListingsTabProps) {
   const [activeSubTab, setActiveSubTab] = useState("approved");
   const [searchTerm, setSearchTerm] = useState("");
@@ -297,6 +299,7 @@ export default function ListingsTab({
                     {(activeSubTab === "approved" || activeSubTab === "upgrading" || activeSubTab === "other") ? "Monthly Rent" : "Owner"}
                   </TableHead>
                   <TableHead>Status</TableHead>
+                  <TableHead className="text-center">AI Score</TableHead>
                   <TableHead>Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -391,6 +394,7 @@ export default function ListingsTab({
                                     onApprove={onApprove}
                                     onReject={onReject}
                                     refreshData={fetchListings}
+                                    offices={offices}
                                   />
                                 </DialogContent>
                               </Dialog>
@@ -467,4 +471,3 @@ export default function ListingsTab({
     </Card>
   );
 }
-
