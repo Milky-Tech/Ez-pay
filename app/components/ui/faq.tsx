@@ -2,34 +2,29 @@ import { useState } from "react";
 
 const faqs = [
   {
-    question: "What is Bridget HomeStep EZ-Pay?",
+    question: "What is Bridgent HomeStep EZ-Pay?",
     answer:
-      "Yes. Every property listed on Realtysway goes through a verification process to ensure authenticity. We work only with trusted agents and landlords, so you can rent or buy with confidence.",
+      "Bridgent HomeStep EZ-Pay is a rental platform that lets you move into verified, premium homes and pay your rent monthly — instead of the traditional one or two years upfront. We handle the financing so you can live comfortably without a large lump-sum payment.",
   },
   {
     question: "What does my monthly EZ-Pay fee include?",
     answer:
-      "Your monthly EZ-Pay fee covers rent, service charges, and flexible payment support, depending on your selected plan.",
+      "Your monthly fee covers your rent and applicable service charges, broken into predictable payments. The exact breakdown depends on the property and your selected plan.",
   },
   {
     question: "What do landlords gain by partnering with EZ-Pay?",
     answer:
-      "Landlords receive guaranteed monthly payments, reduced vacancy risk, and access to vetted tenants.",
+      "Landlords receive guaranteed monthly payments, reduced vacancy risk, and access to thoroughly vetted tenants — without chasing rent or managing collections themselves.",
   },
   {
-    question:
-      "How long does the rental application and verification process take?",
+    question: "How long does the application and approval process take?",
     answer:
-      "The verification process typically takes between 24–72 hours after submission.",
-  },
-  {
-    question: "How long does the rental application and approval take?",
-    answer: "Approvals are usually completed within 3–5 business days.",
+      "After you submit your application, identity and document verification typically completes within 24–72 hours. Full approval and move-in readiness is usually confirmed within 3–5 business days.",
   },
   {
     question: "Can I inspect a property before renting?",
     answer:
-      "Yes, property inspections can be scheduled before finalizing your rental decision.",
+      "Yes. Property inspections can be scheduled before you finalise your rental decision. All listed properties are also pre-verified by our team for quality and accuracy.",
   },
 ];
 

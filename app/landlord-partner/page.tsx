@@ -298,19 +298,19 @@ export default function LandlordPartnerPage() {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div>
                         <h4 className="font-semibold text-primary mb-2">
-                          Guaranteed Power Time
+                          Guaranteed Power Supply
                         </h4>
                         <div className="space-y-2">
                           <div className="flex items-center gap-2">
                             <Battery className="h-4 w-4 text-green-600" />
                             <span className="text-sm">
-                              10 Hours Night: 7:00 PM to 5:00 AM
+                              10 Hours at Night: 7:00 PM – 5:00 AM
                             </span>
                           </div>
                           <div className="flex items-center gap-2">
                             <Sun className="h-4 w-4 text-yellow-600" />
                             <span className="text-sm">
-                              5 Hours Day: 10:00 AM to 3:00 PM
+                              10 Hours in the Day: 7:00 AM – 5:00 PM
                             </span>
                           </div>
                         </div>
@@ -444,8 +444,7 @@ export default function LandlordPartnerPage() {
                             Hygiene & Environment
                           </h4>
                           <p className="text-sm text-gray-600">
-                            No ongoing construction nearby. Dedicated waste
-                            disposal. Efficient drainage (no pooling water).
+                            Dedicated waste disposal. Efficient drainage (no pooling water).
                           </p>
                         </div>
                         <div className="p-3 bg-yellow-50 rounded">
@@ -453,9 +452,7 @@ export default function LandlordPartnerPage() {
                             Security Perimeter
                           </h4>
                           <p className="text-sm text-gray-600">
-                            High secured walls (min 2.4m) with barb
-                            wire/electric fence. Functional gatehouse/security
-                            post.
+                            It should be built in a secure area with 24/7 security patrol and surveillance.
                           </p>
                         </div>
                       </div>

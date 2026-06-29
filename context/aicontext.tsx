@@ -1,11 +1,10 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
-import * as tf from "@tensorflow/tfjs";
-import * as cocoSsd from "@tensorflow-models/coco-ssd";
+import type { ObjectDetection } from "@tensorflow-models/coco-ssd";
 
 interface AIContextType {
-  model: cocoSsd.ObjectDetection | null;
+  model: ObjectDetection | null;
   isModelLoading: boolean;
   error: string | null;
 }
@@ -13,7 +12,7 @@ interface AIContextType {
 const AIContext = createContext<AIContextType | undefined>(undefined);
 
 export const AIProvider = ({ children }: { children: ReactNode }) => {
-  const [model, setModel] = useState<cocoSsd.ObjectDetection | null>(null);
+  const [model, setModel] = useState<ObjectDetection | null>(null);
   const [isModelLoading, setIsModelLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -24,6 +23,10 @@ export const AIProvider = ({ children }: { children: ReactNode }) => {
       try {
         setIsModelLoading(true);
         console.log("Initializing TensorFlow and loading AI model...");
+        const [tf, cocoSsd] = await Promise.all([
+          import("@tensorflow/tfjs"),
+          import("@tensorflow-models/coco-ssd"),
+        ]);
         await tf.ready();
         const loadedModel = await cocoSsd.load();
         setModel(loadedModel);
